@@ -1,0 +1,107 @@
+.wm-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.wm-window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  background: var(--anchoran-surface);
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-lg);
+  box-shadow: var(--anchoran-shadow-window);
+  overflow: hidden;
+  pointer-events: auto;
+  animation: wm-open var(--anchoran-duration-base) var(--anchoran-ease);
+}
+
+[data-animations="off"] .wm-window {
+  animation: none;
+}
+
+@keyframes wm-open {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.wm-window[data-focused="false"] {
+  box-shadow: var(--anchoran-shadow-soft);
+}
+
+.wm-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px 0 14px;
+  height: 40px;
+  flex-shrink: 0;
+  background: var(--anchoran-surface);
+  border-bottom: 1px solid var(--anchoran-border);
+  cursor: default;
+}
+
+.wm-titlebar-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--anchoran-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wm-titlebar-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.wm-control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  border-radius: var(--anchoran-radius-sm);
+  color: var(--anchoran-text-secondary);
+  cursor: pointer;
+  transition: background var(--anchoran-duration-fast) var(--anchoran-ease),
+    color var(--anchoran-duration-fast) var(--anchoran-ease);
+}
+
+.wm-control-btn:hover {
+  background: var(--anchoran-border);
+  color: var(--anchoran-text-primary);
+}
+
+.wm-control-btn.wm-close:hover {
+  background: #D64545;
+  color: #FFFFFF;
+}
+
+.wm-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: auto;
+  background: var(--anchoran-bg);
+}
+
+.wm-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+}

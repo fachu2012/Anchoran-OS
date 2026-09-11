@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="560" viewBox="0 0 512 560">
+  <!--
+    PLACEHOLDER ASSET — anchoran-logo-placeholder.svg
+    This is not the final Anchoran logo. Replace this file with the
+    final anchoran-logo.svg (same viewBox proportions, 512x512 visual
+    area) to update the logo everywhere in the app without touching
+    any code.
+  -->
+  <rect width="512" height="512" fill="#FFFFFF" stroke="#E4E6EA" stroke-width="2"/>
+  <text x="256" y="536" font-family="monospace" font-size="18" fill="#B8BCC4" text-anchor="middle">anchoran-logo-placeholder</text>
+</svg>

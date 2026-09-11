@@ -1,0 +1,303 @@
+.app-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  color: var(--anchoran-text-primary);
+}
+
+.app-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--anchoran-border);
+  background: var(--anchoran-surface);
+  flex-shrink: 0;
+}
+
+.app-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-sm);
+  background: var(--anchoran-surface);
+  color: var(--anchoran-text-primary);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background var(--anchoran-duration-fast) var(--anchoran-ease);
+}
+
+.app-toolbar-btn:hover {
+  background: var(--anchoran-border);
+}
+
+.app-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+/* Files */
+.files-path {
+  font-size: 12.5px;
+  color: var(--anchoran-text-secondary);
+}
+
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 14px;
+}
+
+.files-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border-radius: var(--anchoran-radius-md);
+  cursor: default;
+  color: var(--anchoran-text-primary);
+}
+
+.files-item:hover {
+  background: var(--anchoran-border);
+}
+
+.files-item span {
+  font-size: 12px;
+  text-align: center;
+  word-break: break-word;
+}
+
+/* Terminal */
+.terminal-root {
+  height: 100%;
+  background: #0B0E14;
+  color: #DCE1E8;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 13px;
+  padding: 12px 14px;
+  overflow-y: auto;
+}
+
+.terminal-line {
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.terminal-prompt-row {
+  display: flex;
+  gap: 6px;
+}
+
+.terminal-prompt-label {
+  color: #5B8DEF;
+  flex-shrink: 0;
+}
+
+.terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+  font: inherit;
+}
+
+/* Settings */
+.settings-root {
+  height: 100%;
+  display: flex;
+}
+
+.settings-nav {
+  width: 190px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--anchoran-border);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-nav-item {
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--anchoran-radius-sm);
+  color: var(--anchoran-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.settings-nav-item[data-active="true"] {
+  background: var(--anchoran-accent-soft);
+  color: var(--anchoran-accent);
+  font-weight: 500;
+}
+
+.settings-panel {
+  flex: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--anchoran-border);
+}
+
+.settings-row-label {
+  font-size: 13.5px;
+}
+
+.settings-row-desc {
+  font-size: 12px;
+  color: var(--anchoran-text-secondary);
+  margin-top: 2px;
+}
+
+.swatch-row {
+  display: flex;
+  gap: 8px;
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.swatch[data-active="true"] {
+  border-color: var(--anchoran-text-primary);
+}
+
+/* Notes */
+.notes-textarea {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--anchoran-text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Calculator */
+.calc-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+}
+
+.calc-display {
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 32px;
+  font-weight: 300;
+  padding: 12px 6px;
+  overflow-x: auto;
+}
+
+.calc-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.calc-btn {
+  border: 1px solid var(--anchoran-border);
+  background: var(--anchoran-surface);
+  border-radius: var(--anchoran-radius-sm);
+  font-size: 16px;
+  color: var(--anchoran-text-primary);
+  cursor: pointer;
+  transition: background var(--anchoran-duration-fast) var(--anchoran-ease);
+}
+
+.calc-btn:hover {
+  background: var(--anchoran-border);
+}
+
+.calc-btn[data-op="true"] {
+  color: var(--anchoran-accent);
+}
+
+.calc-btn[data-equals="true"] {
+  background: var(--anchoran-accent);
+  color: #fff;
+  border-color: var(--anchoran-accent);
+}
+
+/* System Monitor */
+.sysmon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.sysmon-card {
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-md);
+  padding: 14px 16px;
+}
+
+.sysmon-card-label {
+  font-size: 12px;
+  color: var(--anchoran-text-secondary);
+}
+
+.sysmon-card-value {
+  font-size: 20px;
+  margin-top: 4px;
+}
+
+/* App Center */
+.appcenter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.appcenter-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-md);
+}
+
+.appcenter-icon-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--anchoran-radius-md);
+  background: var(--anchoran-accent-soft);
+  color: var(--anchoran-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.appcenter-status {
+  font-size: 11.5px;
+  color: var(--anchoran-text-secondary);
+  margin-top: 2px;
+}

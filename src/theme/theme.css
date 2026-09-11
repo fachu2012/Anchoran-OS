@@ -1,0 +1,87 @@
+/* Anchoran OS theme tokens.
+   Light is the default surface; dark redefines the same variable
+   names on [data-theme="dark"]. Nothing outside this file should
+   hardcode a color — every component reads these custom properties. */
+
+:root {
+  --anchoran-accent: #1E3A8A; /* deep blue, the Anchoran identity color */
+  --anchoran-accent-soft: rgba(30, 58, 138, 0.12);
+
+  --anchoran-bg: #F4F5F7;
+  --anchoran-surface: #FFFFFF;
+  --anchoran-surface-raised: #FFFFFF;
+  --anchoran-border: rgba(15, 23, 42, 0.08);
+
+  --anchoran-text-primary: #14161B;
+  --anchoran-text-secondary: rgba(20, 22, 27, 0.62);
+  --anchoran-text-disabled: rgba(20, 22, 27, 0.34);
+
+  --anchoran-shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --anchoran-shadow-window: 0 16px 40px rgba(15, 23, 42, 0.16);
+
+  --anchoran-radius-sm: 6px;
+  --anchoran-radius-md: 10px;
+  --anchoran-radius-lg: 16px;
+
+  --anchoran-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --anchoran-duration-fast: 120ms;
+  --anchoran-duration-base: 180ms;
+
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --anchoran-accent: #5B8DEF;
+  --anchoran-accent-soft: rgba(91, 141, 239, 0.16);
+
+  --anchoran-bg: #0B0E14;
+  --anchoran-surface: #12151C;
+  --anchoran-surface-raised: #171B24;
+  --anchoran-border: rgba(255, 255, 255, 0.08);
+
+  --anchoran-text-primary: #F2F3F5;
+  --anchoran-text-secondary: rgba(242, 243, 245, 0.64);
+  --anchoran-text-disabled: rgba(242, 243, 245, 0.34);
+
+  --anchoran-shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --anchoran-shadow-window: 0 16px 48px rgba(0, 0, 0, 0.5);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--anchoran-bg);
+  color: var(--anchoran-text-primary);
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* Text inputs / editable regions inside apps remain selectable. */
+input,
+textarea,
+[contenteditable="true"] {
+  user-select: text;
+}
+
+::selection {
+  background: var(--anchoran-accent-soft);
+}
+
+button {
+  font-family: inherit;
+}

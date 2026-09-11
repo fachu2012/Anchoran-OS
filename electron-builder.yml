@@ -1,0 +1,37 @@
+appId: com.anchoran.os
+productName: Anchoran OS
+copyright: Anchoran
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - version.json
+  - package.json
+
+extraResources:
+  - from: assets
+    to: assets
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/anchoran-icon-placeholder.ico
+  # Anchoran ships as a normal signed-eligible Windows app; it is not
+  # a driver/kernel component, so no special privileges are required.
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Anchoran OS
+
+# electron-builder reads the app version from package.json, which is
+# kept in sync with the single source of truth (version.json) by
+# `npm run sync-version` before every build.
