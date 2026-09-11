@@ -33,7 +33,19 @@ declare global {
     exportData: () => Promise<{ success: boolean; path?: string }>;
     importData: () => Promise<{ success: boolean; error?: string }>;
     resetData: () => Promise<boolean>;
+
+    checkForUpdates: () => void;
+    onUpdateStatus: (callback: (status: AnchoranUpdateStatus) => void) => void;
+    quitAndInstallUpdate: () => void;
   }
+
+  type AnchoranUpdateStatus =
+    | { state: "checking" }
+    | { state: "available"; version: string }
+    | { state: "not-available" }
+    | { state: "downloading"; percent: number }
+    | { state: "downloaded"; version: string }
+    | { state: "error"; message: string };
 
   interface Window {
     anchoran?: AnchoranBridge;

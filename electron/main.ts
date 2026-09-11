@@ -302,25 +302,62 @@ ipcMain.on("anchoran:restart", () => {
 });
 
 /**
- * Auto-update, wired but inert until a real publish target is
- * configured: it needs `publish` set in electron-builder.yml (GitHub
- * owner/repo) before it has anywhere to check. Until then this simply
- * logs that no feed is configured rather than failing loudly — see the
- * comment in electron-builder.yml.
+ * Auto-update: checks Anchoran's GitHub Releases (see the `publish`
+ * block in electron-builder.yml) for a newer build than the one
+ * running. Every state change is forwarded to the renderer so the
+ * Terminal's `anchoran update` and Settings → About's "Check for
+ * updates" can show real progress instead of a canned message.
  */
-function checkForUpdates() {
-  if (isDev) return;
-  autoUpdater.logger = { info: (m: string) => logToDisk("updater", m), warn: (m: string) => logToDisk("updater", m), error: (m: string) => logToDisk("updater", m), debug: () => {} };
-  autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-    logToDisk("updater", `Update check skipped/failed (no publish feed configured yet?): ${err?.message ?? err}`);
-  });
+autoUpdater.logger = {
+  info: (m: string) => logToDisk("updater", m),
+  warn: (m: string) => logToDisk("updater", m),
+  error: (m: string) => logToDisk("updater", m),
+  debug: () => {},
+};
+
+type UpdateStatus =
+  | { state: "checking" }
+  | { state: "available"; version: string }
+  | { state: "not-available" }
+  | { state: "downloading"; percent: number }
+  | { state: "downloaded"; version: string }
+  | { state: "error"; message: string };
+
+function sendUpdateStatus(status: UpdateStatus) {
+  mainWindow?.webContents.send("anchoran:update-status", status);
 }
+
+autoUpdater.on("checking-for-update", () => sendUpdateStatus({ state: "checking" }));
+autoUpdater.on("update-available", (info) => sendUpdateStatus({ state: "available", version: info.version }));
+autoUpdater.on("update-not-available", () => sendUpdateStatus({ state: "not-available" }));
+autoUpdater.on("download-progress", (p) => sendUpdateStatus({ state: "downloading", percent: Math.round(p.percent) }));
+autoUpdater.on("update-downloaded", (info) => sendUpdateStatus({ state: "downloaded", version: info.version }));
+autoUpdater.on("error", (err) => sendUpdateStatus({ state: "error", message: err.message }));
+
+ipcMain.handle("anchoran:check-for-updates", () => {
+  if (isDev) {
+    sendUpdateStatus({ state: "error", message: "Updates are disabled while running in development mode." });
+    return;
+  }
+  autoUpdater.checkForUpdates().catch((err) => {
+    sendUpdateStatus({ state: "error", message: err instanceof Error ? err.message : String(err) });
+  });
+});
+
+ipcMain.on("anchoran:quit-and-install-update", () => {
+  isQuittingConfirmed = true;
+  autoUpdater.quitAndInstall();
+});
 
 app.whenReady().then(() => {
   createMainWindow();
   registerGlobalShortcuts();
   setInterval(sampleCpuUsage, 1000);
-  checkForUpdates();
+  if (!isDev) {
+    autoUpdater.checkForUpdates().catch((err) => {
+      logToDisk("updater", `Startup update check failed: ${err instanceof Error ? err.message : String(err)}`);
+    });
+  }
 });
 
 app.on("will-quit", () => {

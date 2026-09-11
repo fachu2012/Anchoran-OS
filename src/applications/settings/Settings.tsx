@@ -444,24 +444,46 @@ function SystemSection() {
 
 function AboutSection() {
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [downloadedVersion, setDownloadedVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.anchoran?.onUpdateStatus((status) => {
+      if (status.state === "checking") setUpdateStatus("Checking for updates…");
+      else if (status.state === "available") setUpdateStatus(`Update available: v${status.version}. Downloading…`);
+      else if (status.state === "not-available") setUpdateStatus("Anchoran OS is up to date.");
+      else if (status.state === "downloading") setUpdateStatus(`Downloading… ${status.percent}%`);
+      else if (status.state === "downloaded") {
+        setUpdateStatus(`Update v${status.version} ready to install.`);
+        setDownloadedVersion(status.version);
+      } else if (status.state === "error") setUpdateStatus(`Couldn't check for updates: ${status.message}`);
+    });
+  }, []);
 
   return (
     <div>
       <img src={ANCHORAN_LOGO} alt="" width={40} height={40} style={{ marginBottom: 10 }} />
       <h2 style={{ margin: "0 0 4px", fontWeight: 500 }}>Anchoran OS</h2>
       <p style={{ color: "var(--anchoran-text-secondary)", marginTop: 0 }}>Version {ANCHORAN_VERSION}</p>
-      <button
-        className="app-toolbar-btn"
-        onClick={() => {
-          setUpdateStatus("Checking…");
-          // Auto-update is wired (electron-updater) but only actually
-          // finds anything once a GitHub publish feed is configured —
-          // see electron-builder.yml.
-          setTimeout(() => setUpdateStatus("Anchoran OS is up to date."), 700);
-        }}
-      >
-        Check for updates
-      </button>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          className="app-toolbar-btn"
+          onClick={() => {
+            if (!window.anchoran) {
+              setUpdateStatus("Not available outside the Anchoran desktop app.");
+              return;
+            }
+            setUpdateStatus("Checking…");
+            window.anchoran.checkForUpdates();
+          }}
+        >
+          Check for updates
+        </button>
+        {downloadedVersion && (
+          <button className="app-toolbar-btn" onClick={() => window.anchoran?.quitAndInstallUpdate()}>
+            Restart & install v{downloadedVersion}
+          </button>
+        )}
+      </div>
       {updateStatus && (
         <p style={{ fontSize: 12, color: "var(--anchoran-text-secondary)", marginTop: 8 }}>{updateStatus}</p>
       )}

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFsStore, ROOT_ID } from "@/filesystem/fs";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { ANCHORAN_VERSION } from "@/core/version";
@@ -26,10 +26,35 @@ export function TerminalApp() {
   const createFolder = useFsStore((s) => s.createFolder);
   const createFile = useFsStore((s) => s.createFile);
   const openApp = useWindowStore((s) => s.openApp);
+  const awaitingUpdate = useRef(false);
 
   function print(text: string) {
     setHistory((h) => [...h, { id: entryId++, text }]);
   }
+
+  // Only prints update status for an `anchoran update` this exact
+  // terminal window ran — other open Terminal windows stay quiet, even
+  // though the update check itself is process-wide.
+  useEffect(() => {
+    window.anchoran?.onUpdateStatus((status) => {
+      if (!awaitingUpdate.current) return;
+      if (status.state === "checking") print("Checking for updates…");
+      else if (status.state === "available") print(`Update available: v${status.version}. Downloading…`);
+      else if (status.state === "not-available") {
+        print("Anchoran is up to date.");
+        awaitingUpdate.current = false;
+      } else if (status.state === "downloading") {
+        print(`Downloading update… ${status.percent}%`);
+      } else if (status.state === "downloaded") {
+        print(`Update v${status.version} downloaded. Restart Anchoran to install it (Power menu → Restart Anchoran).`);
+        awaitingUpdate.current = false;
+      } else if (status.state === "error") {
+        print(`Update check failed: ${status.message}`);
+        awaitingUpdate.current = false;
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function pathString(id: string) {
     return "/" + getPath(id).map((n) => n.name).join("/");
@@ -113,7 +138,12 @@ export function TerminalApp() {
           openApp("settings");
           print("Opening Settings…");
         } else if (sub === "update") {
-          print("Anchoran is up to date.");
+          if (window.anchoran) {
+            awaitingUpdate.current = true;
+            window.anchoran.checkForUpdates();
+          } else {
+            print("anchoran update: not available outside the Anchoran desktop app.");
+          }
         } else {
           print("anchoran: unknown subcommand. Try: system, version, settings, update");
         }

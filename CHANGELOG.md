@@ -5,6 +5,21 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.0.0-alpha.5] - 2026-09-11
+
+### Added
+
+- **Auto-update is now real**, not a stub: `electron-builder.yml` publishes
+  to `fachu2012/Anchoran-OS` on GitHub, Anchoran checks on startup, and both
+  `anchoran update` in the Terminal and Settings → About → "Check for
+  updates" trigger a live check with real state (checking / downloading N% /
+  up to date / ready to install) instead of a canned message. Installing a
+  downloaded update happens via an explicit "Restart & install" action, not
+  silently.
+- `.github/workflows/release.yml` is what actually publishes the Releases
+  this reads from — pushing a `vX.Y.Z` tag is what makes an update exist to
+  find.
+
 ## [1.0.0-alpha.4] - 2026-09-11
 
 ### Changed

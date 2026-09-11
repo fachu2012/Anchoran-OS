@@ -51,4 +51,14 @@ contextBridge.exposeInMainWorld("anchoran", {
   exportData: (): Promise<{ success: boolean; path?: string }> => ipcRenderer.invoke("anchoran:export-data"),
   importData: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke("anchoran:import-data"),
   resetData: (): Promise<boolean> => ipcRenderer.invoke("anchoran:reset-data"),
+
+  checkForUpdates: (): void => {
+    ipcRenderer.invoke("anchoran:check-for-updates");
+  },
+  onUpdateStatus: (callback: (status: unknown) => void): void => {
+    ipcRenderer.on("anchoran:update-status", (_e, status) => callback(status));
+  },
+  quitAndInstallUpdate: (): void => {
+    ipcRenderer.send("anchoran:quit-and-install-update");
+  },
 });

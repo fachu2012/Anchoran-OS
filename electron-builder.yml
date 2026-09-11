@@ -36,13 +36,12 @@ nsis:
 # kept in sync with the single source of truth (version.json) by
 # `npm run sync-version` before every build.
 
-# Auto-update (electron-updater, wired in electron/main.ts) needs a
-# publish target to check against. Uncomment and fill in your GitHub
-# repo to make it live — .github/workflows/release.yml already
-# publishes a GitHub Release with the built .exe on every `vTAG` push,
-# which is what this feed reads from.
-#
-# publish:
-#   provider: github
-#   owner: <your-github-username-or-org>
-#   repo: <your-repo-name>
+# Auto-update (electron-updater, wired in electron/main.ts) checks
+# GitHub Releases on this repo. .github/workflows/release.yml publishes
+# a Release with the built .exe on every `vTAG` push, which is what
+# this feed reads from — so a real update only exists once that
+# workflow has run for a version newer than what's installed.
+publish:
+  provider: github
+  owner: fachu2012
+  repo: Anchoran-OS

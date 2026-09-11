@@ -145,10 +145,14 @@ palette; on success it launches `AnchoranOS.exe` and closes itself.
   `main`.
 - `.github/workflows/release.yml` — on pushing a `v*` tag (e.g. `v1.0.0`),
   builds `AnchoranOS.exe` and attaches it to a GitHub Release.
-- Auto-update (`electron-updater`, wired in `electron/main.ts`) needs a real
-  publish target before it does anything: uncomment and fill in the `publish`
-  block in `electron-builder.yml` with your GitHub owner/repo — the release
-  workflow above is exactly what it would check against.
+- Auto-update (`electron-updater`) is live: `electron-builder.yml`'s `publish`
+  block points at `fachu2012/Anchoran-OS` on GitHub, Anchoran checks for
+  updates on startup, and `anchoran update` in the Terminal (or Settings →
+  About → "Check for updates") trigger a check on demand with real progress
+  ("Downloading… N%", then "Restart & install"). It only actually finds an
+  update once `.github/workflows/release.yml` has published a GitHub Release
+  — tagged `vX.Y.Z` — for a version newer than what's installed; until a tag
+  is pushed there's simply nothing to find, which is expected, not broken.
 - Code signing is intentionally **not** set up — without it, Windows
   SmartScreen will show an "unknown publisher" warning on install. Signing
   needs a paid certificate, which is a business decision, not a technical
