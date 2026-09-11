@@ -47,6 +47,11 @@ export default function App() {
   async function enterDesktop() {
     setBooted(true);
     playLoginSound();
+
+    // Anchoran always starts locked, like a real PC — with a PIN set,
+    // LockScreen requires it; without one, it unlocks on any input.
+    setLocked(true);
+
     const alreadyWelcomed = await persistGet("config", WELCOMED_KEY, false);
     if (!alreadyWelcomed) {
       persistSet("config", WELCOMED_KEY, true);

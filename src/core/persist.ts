@@ -32,16 +32,31 @@ export async function persistGet<T>(bucket: PersistBucket, key: string, fallback
 }
 
 export function persistSet(bucket: PersistBucket, key: string, value: unknown): void {
+  // Electron's IPC (structured clone) can't carry functions, class
+  // instances, etc. — a value containing any of those (e.g. spreading a
+  // Zustand store's full state, action methods included) would
+  // otherwise fail to save *silently*, which is exactly what happened
+  // with preferencesStore before this guard existed. Round-tripping
+  // through JSON both strips anything unclonable and catches the
+  // failure loudly instead of losing it.
+  let safeValue: unknown;
+  try {
+    safeValue = JSON.parse(JSON.stringify(value));
+  } catch (err) {
+    logAnchoranError("persist:serialize", `Could not persist "${bucket}/${key}": ${err}`);
+    return;
+  }
+
   const bridge = window.anchoran;
   if (bridge) {
-    if (bucket === "config") bridge.configSet(key, value);
-    else bridge.dataSet(key, value);
+    const write = bucket === "config" ? bridge.configSet(key, safeValue) : bridge.dataSet(key, safeValue);
+    write.catch((err) => logAnchoranError("persist:ipc", `Failed to persist "${bucket}/${key}": ${err}`));
     return;
   }
   try {
-    localStorage.setItem(`anchoran.${bucket}.${key}`, JSON.stringify(value));
-  } catch {
-    // Best-effort persistence only.
+    localStorage.setItem(`anchoran.${bucket}.${key}`, JSON.stringify(safeValue));
+  } catch (err) {
+    logAnchoranError("persist:localStorage", `Failed to persist "${bucket}/${key}": ${err}`);
   }
 }
 

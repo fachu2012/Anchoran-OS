@@ -29,8 +29,31 @@ interface PreferencesState extends AnchoranPreferences {
   setLockPin: (pin: string | null) => void;
 }
 
+/**
+ * Picks only the plain-data preference fields out of the store state —
+ * critically, NOT the setter functions Zustand's `get()` also returns.
+ * Functions can't cross Electron's IPC boundary (contextBridge uses the
+ * structured clone algorithm), so persisting `{ ...get(), field }`
+ * directly silently failed to save anything, ever: every setter below
+ * was affected. Always persist through this instead of spreading the
+ * raw store state.
+ */
+function toPersistable(s: AnchoranPreferences): AnchoranPreferences {
+  return {
+    themeMode: s.themeMode,
+    accentColor: s.accentColor,
+    wallpaperId: s.wallpaperId,
+    uiScale: s.uiScale,
+    animationsEnabled: s.animationsEnabled,
+    username: s.username,
+    soundEnabled: s.soundEnabled,
+    soundVolume: s.soundVolume,
+    lockPin: s.lockPin,
+  };
+}
+
 function persist(prefs: AnchoranPreferences) {
-  persistSet("config", STORAGE_KEY, prefs);
+  persistSet("config", STORAGE_KEY, toPersistable(prefs));
 }
 
 export const usePreferencesStore = create<PreferencesState>((set, get) => ({
@@ -39,39 +62,39 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
   setThemeMode: (themeMode) => {
     set({ themeMode });
-    persist({ ...get(), themeMode });
+    persist(get());
   },
   setAccentColor: (accentColor) => {
     set({ accentColor });
-    persist({ ...get(), accentColor });
+    persist(get());
   },
   setWallpaper: (wallpaperId) => {
     set({ wallpaperId });
-    persist({ ...get(), wallpaperId });
+    persist(get());
   },
   setUiScale: (uiScale) => {
     set({ uiScale });
-    persist({ ...get(), uiScale });
+    persist(get());
   },
   setAnimationsEnabled: (animationsEnabled) => {
     set({ animationsEnabled });
-    persist({ ...get(), animationsEnabled });
+    persist(get());
   },
   setUsername: (username) => {
     set({ username });
-    persist({ ...get(), username });
+    persist(get());
   },
   setSoundEnabled: (soundEnabled) => {
     set({ soundEnabled });
-    persist({ ...get(), soundEnabled });
+    persist(get());
   },
   setSoundVolume: (soundVolume) => {
     set({ soundVolume });
-    persist({ ...get(), soundVolume });
+    persist(get());
   },
   setLockPin: (lockPin) => {
     set({ lockPin });
-    persist({ ...get(), lockPin });
+    persist(get());
   },
 }));
 

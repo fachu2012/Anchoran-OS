@@ -5,6 +5,30 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.3.0] - 2026-09-11
+
+### Fixed
+
+- **Critical: Settings never actually saved anything.** Every
+  preference setter (theme, accent color, wallpaper, UI scale,
+  animations, username, sound, lock PIN) persisted `{ ...get(), field }`
+  — the *entire* Zustand store, including its action methods — instead
+  of just the data. Functions can't cross Electron's IPC boundary, so
+  every one of those writes failed silently; nothing in Settings ever
+  survived a restart or an update. Fixed to persist only the actual
+  preference fields.
+- `persistSet` (the shared persistence helper used everywhere) now
+  guards against this whole class of bug generally: it JSON-round-trips
+  the value before saving (stripping anything unclonable) and logs to
+  Anchoran's own error log on failure instead of swallowing it — so a
+  future mistake like this one fails loudly, not silently.
+
+### Added
+
+- **Anchoran now always starts locked**, like a real PC — the lock
+  screen appears after boot every time, requiring the PIN if one is
+  set, or any input to continue if not.
+
 ## [1.2.4] - 2026-09-11
 
 ### Fixed
