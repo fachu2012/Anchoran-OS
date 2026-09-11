@@ -86,6 +86,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body: "Full Changelog on https://github.com/fachu2012/Anchoran-OS/blob/main/CHANGELOG.md"
+          # Explicit, not relying on the action's defaults: publish
+          # immediately (not a draft awaiting manual review) and mark
+          # it as the repo's Latest release, so it shows up without a
+          # manual step on github.com/…/releases.
+          draft: false
+          prerelease: false
+          make_latest: "true"
           files: |
             release-setup/*.exe
             release/*.exe

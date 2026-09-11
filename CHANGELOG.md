@@ -5,6 +5,16 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.2.4] - 2026-09-11
+
+### Fixed
+
+- The release workflow published each Release without explicitly
+  marking it published/latest, leaving it stuck as a draft and/or not
+  shown as the repo's "Latest release" until manually fixed on
+  github.com. `release.yml` now passes `draft: false`, `prerelease:
+  false`, and `make_latest: "true"` explicitly.
+
 ## [1.2.3] - 2026-09-11
 
 ### Fixed
