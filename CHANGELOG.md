@@ -5,6 +5,20 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.18.1] - 2026-09-11
+
+### Fixed
+
+- **The Windows taskbar/executable icon was still the old placeholder
+  anchor mark** instead of the real branded logo — `build/anchoran-icon.ico`
+  had never been regenerated from the new logo asset. Rebuilt it as a
+  proper multi-resolution icon (16 to 256px) from the actual mask,
+  tinted with Anchoran's default accent color (an app icon baked into
+  the .exe can't dynamically follow the user's live accent color the
+  way the in-app logo does, so it uses the default). Also replaced the
+  same stale placeholder logo used for the browser tab favicon and the
+  fullscreen installer's own branding — all three now match.
+
 ## [1.18.0] - 2026-09-11
 
 ### Added
