@@ -5,6 +5,15 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.2.2] - 2026-09-11
+
+### Fixed
+
+- Removed a stray nested full clone of this same repo (`Anchoran OS/`,
+  committed as a broken git submodule reference) and a leftover junk
+  file (`System.Drawing.Drawing2D.GraphicsPath`) from an earlier local
+  icon-generation script bug, both accidentally committed in `1.2.1`.
+
 ## [1.2.1] - 2026-09-11
 
 ### Changed
