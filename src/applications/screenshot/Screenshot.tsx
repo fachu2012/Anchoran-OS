@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "@/components/Icon";
-import { useFsStore, ROOT_ID } from "@/filesystem/fs";
+import { saveGeneratedFile } from "@/core/saveGenerated";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import "@/applications/apps.css";
 import "./screenshot.css";
@@ -44,7 +44,6 @@ export function ScreenshotApp() {
   const [sources, setSources] = useState<Source[] | null>(null);
   const [captured, setCaptured] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const createFile = useFsStore((s) => s.createFile);
   const pushNotification = useNotificationStore((s) => s.push);
 
   async function startCapture() {
@@ -75,10 +74,10 @@ export function ScreenshotApp() {
     }
   }
 
-  function saveToFiles() {
+  async function saveToFiles() {
     if (!captured) return;
-    createFile(ROOT_ID, `Screenshot ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.png`, captured);
-    pushNotification("Screenshot", "Saved to Files.");
+    const result = await saveGeneratedFile("picture", `Screenshot ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.png`, captured);
+    pushNotification("Screenshot", "error" in result ? result.error : "Saved to Pictures.");
     setCaptured(null);
   }
 

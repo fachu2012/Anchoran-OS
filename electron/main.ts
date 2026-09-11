@@ -1,4 +1,4 @@
-import { app, BrowserWindow, desktopCapturer, dialog, globalShortcut, ipcMain, screen, session, shell } from "electron";
+import { app, BrowserWindow, Menu, clipboard, desktopCapturer, dialog, globalShortcut, ipcMain, screen, session, shell, webContents } from "electron";
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
@@ -154,13 +154,29 @@ function createMainWindow() {
  * sign-out, etc.) and never modifies system security policy.
  */
 function registerGlobalShortcuts() {
-  const superRegistered = globalShortcut.register("Super", () => {
-    mainWindow?.webContents.send("anchoran:toggle-launcher");
-  });
+  // globalShortcut.register() is documented as returning false when a
+  // combination can't be bound, but on some Electron/Windows
+  // combinations registering the bare "Super" key instead throws a
+  // native TypeError synchronously ("conversion failure from Super")
+  // rather than returning false. Uncaught, that throw would abort this
+  // whole function — silently skipping the Ctrl+Alt+L fallback below
+  // it, and (since this runs inside app.whenReady().then(...)) every
+  // other startup step after it too: download interception, CPU
+  // sampling, the first update check. Treat a thrown exception exactly
+  // like a `false` result instead.
+  function tryRegister(accelerator: string): boolean {
+    try {
+      return globalShortcut.register(accelerator, () => {
+        mainWindow?.webContents.send("anchoran:toggle-launcher");
+      });
+    } catch (err) {
+      logToDisk("main:shortcuts", `Registering "${accelerator}" threw instead of failing gracefully: ${err instanceof Error ? err.message : String(err)}`);
+      return false;
+    }
+  }
 
-  const fallbackRegistered = globalShortcut.register("CommandOrControl+Alt+L", () => {
-    mainWindow?.webContents.send("anchoran:toggle-launcher");
-  });
+  const superRegistered = tryRegister("Super");
+  const fallbackRegistered = tryRegister("CommandOrControl+Alt+L");
 
   if (!superRegistered) {
     logToDisk(
@@ -337,43 +353,277 @@ ipcMain.handle("anchoran:reset-data", () => {
   return true;
 });
 
-// The Browser app's <webview> has no `partition` set, so it uses the
-// app's default session — this is what lets a single listener here
-// catch every download it triggers.
-const DOWNLOAD_TEXT_EXTENSIONS = new Set([
-  ".txt", ".md", ".json", ".csv", ".log", ".js", ".ts", ".css", ".html", ".xml", ".yml", ".yaml",
-]);
-
+/**
+ * Files now browses the real Windows filesystem (see the "Real
+ * filesystem" IPC section below), so Browser downloads go straight
+ * into the user's actual Downloads folder like any normal browser —
+ * no more capturing them into an isolated virtual store first. This
+ * just picks a non-clashing filename (Windows' own "name (1).ext"
+ * convention) and lets the download proceed normally to disk.
+ */
 function interceptWebviewDownloads() {
   session.defaultSession.on("will-download", (_event, item) => {
-    // Redirected into Anchoran's own cache folder instead of Windows'
-    // real Downloads folder, and instead of the native "Save As" dialog
-    // — the file then gets imported into Anchoran's own virtual
-    // filesystem (Files → Downloads) below, the same as a drag-and-drop
-    // import, so it never actually lives in a Windows-visible folder.
-    const tempName = `${Date.now()}-${item.getFilename()}`;
-    const tempPath = path.join(cacheDir, tempName);
-    item.setSavePath(tempPath);
-
-    item.once("done", (_doneEvent, state) => {
-      if (state !== "completed") {
-        fs.rm(tempPath, { force: true }, () => {});
-        return;
-      }
-      const fileName = item.getFilename();
-      const ext = path.extname(fileName).toLowerCase();
-      const isText = DOWNLOAD_TEXT_EXTENSIONS.has(ext);
-      let content = "";
-      try {
-        if (isText) content = fs.readFileSync(tempPath, "utf-8");
-      } catch {
-        // Falls through with empty content — still records the download.
-      }
-      mainWindow?.webContents.send("anchoran:download-imported", { fileName, content, isText });
-      fs.rm(tempPath, { force: true }, () => {});
-    });
+    const downloadsDir = app.getPath("downloads");
+    const original = item.getFilename();
+    const ext = path.extname(original);
+    const base = path.basename(original, ext);
+    let finalPath = path.join(downloadsDir, original);
+    let n = 1;
+    while (fs.existsSync(finalPath)) {
+      finalPath = path.join(downloadsDir, `${base} (${n})${ext}`);
+      n++;
+    }
+    item.setSavePath(finalPath);
   });
 }
+
+/**
+ * Real filesystem access for the Files app, Notes, and every app that
+ * saves what it creates (Paint, Screenshot, Voice Recorder, …).
+ * Anchoran's Files app now browses the user's actual Windows folders
+ * directly — this is the one narrow, purpose-built IPC surface the
+ * sandboxed renderer goes through to do that; it never gets direct
+ * Node `fs` access itself (contextIsolation + sandbox stay on). Every
+ * operation here is exactly what a normal file manager already does
+ * with the user's own files — nothing elevated, nothing bypassing an
+ * OS permission the signed-in user doesn't already have.
+ */
+const TEXT_FILE_EXTENSIONS = new Set([
+  ".txt", ".md", ".json", ".csv", ".log", ".js", ".ts", ".tsx", ".jsx", ".css", ".html", ".xml",
+  ".yml", ".yaml", ".ini", ".cfg", ".conf", ".bat", ".ps1", ".sh", ".py", ".java", ".c", ".cpp",
+  ".h", ".cs", ".sql", ".env", "",
+]);
+
+function isLikelyTextFile(filePath: string): boolean {
+  return TEXT_FILE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+}
+
+ipcMain.handle("anchoran:fs-special-folders", () => ({
+  home: app.getPath("home"),
+  desktop: app.getPath("desktop"),
+  documents: app.getPath("documents"),
+  downloads: app.getPath("downloads"),
+  pictures: app.getPath("pictures"),
+  music: app.getPath("music"),
+  videos: app.getPath("videos"),
+}));
+
+ipcMain.handle("anchoran:fs-list-drives", async () => {
+  if (process.platform !== "win32") return ["/"];
+  const { stdout } = await new Promise<{ stdout: string }>((resolve) => {
+    execFile("wmic", ["logicaldisk", "get", "name"], (_err, out) => resolve({ stdout: out ?? "" }));
+  });
+  const drives = stdout
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => /^[A-Za-z]:$/.test(l))
+    .map((l) => `${l}\\`);
+  return drives.length > 0 ? drives : ["C:\\"];
+});
+
+interface FsEntry {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+  size: number;
+  modifiedAt: number;
+}
+
+ipcMain.handle("anchoran:fs-list-dir", (_event, dirPath: string) => {
+  try {
+    const names = fs.readdirSync(dirPath);
+    const entries: FsEntry[] = [];
+    for (const name of names) {
+      const full = path.join(dirPath, name);
+      try {
+        const stat = fs.statSync(full);
+        entries.push({
+          name,
+          path: full,
+          isDirectory: stat.isDirectory(),
+          size: stat.size,
+          modifiedAt: stat.mtimeMs,
+        });
+      } catch {
+        // Unreadable entry (permissions, broken link, …) — skip rather than fail the whole listing.
+      }
+    }
+    return { entries };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:fs-read-text-file", (_event, filePath: string) => {
+  try {
+    return { content: fs.readFileSync(filePath, "utf-8") };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:fs-read-image-file", (_event, filePath: string) => {
+  try {
+    const ext = path.extname(filePath).toLowerCase();
+    const mime = IMAGE_MIME_BY_EXT[ext];
+    if (!mime) return { error: "Not a recognized image type." };
+    const buffer = fs.readFileSync(filePath);
+    return { dataUrl: `data:${mime};base64,${buffer.toString("base64")}` };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:fs-is-text-file", (_event, filePath: string) => isLikelyTextFile(filePath));
+
+ipcMain.handle("anchoran:fs-write-text-file", (_event, filePath: string, content: string) => {
+  try {
+    fs.writeFileSync(filePath, content, "utf-8");
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:fs-create-folder", (_event, parentPath: string, name: string) => {
+  try {
+    const target = path.join(parentPath, name);
+    fs.mkdirSync(target, { recursive: false });
+    return { path: target };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:fs-create-file", (_event, parentPath: string, name: string, content: string = "") => {
+  try {
+    const target = path.join(parentPath, name);
+    fs.writeFileSync(target, content, "utf-8");
+    return { path: target };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+/** For apps that generate binary content (Paint's PNG, a voice memo's webm, …) as a data URL — decodes and writes real bytes, not the literal "data:...;base64,..." text. */
+ipcMain.handle("anchoran:fs-write-data-url", (_event, parentPath: string, name: string, dataUrl: string) => {
+  try {
+    const base64 = dataUrl.split(",")[1] ?? "";
+    const target = path.join(parentPath, name);
+    fs.writeFileSync(target, Buffer.from(base64, "base64"));
+    return { path: target };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:fs-rename", (_event, oldPath: string, newName: string) => {
+  try {
+    const target = path.join(path.dirname(oldPath), newName);
+    fs.renameSync(oldPath, target);
+    return { path: target };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+/** Sends to the real Windows Recycle Bin — recoverable there, same as deleting in Explorer. Never a permanent unlink. */
+ipcMain.handle("anchoran:fs-delete", async (_event, paths: string[]) => {
+  const errors: string[] = [];
+  for (const p of paths) {
+    try {
+      await shell.trashItem(p);
+    } catch (err) {
+      errors.push(`${path.basename(p)}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  return errors.length > 0 ? { success: false, error: errors.join("; ") } : { success: true };
+});
+
+function copyRecursive(src: string, destDir: string) {
+  const dest = path.join(destDir, path.basename(src));
+  fs.cpSync(src, dest, { recursive: true });
+}
+
+ipcMain.handle("anchoran:fs-copy", (_event, sourcePaths: string[], destDir: string) => {
+  try {
+    for (const src of sourcePaths) copyRecursive(src, destDir);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:fs-move", (_event, sourcePaths: string[], destDir: string) => {
+  try {
+    for (const src of sourcePaths) {
+      const dest = path.join(destDir, path.basename(src));
+      try {
+        fs.renameSync(src, dest);
+      } catch {
+        // Cross-drive moves can't be a simple rename — fall back to copy + remove original.
+        fs.cpSync(src, dest, { recursive: true });
+        fs.rmSync(src, { recursive: true, force: true });
+      }
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:fs-open-path", async (_event, filePath: string) => {
+  const err = await shell.openPath(filePath);
+  return { success: !err, error: err || undefined };
+});
+
+/**
+ * The real Windows "How do you want to open this file?" picker —
+ * `rundll32 shell32.dll,OpenAs_RunDLL` is the standard, long-documented
+ * way any desktop app invokes it; there's no other public API for it.
+ */
+ipcMain.on("anchoran:fs-open-with", (_event, filePath: string) => {
+  if (process.platform === "win32") {
+    execFile("rundll32.exe", ["shell32.dll,OpenAs_RunDLL", filePath]);
+  }
+});
+
+ipcMain.on("anchoran:fs-show-in-explorer", (_event, filePath: string) => {
+  shell.showItemInFolder(filePath);
+});
+
+/** Notes' Notepad-style Open/Save As — the native Windows file pickers, same as any real text editor. */
+ipcMain.handle("anchoran:pick-open-text-file", async () => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "Open",
+    filters: [{ name: "Text files", extensions: ["txt", "md", "json", "log", "csv"] }, { name: "All files", extensions: ["*"] }],
+    properties: ["openFile"],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const filePath = result.filePaths[0];
+  try {
+    return { path: filePath, content: fs.readFileSync(filePath, "utf-8") };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:pick-save-text-file", async (_event, defaultName: string, content: string) => {
+  if (!mainWindow) return null;
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: "Save As",
+    defaultPath: defaultName,
+    filters: [{ name: "Text files", extensions: ["txt"] }, { name: "All files", extensions: ["*"] }],
+  });
+  if (result.canceled || !result.filePath) return null;
+  try {
+    fs.writeFileSync(result.filePath, content, "utf-8");
+    return { path: result.filePath };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
 
 const IMAGE_MIME_BY_EXT: Record<string, string> = {
   ".png": "image/png",
@@ -447,6 +697,64 @@ ipcMain.handle("anchoran:import-media", async () => {
   return { dataUrl, fileName: path.basename(filePath) };
 });
 
+/**
+ * `<webview>` guest pages (Chat, and formerly Browser) don't get a
+ * native right-click menu for free the way a normal browser tab does
+ * — Electron only gives you the raw `context-menu` event with details
+ * about what was clicked (an image, a link, editable text, a
+ * selection…), and building the actual menu is on the app. This is
+ * that: the renderer forwards the event here (Menu is a main-process-
+ * only module), and the resulting menu acts directly on the guest
+ * page's own WebContents — copy/cut/paste, copy the real image or
+ * link, standard browser-context-menu behavior.
+ */
+ipcMain.on(
+  "anchoran:webview-context-menu",
+  (
+    _event,
+    webContentsId: number,
+    x: number,
+    y: number,
+    params: { isEditable: boolean; selectionText: string; linkURL: string; srcURL: string; hasImageContents: boolean }
+  ) => {
+    const guest = webContents.fromId(webContentsId);
+    if (!guest) return;
+    const items: Electron.MenuItemConstructorOptions[] = [];
+
+    if (params.hasImageContents) {
+      items.push({ label: "Copy Image", click: () => guest.copyImageAt(x, y) });
+      if (params.srcURL) items.push({ label: "Copy Image Address", click: () => clipboard.writeText(params.srcURL) });
+    }
+    if (params.linkURL) {
+      items.push({ label: "Copy Link Address", click: () => clipboard.writeText(params.linkURL) });
+    }
+    if (params.isEditable) {
+      items.push(
+        { label: "Cut", click: () => guest.cut() },
+        { label: "Copy", click: () => guest.copy(), enabled: !!params.selectionText },
+        { label: "Paste", click: () => guest.paste() }
+      );
+    } else if (params.selectionText) {
+      items.push({ label: "Copy", click: () => guest.copy() });
+    }
+    if (items.length > 0) items.push({ type: "separator" });
+    items.push(
+      { label: "Select All", click: () => guest.selectAll() },
+      { label: "Reload", click: () => guest.reload() }
+    );
+
+    Menu.buildFromTemplate(items).popup();
+  }
+);
+
+/** Zip Tool: pick a real folder to export, or a destination to extract into. */
+ipcMain.handle("anchoran:pick-folder", async (_event, title: string) => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, { title, properties: ["openDirectory"] });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+
 /** Zip Tool: lets the user pick a real .zip from Windows to import — unzipping itself happens in the renderer via JSZip. */
 ipcMain.handle("anchoran:pick-zip-file", async () => {
   if (!mainWindow) return null;
@@ -462,6 +770,35 @@ ipcMain.handle("anchoran:pick-zip-file", async () => {
     return { error: "Zip file is too large (max 50MB)." };
   }
   return { base64: buffer.toString("base64"), fileName: path.basename(filePath) };
+});
+
+/**
+ * Opens the user's real, actually-installed Google Chrome as its own
+ * separate Windows application — not an embedded, Anchoran-skinned
+ * imitation of it. Anchoran used to have its own in-house `<webview>`-
+ * based "Anchoran Browser"; using the real product's name for
+ * something that wasn't actually Chrome would have been misleading, so
+ * this launches the genuine executable instead. Falls back to
+ * whatever the user's actual default browser is if Chrome isn't
+ * installed — never fakes a substitute.
+ */
+ipcMain.handle("anchoran:open-chrome", async () => {
+  if (process.platform !== "win32") {
+    shell.openExternal("https://www.google.com");
+    return { success: true, usedFallback: true };
+  }
+  const candidates = [
+    path.join(process.env["ProgramFiles"] ?? "C:\\Program Files", "Google\\Chrome\\Application\\chrome.exe"),
+    path.join(process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)", "Google\\Chrome\\Application\\chrome.exe"),
+    path.join(process.env["LOCALAPPDATA"] ?? "", "Google\\Chrome\\Application\\chrome.exe"),
+  ];
+  const found = candidates.find((p) => fs.existsSync(p));
+  if (found) {
+    spawn(found, [], { detached: true }).unref();
+    return { success: true, usedFallback: false };
+  }
+  shell.openExternal("https://www.google.com");
+  return { success: true, usedFallback: true };
 });
 
 /**

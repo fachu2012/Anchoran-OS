@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { usePreferencesStore } from "@/theme/preferencesStore";
-import { useFsStore, ROOT_ID } from "@/filesystem/fs";
+import { saveGeneratedFile } from "@/core/saveGenerated";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import "@/applications/apps.css";
 import "./wallpapermaker.css";
@@ -66,7 +66,6 @@ export function WallpaperMakerApp() {
   const [pattern, setPattern] = useState<Pattern>("gradient");
   const [palette, setPalette] = useState<[string, string]>(PALETTES[0]);
   const setCustomWallpaper = usePreferencesStore((s) => s.setCustomWallpaper);
-  const createFile = useFsStore((s) => s.createFile);
   const pushNotification = useNotificationStore((s) => s.push);
 
   useEffect(() => {
@@ -91,9 +90,9 @@ export function WallpaperMakerApp() {
     pushNotification("Wallpaper Maker", "Applied as your desktop wallpaper.");
   }
 
-  function saveToFiles() {
-    createFile(ROOT_ID, `Wallpaper ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.png`, exportDataUrl());
-    pushNotification("Wallpaper Maker", "Saved to Files.");
+  async function saveToFiles() {
+    const result = await saveGeneratedFile("picture", `Wallpaper ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.png`, exportDataUrl());
+    pushNotification("Wallpaper Maker", "error" in result ? result.error : "Saved to Pictures.");
   }
 
   return (

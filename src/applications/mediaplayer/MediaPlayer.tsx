@@ -1,36 +1,70 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { useFsStore, ROOT_ID, TRASH_ID } from "@/filesystem/fs";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import "@/applications/apps.css";
 import "./mediaplayer.css";
 
+const AUDIO_EXT = new Set([".mp3", ".wav", ".ogg", ".m4a"]);
+const VIDEO_EXT = new Set([".mp4", ".webm"]);
+
+interface MediaItem {
+  name: string;
+  path: string;
+  isVideo: boolean;
+}
+
+function toFileUrl(filePath: string) {
+  return "file:///" + encodeURI(filePath.replace(/\\/g, "/"));
+}
+
 export function MediaPlayerApp() {
-  const nodes = useFsStore((s) => s.nodes);
-  const createFile = useFsStore((s) => s.createFile);
+  const [items, setItems] = useState<MediaItem[]>([]);
+  const [activePath, setActivePath] = useState<string | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
-  const [activeId, setActiveId] = useState<string | null>(null);
 
-  const items = useMemo(
-    () =>
-      Object.values(nodes).filter(
-        (n) =>
-          n.type === "file" &&
-          n.parentId !== TRASH_ID &&
-          (n.content?.startsWith("data:audio") || n.content?.startsWith("data:video"))
-      ),
-    [nodes]
-  );
+  async function refresh() {
+    if (!window.anchoran) return;
+    const folders = await window.anchoran.fsSpecialFolders();
+    const [musicResult, videosResult] = await Promise.all([
+      window.anchoran.fsListDir(folders.music),
+      window.anchoran.fsListDir(folders.videos),
+    ]);
+    const collected: MediaItem[] = [];
+    if (!("error" in musicResult)) {
+      for (const e of musicResult.entries) {
+        const ext = e.name.slice(e.name.lastIndexOf(".")).toLowerCase();
+        if (!e.isDirectory && AUDIO_EXT.has(ext)) collected.push({ name: e.name, path: e.path, isVideo: false });
+      }
+    }
+    if (!("error" in videosResult)) {
+      for (const e of videosResult.entries) {
+        const ext = e.name.slice(e.name.lastIndexOf(".")).toLowerCase();
+        if (!e.isDirectory && VIDEO_EXT.has(ext)) collected.push({ name: e.name, path: e.path, isVideo: true });
+      }
+    }
+    setItems(collected);
+  }
 
-  const active = items.find((n) => n.id === activeId) ?? items[0];
-  const isVideo = active?.content?.startsWith("data:video");
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const active = items.find((i) => i.path === activePath) ?? items[0];
 
   async function importMedia() {
     if (!window.anchoran) return;
     const result = await window.anchoran.importMedia();
     if (result && "dataUrl" in result) {
-      const id = createFile(ROOT_ID, result.fileName, result.dataUrl);
-      setActiveId(id);
+      const isVideo = result.dataUrl.startsWith("data:video");
+      const folders = await window.anchoran.fsSpecialFolders();
+      const targetDir = isVideo ? folders.videos : folders.music;
+      const write = await window.anchoran.fsWriteDataUrl(targetDir, result.fileName, result.dataUrl);
+      if ("error" in write) {
+        pushNotification("Media Player", write.error);
+        return;
+      }
+      await refresh();
+      setActivePath(write.path);
     } else if (result && "error" in result) {
       pushNotification("Media Player", result.error);
     }
@@ -47,30 +81,25 @@ export function MediaPlayerApp() {
         <div className="mediaplayer-list">
           {items.length === 0 && (
             <div style={{ color: "var(--anchoran-text-secondary)", fontSize: 12.5, padding: 8 }}>
-              No media yet — import a file, or record a voice memo.
+              No media yet — import a file, or record a voice memo / screen recording.
             </div>
           )}
           {items.map((item) => (
-            <button
-              key={item.id}
-              className="mediaplayer-item"
-              data-active={item.id === active?.id}
-              onClick={() => setActiveId(item.id)}
-            >
-              <Icon name={item.content?.startsWith("data:video") ? "photoViewer" : "mediaPlayer"} size={15} />
+            <button key={item.path} className="mediaplayer-item" data-active={item.path === active?.path} onClick={() => setActivePath(item.path)}>
+              <Icon name={item.isVideo ? "photoViewer" : "mediaPlayer"} size={15} />
               <span>{item.name}</span>
             </button>
           ))}
         </div>
         <div className="mediaplayer-stage">
           {active ? (
-            isVideo ? (
-              <video src={active.content} controls key={active.id} />
+            active.isVideo ? (
+              <video src={toFileUrl(active.path)} controls key={active.path} />
             ) : (
               <div className="mediaplayer-audio">
                 <Icon name="mediaPlayer" size={48} />
                 <div className="mediaplayer-title">{active.name}</div>
-                <audio src={active.content} controls key={active.id} />
+                <audio src={toFileUrl(active.path)} controls key={active.path} />
               </div>
             )
           ) : (

@@ -13,7 +13,6 @@ import { playLoginSound } from "@/core/sound";
 import { recordUpdateIfVersionChanged } from "@/core/updateHistory";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { Onboarding } from "@/onboarding/Onboarding";
-import { useFsStore, DOWNLOADS_ID } from "@/filesystem/fs";
 import { useWindowStore } from "@/windowmanager/windowStore";
 
 const WELCOMED_KEY = "welcomed";
@@ -78,18 +77,6 @@ export default function App() {
       if (status.state === "downloaded") setUpdateReadyVersion(status.version);
     });
 
-    // The Browser app's downloads never touch Windows' real Downloads
-    // folder (see electron/main.ts's will-download interception) —
-    // they land here, imported straight into Anchoran's own Files app.
-    window.anchoran?.onDownloadImported(({ fileName, content, isText }) => {
-      useFsStore.getState().createFile(DOWNLOADS_ID, fileName, content);
-      pushNotification(
-        "Downloads",
-        isText
-          ? `${fileName} was saved to Anchoran → Downloads.`
-          : `${fileName} was saved to Anchoran → Downloads (binary content not yet supported — the file was added without content).`
-      );
-    });
   }, []);
 
   async function enterDesktop() {

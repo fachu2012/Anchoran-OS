@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { useFsStore, ROOT_ID } from "@/filesystem/fs";
+import { saveGeneratedFile } from "@/core/saveGenerated";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import "@/applications/apps.css";
 import "./voicerecorder.css";
@@ -23,7 +23,6 @@ export function VoiceRecorderApp() {
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
-  const createFile = useFsStore((s) => s.createFile);
   const pushNotification = useNotificationStore((s) => s.push);
 
   useEffect(
@@ -66,10 +65,10 @@ export function VoiceRecorderApp() {
     if (timerRef.current) window.clearInterval(timerRef.current);
   }
 
-  function saveToFiles() {
+  async function saveToFiles() {
     if (!lastRecording) return;
-    createFile(ROOT_ID, `Voice Memo ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.webm`, lastRecording);
-    pushNotification("Voice Recorder", "Saved to Files.");
+    const result = await saveGeneratedFile("audio", `Voice Memo ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.webm`, lastRecording);
+    pushNotification("Voice Recorder", "error" in result ? result.error : "Saved to Music.");
     setLastRecording(null);
   }
 

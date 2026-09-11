@@ -1,250 +1,268 @@
 import { useEffect, useState, type DragEvent } from "react";
 import { Icon } from "@/components/Icon";
-import { useFsStore, ROOT_ID, TRASH_ID, DESKTOP_ID, type FsNode } from "@/filesystem/fs";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { ContextMenu, type ContextMenuItem } from "@/desktop/ContextMenu";
 import { printTextAsPdf } from "@/core/print";
 import "@/applications/apps.css";
 
-const DRAG_MIME = "application/x-anchoran-node-id";
+const THIS_PC = "This PC";
+type Entry = { name: string; path: string; isDirectory: boolean; size: number; modifiedAt: number };
+type Clipboard = { paths: string[]; mode: "copy" | "cut" } | null;
 
-// Extensions Anchoran can read as plain text when importing a real file
-// dragged in from Windows Explorer. Anything else (images, PDFs,
-// archives, executables…) is registered as an empty placeholder entry
-// rather than silently dropped — Anchoran's virtual filesystem only
-// stores text content today, so binary import is a known limitation.
-const TEXT_EXTENSIONS = [".txt", ".md", ".json", ".csv", ".log", ".js", ".ts", ".css", ".html", ".xml", ".yml", ".yaml"];
+function parentOf(p: string): string {
+  const trimmed = p.replace(/[\\/]+$/, "");
+  const idx = Math.max(trimmed.lastIndexOf("\\"), trimmed.lastIndexOf("/"));
+  if (idx <= 2) return THIS_PC; // "C:\" or shorter -> back to This PC
+  return trimmed.slice(0, idx);
+}
 
-function isTextFile(file: File) {
-  const name = file.name.toLowerCase();
-  return file.type.startsWith("text/") || TEXT_EXTENSIONS.some((ext) => name.endsWith(ext));
+function formatSize(bytes: number, isDir: boolean) {
+  if (isDir) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
 }
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
 }
 
-type Clipboard = { ids: string[]; mode: "copy" | "cut" } | null;
+const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]);
 
 export function FilesApp() {
-  const [currentId, setCurrentId] = useState(ROOT_ID);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [currentPath, setCurrentPath] = useState<string>(THIS_PC);
+  const [quickLinks, setQuickLinks] = useState<{ label: string; path: string }[]>([]);
+  const [drives, setDrives] = useState<string[]>([]);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [openFileId, setOpenFileId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [clipboard, setClipboard] = useState<Clipboard>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
-  const [menu, setMenu] = useState<{ x: number; y: number; item: FsNode | null } | null>(null);
-
-  const childrenOf = useFsStore((s) => s.childrenOf);
-  const getPath = useFsStore((s) => s.getPath);
-  const createFolder = useFsStore((s) => s.createFolder);
-  const createFile = useFsStore((s) => s.createFile);
-  const removeMany = useFsStore((s) => s.removeMany);
-  const restore = useFsStore((s) => s.restore);
-  const permanentlyDelete = useFsStore((s) => s.permanentlyDelete);
-  const emptyTrash = useFsStore((s) => s.emptyTrash);
-  const rename = useFsStore((s) => s.rename);
-  const moveMany = useFsStore((s) => s.moveMany);
-  const duplicateMany = useFsStore((s) => s.duplicateMany);
-  const search = useFsStore((s) => s.search);
-  const updateContent = useFsStore((s) => s.updateContent);
-  const getNode = useFsStore((s) => s.getNode);
-  const canUndo = useFsStore((s) => s.canUndo());
-  const canRedo = useFsStore((s) => s.canRedo());
-  const undo = useFsStore((s) => s.undo);
-  const redo = useFsStore((s) => s.redo);
+  const [menu, setMenu] = useState<{ x: number; y: number; entry: Entry | null } | null>(null);
+  const [openFile, setOpenFile] = useState<{ path: string; name: string; content: string; isImage: boolean; dataUrl?: string } | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
 
-  const openFile = openFileId ? getNode(openFileId) : undefined;
+  useEffect(() => {
+    if (!window.anchoran) return;
+    window.anchoran.fsSpecialFolders().then((folders) => {
+      setQuickLinks([
+        { label: "Desktop", path: folders.desktop },
+        { label: "Documents", path: folders.documents },
+        { label: "Downloads", path: folders.downloads },
+        { label: "Pictures", path: folders.pictures },
+        { label: "Music", path: folders.music },
+        { label: "Videos", path: folders.videos },
+      ]);
+    });
+    window.anchoran.fsListDrives().then(setDrives);
+  }, []);
 
-  const inTrash = currentId === TRASH_ID;
-  const searching = query.trim().length > 0;
-  const items = searching ? search(query) : childrenOf(currentId);
-  const path = getPath(currentId);
+  async function load(dirPath: string) {
+    if (!window.anchoran || dirPath === THIS_PC) {
+      setEntries([]);
+      setLoadError(null);
+      return;
+    }
+    const result = await window.anchoran.fsListDir(dirPath);
+    if ("error" in result) {
+      setLoadError(result.error);
+      setEntries([]);
+    } else {
+      setLoadError(null);
+      setEntries(
+        [...result.entries].sort((a, b) => (a.isDirectory === b.isDirectory ? a.name.localeCompare(b.name) : a.isDirectory ? -1 : 1))
+      );
+    }
+  }
 
   useEffect(() => {
+    load(currentPath);
     setSelected(new Set());
-  }, [currentId, query]);
+    setQuery("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPath]);
+
+  function refresh() {
+    load(currentPath);
+  }
+
+  async function openEntry(entry: Entry) {
+    if (entry.isDirectory) {
+      setCurrentPath(entry.path);
+      return;
+    }
+    const ext = entry.name.slice(entry.name.lastIndexOf(".")).toLowerCase();
+    if (IMAGE_EXT.has(ext)) {
+      const result = await window.anchoran!.fsReadImageFile(entry.path);
+      if ("dataUrl" in result) {
+        setOpenFile({ path: entry.path, name: entry.name, content: "", isImage: true, dataUrl: result.dataUrl });
+      } else {
+        pushNotification("Files", result.error);
+      }
+      return;
+    }
+    const isText = await window.anchoran!.fsIsTextFile(entry.path);
+    if (isText) {
+      const result = await window.anchoran!.fsReadTextFile(entry.path);
+      if ("content" in result) {
+        setOpenFile({ path: entry.path, name: entry.name, content: result.content, isImage: false });
+      } else {
+        pushNotification("Files", result.error);
+      }
+      return;
+    }
+    // Not text/image — open with whatever Windows already uses for it.
+    window.anchoran!.fsOpenPath(entry.path);
+  }
+
+  async function saveOpenFile(content: string) {
+    if (!openFile) return;
+    setOpenFile({ ...openFile, content });
+    const result = await window.anchoran!.fsWriteTextFile(openFile.path, content);
+    if (!("success" in result) || !result.success) {
+      pushNotification("Files", "error" in result ? result.error! : "Couldn't save.");
+    }
+  }
+
+  async function newFolder() {
+    if (!window.anchoran || currentPath === THIS_PC) return;
+    const result = await window.anchoran.fsCreateFolder(currentPath, "New Folder");
+    if ("error" in result) pushNotification("Files", result.error);
+    else refresh();
+  }
+
+  async function newFile() {
+    if (!window.anchoran || currentPath === THIS_PC) return;
+    const result = await window.anchoran.fsCreateFile(currentPath, "New File.txt", "");
+    if ("error" in result) pushNotification("Files", result.error);
+    else refresh();
+  }
+
+  function startRename(entry: Entry) {
+    setRenamingPath(entry.path);
+    setRenameValue(entry.name);
+  }
+
+  async function commitRename() {
+    if (!renamingPath || !renameValue.trim()) {
+      setRenamingPath(null);
+      return;
+    }
+    const result = await window.anchoran!.fsRename(renamingPath, renameValue.trim());
+    if ("error" in result) pushNotification("Files", result.error);
+    setRenamingPath(null);
+    refresh();
+  }
+
+  async function deletePaths(paths: string[]) {
+    const result = await window.anchoran!.fsDelete(paths);
+    if (!result.success) pushNotification("Files", result.error ?? "Couldn't delete.");
+    setSelected(new Set());
+    refresh();
+  }
+
+  async function pasteClipboard() {
+    if (!clipboard || currentPath === THIS_PC) return;
+    const result = clipboard.mode === "copy"
+      ? await window.anchoran!.fsCopy(clipboard.paths, currentPath)
+      : await window.anchoran!.fsMove(clipboard.paths, currentPath);
+    if (!result.success) pushNotification("Files", result.error ?? "Couldn't paste.");
+    if (clipboard.mode === "cut") setClipboard(null);
+    refresh();
+  }
+
+  async function onDrop(e: DragEvent, targetDir: string) {
+    e.preventDefault();
+    if (e.dataTransfer.files.length === 0) return;
+    const paths = Array.from(e.dataTransfer.files).map((f) => (f as File & { path?: string }).path).filter(Boolean) as string[];
+    if (paths.length === 0) return;
+    await window.anchoran!.fsCopy(paths, targetDir);
+    refresh();
+  }
+
+  function toggleSelect(path: string, e: React.MouseEvent) {
+    setSelected((prev) => {
+      const next = new Set(e.ctrlKey || e.metaKey ? prev : []);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (openFileId) return;
+      if (openFile || renamingPath) return;
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === "z") {
-        e.preventDefault();
-        undo();
-      } else if (mod && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) {
-        e.preventDefault();
-        redo();
-      } else if (mod && e.key.toLowerCase() === "c" && selected.size > 0) {
-        setClipboard({ ids: Array.from(selected), mode: "copy" });
-      } else if (mod && e.key.toLowerCase() === "x" && selected.size > 0 && !inTrash) {
-        setClipboard({ ids: Array.from(selected), mode: "cut" });
-      } else if (mod && e.key.toLowerCase() === "v" && clipboard && !inTrash) {
+      if (mod && e.key.toLowerCase() === "c" && selected.size > 0) {
+        setClipboard({ paths: Array.from(selected), mode: "copy" });
+      } else if (mod && e.key.toLowerCase() === "x" && selected.size > 0) {
+        setClipboard({ paths: Array.from(selected), mode: "cut" });
+      } else if (mod && e.key.toLowerCase() === "v" && clipboard) {
         pasteClipboard();
       } else if (e.key === "Delete" && selected.size > 0) {
-        if (inTrash) {
-          selected.forEach((id) => permanentlyDelete(id));
-        } else {
-          removeMany(Array.from(selected));
-        }
-        setSelected(new Set());
+        deletePaths(Array.from(selected));
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, clipboard, inTrash, openFileId, currentId]);
+  }, [selected, clipboard, openFile, renamingPath, currentPath]);
 
-  function pasteClipboard() {
-    if (!clipboard) return;
-    if (clipboard.mode === "copy") duplicateMany(clipboard.ids, currentId);
-    else {
-      moveMany(clipboard.ids, currentId);
-      setClipboard(null);
-    }
-  }
-
-  async function importExternalFiles(fileList: FileList, targetFolderId: string) {
-    let imported = 0;
-    let skipped = 0;
-    for (const file of Array.from(fileList)) {
-      if (isTextFile(file)) {
-        const content = await file.text();
-        createFile(targetFolderId, file.name, content);
-        imported += 1;
-      } else {
-        createFile(targetFolderId, file.name, "");
-        skipped += 1;
-      }
-    }
-    if (imported > 0 || skipped > 0) {
-      pushNotification(
-        "Files",
-        skipped > 0
-          ? `Imported ${imported} file(s). ${skipped} binary file(s) were added without content (not yet supported).`
-          : `Imported ${imported} file(s).`
-      );
-    }
-  }
-
-  function onDropOnFolder(e: DragEvent, targetId: string) {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOverId(null);
-    const draggedId = e.dataTransfer.getData(DRAG_MIME);
-    if (draggedId) {
-      const ids = selected.has(draggedId) ? Array.from(selected) : [draggedId];
-      moveMany(ids.filter((id) => id !== targetId), targetId);
-      return;
-    }
-    if (e.dataTransfer.files.length > 0) {
-      importExternalFiles(e.dataTransfer.files, targetId);
-    }
-  }
-
-  function toggleSelect(id: string, e: React.MouseEvent) {
-    setSelected((prev) => {
-      const next = new Set(e.ctrlKey || e.metaKey ? prev : []);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function startRename(item: FsNode) {
-    setRenamingId(item.id);
-    setRenameValue(item.name);
-  }
-
-  function commitRename() {
-    if (renamingId && renameValue.trim()) rename(renamingId, renameValue.trim());
-    setRenamingId(null);
-  }
-
-  function itemMenuItems(item: FsNode): ContextMenuItem[] {
-    const ids = selected.has(item.id) && selected.size > 1 ? Array.from(selected) : [item.id];
-    if (inTrash) {
-      return [
-        { label: ids.length > 1 ? `Restore ${ids.length} items` : "Restore", onSelect: () => ids.forEach(restore) },
-        {
-          label: ids.length > 1 ? `Delete ${ids.length} items permanently` : "Delete permanently",
-          onSelect: () => ids.forEach(permanentlyDelete),
-        },
-      ];
-    }
+  function entryMenuItems(entry: Entry): ContextMenuItem[] {
+    const paths = selected.has(entry.path) && selected.size > 1 ? Array.from(selected) : [entry.path];
     return [
-      { label: "Open", onSelect: () => (item.type === "folder" ? setCurrentId(item.id) : setOpenFileId(item.id)) },
-      { label: "Cut", onSelect: () => setClipboard({ ids, mode: "cut" }) },
-      { label: "Copy", onSelect: () => setClipboard({ ids, mode: "copy" }) },
-      ...(ids.length === 1 ? [{ label: "Rename", onSelect: () => startRename(item) }] : []),
-      { label: "Duplicate", onSelect: () => duplicateMany(ids, currentId) },
-      { label: ids.length > 1 ? `Delete ${ids.length} items` : "Delete", onSelect: () => removeMany(ids) },
+      { label: "Open", onSelect: () => openEntry(entry) },
+      ...(!entry.isDirectory ? [{ label: "Open with…", onSelect: () => window.anchoran!.fsOpenWith(entry.path) }] : []),
+      { label: "Cut", onSelect: () => setClipboard({ paths, mode: "cut" }) },
+      { label: "Copy", onSelect: () => setClipboard({ paths, mode: "copy" }) },
+      ...(paths.length === 1 ? [{ label: "Rename", onSelect: () => startRename(entry) }] : []),
+      { label: "Show in Explorer", onSelect: () => window.anchoran!.fsShowInExplorer(entry.path) },
+      { label: paths.length > 1 ? `Delete ${paths.length} items` : "Delete", onSelect: () => deletePaths(paths) },
     ];
   }
 
   function emptySpaceMenuItems(): ContextMenuItem[] {
-    if (inTrash) return [];
+    if (currentPath === THIS_PC) return [];
     const items: ContextMenuItem[] = [
-      { label: "New Folder", onSelect: () => createFolder(currentId, "New Folder") },
-      { label: "New File", onSelect: () => createFile(currentId, "New File.txt") },
+      { label: "New Folder", onSelect: newFolder },
+      { label: "New File", onSelect: newFile },
     ];
     if (clipboard) items.push({ label: "Paste", onSelect: pasteClipboard });
     return items;
   }
 
+  const filtered = query.trim() ? entries.filter((e) => e.name.toLowerCase().includes(query.toLowerCase())) : entries;
+
   if (openFile) {
     return (
       <div className="app-root">
         <div className="app-toolbar">
-          <button className="app-toolbar-btn" onClick={() => setOpenFileId(null)}>
+          <button className="app-toolbar-btn" onClick={() => setOpenFile(null)}>
             <Icon name="chevronRight" size={14} style={{ transform: "rotate(180deg)" }} /> Back
           </button>
-          <input
-            value={openFile.name}
-            onChange={(e) => rename(openFile.id, e.target.value)}
-            style={{
-              border: "none",
-              background: "transparent",
-              color: "var(--anchoran-text-primary)",
-              fontSize: 13,
-              fontWeight: 500,
-              flex: 1,
-            }}
-          />
-          {!openFile.content?.startsWith("data:image") && (
-            <button
-              className="app-toolbar-btn"
-              onClick={() => printTextAsPdf(openFile.name.replace(/\.[^.]+$/, ""), openFile.content ?? "")}
-            >
+          <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }}>{openFile.name}</span>
+          {!openFile.isImage && (
+            <button className="app-toolbar-btn" onClick={() => printTextAsPdf(openFile.name.replace(/\.[^.]+$/, ""), openFile.content)}>
               Print
             </button>
           )}
         </div>
         <div className="app-content" style={{ padding: 0 }}>
-          {openFile.content?.startsWith("data:image") ? (
+          {openFile.isImage ? (
             <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#111" }}>
-              <img src={openFile.content} alt={openFile.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+              <img src={openFile.dataUrl} alt={openFile.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
             </div>
           ) : (
             <textarea
-              value={openFile.content ?? ""}
-              onChange={(e) => updateContent(openFile.id, e.target.value)}
+              value={openFile.content}
+              onChange={(e) => saveOpenFile(e.target.value)}
               style={{
-                width: "100%",
-                height: "100%",
-                padding: 16,
-                border: "none",
-                outline: "none",
-                resize: "none",
-                background: "transparent",
-                color: "var(--anchoran-text-primary)",
-                fontFamily: "inherit",
-                fontSize: 14,
-                lineHeight: 1.6,
+                width: "100%", height: "100%", padding: 16, border: "none", outline: "none", resize: "none",
+                background: "transparent", color: "var(--anchoran-text-primary)", fontFamily: "inherit", fontSize: 14, lineHeight: 1.6,
               }}
               autoFocus
             />
@@ -257,120 +275,83 @@ export function FilesApp() {
   return (
     <div className="app-root">
       <div className="app-toolbar">
-        <button className="app-toolbar-btn" onClick={() => createFolder(currentId, "New Folder")} disabled={inTrash}>
+        <button className="app-toolbar-btn" onClick={() => setCurrentPath(THIS_PC)} data-op={currentPath === THIS_PC}>
+          This PC
+        </button>
+        <button className="app-toolbar-btn" onClick={() => setCurrentPath(parentOf(currentPath))} disabled={currentPath === THIS_PC}>
+          <Icon name="chevronRight" size={13} style={{ transform: "rotate(180deg)" }} />
+        </button>
+        <button className="app-toolbar-btn" onClick={newFolder} disabled={currentPath === THIS_PC}>
           <Icon name="folder" size={14} /> New Folder
         </button>
-        <button className="app-toolbar-btn" onClick={() => createFile(currentId, "New File.txt")} disabled={inTrash}>
+        <button className="app-toolbar-btn" onClick={newFile} disabled={currentPath === THIS_PC}>
           <Icon name="file" size={14} /> New File
         </button>
-        <button className="app-toolbar-btn" onClick={undo} disabled={!canUndo} aria-label="Undo">
-          <Icon name="restart" size={13} style={{ transform: "scaleX(-1)" }} />
-        </button>
-        <button className="app-toolbar-btn" onClick={redo} disabled={!canRedo} aria-label="Redo">
-          <Icon name="restart" size={13} />
-        </button>
-        <button className="app-toolbar-btn" onClick={() => setCurrentId(DESKTOP_ID)} data-op={currentId === DESKTOP_ID}>
-          Desktop
-        </button>
-        <button
-          className="app-toolbar-btn"
-          onClick={() => {
-            setQuery("");
-            setCurrentId(TRASH_ID);
-          }}
-          data-op={inTrash}
-        >
-          Trash
-        </button>
-        {inTrash && items.length > 0 && (
-          <button className="app-toolbar-btn" onClick={emptyTrash}>
-            Empty Trash
-          </button>
-        )}
         <input
-          placeholder="Search…"
+          placeholder="Filter…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          style={{
-            border: "1px solid var(--anchoran-border)",
-            borderRadius: 6,
-            padding: "5px 9px",
-            background: "var(--anchoran-bg)",
-            color: "var(--anchoran-text-primary)",
-            fontSize: 12.5,
-            width: 140,
-          }}
+          style={{ border: "1px solid var(--anchoran-border)", borderRadius: 6, padding: "5px 9px", background: "var(--anchoran-bg)", color: "var(--anchoran-text-primary)", fontSize: 12.5, width: 140 }}
         />
-        <button
-          className="app-toolbar-btn"
-          onClick={() => setViewMode((v) => (v === "grid" ? "list" : "grid"))}
-          style={{ marginLeft: "auto" }}
-        >
+        <button className="app-toolbar-btn" onClick={() => setViewMode((v) => (v === "grid" ? "list" : "grid"))} style={{ marginLeft: "auto" }}>
           {viewMode === "grid" ? "List view" : "Grid view"}
         </button>
-        {!searching && <span className="files-path">{path.map((n) => n.name).join(" / ")}</span>}
+        {currentPath !== THIS_PC && <span className="files-path">{currentPath}</span>}
       </div>
       <div
         className="app-content"
         onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => !inTrash && !searching && onDropOnFolder(e, currentId)}
+        onDrop={(e) => currentPath !== THIS_PC && onDrop(e, currentPath)}
         onContextMenu={(e) => {
           if (e.target === e.currentTarget) {
             e.preventDefault();
-            setMenu({ x: e.clientX, y: e.clientY, item: null });
+            setMenu({ x: e.clientX, y: e.clientY, entry: null });
           }
         }}
         onClick={(e) => {
           if (e.target === e.currentTarget) setSelected(new Set());
         }}
       >
-        {viewMode === "grid" ? (
+        {currentPath === THIS_PC ? (
           <div className="files-grid">
-            {!searching && path.length > 1 && (
-              <div className="files-item" onDoubleClick={() => setCurrentId(path[path.length - 2].id)}>
+            {quickLinks.map((q) => (
+              <div key={q.path} className="files-item" onDoubleClick={() => setCurrentPath(q.path)} onClick={() => setCurrentPath(q.path)}>
                 <Icon name="folder" size={30} />
-                <span>..</span>
+                <span>{q.label}</span>
               </div>
-            )}
-            {items.map((item) => (
+            ))}
+            {drives.map((d) => (
+              <div key={d} className="files-item" onDoubleClick={() => setCurrentPath(d)} onClick={() => setCurrentPath(d)}>
+                <Icon name="files" size={30} />
+                <span>{d}</span>
+              </div>
+            ))}
+          </div>
+        ) : loadError ? (
+          <div style={{ color: "#E5484D", fontSize: 13, padding: 12 }}>{loadError}</div>
+        ) : viewMode === "grid" ? (
+          <div className="files-grid">
+            {filtered.map((entry) => (
               <div
-                key={item.id}
+                key={entry.path}
                 className="files-item"
-                data-selected={selected.has(item.id)}
-                data-cut={clipboard?.mode === "cut" && clipboard.ids.includes(item.id)}
-                draggable={!inTrash}
-                data-drag-over={item.type === "folder" && dragOverId === item.id}
-                onClick={(e) => toggleSelect(item.id, e)}
-                onDragStart={(e) => {
-                  e.dataTransfer.setData(DRAG_MIME, item.id);
-                  e.dataTransfer.effectAllowed = "move";
-                }}
-                onDragOver={(e) => {
-                  if (item.type !== "folder" || inTrash) return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setDragOverId(item.id);
-                }}
-                onDragLeave={() => setDragOverId((id) => (id === item.id ? null : id))}
-                onDrop={(e) => item.type === "folder" && !inTrash && onDropOnFolder(e, item.id)}
-                onDoubleClick={() => {
-                  if (inTrash) return;
-                  if (item.type === "folder") setCurrentId(item.id);
-                  else setOpenFileId(item.id);
-                }}
+                data-selected={selected.has(entry.path)}
+                data-cut={clipboard?.mode === "cut" && clipboard.paths.includes(entry.path)}
+                draggable
+                onClick={(e) => toggleSelect(entry.path, e)}
+                onDoubleClick={() => openEntry(entry)}
+                onDragStart={(e) => e.dataTransfer.setData("text/plain", entry.path)}
+                onDragOver={(e) => entry.isDirectory && e.preventDefault()}
+                onDrop={(e) => entry.isDirectory && onDrop(e, entry.path)}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  if (!selected.has(item.id)) setSelected(new Set([item.id]));
-                  setMenu({ x: e.clientX, y: e.clientY, item });
+                  if (!selected.has(entry.path)) setSelected(new Set([entry.path]));
+                  setMenu({ x: e.clientX, y: e.clientY, entry });
                 }}
               >
-                {item.type === "file" && item.content?.startsWith("data:image") ? (
-                  <img src={item.content} alt="" className="files-item-thumb" />
-                ) : (
-                  <Icon name={item.type === "folder" ? "folder" : "file"} size={30} />
-                )}
-                {renamingId === item.id ? (
+                <Icon name={entry.isDirectory ? "folder" : "file"} size={30} />
+                {renamingPath === entry.path ? (
                   <input
                     autoFocus
                     className="files-rename-input"
@@ -381,15 +362,13 @@ export function FilesApp() {
                     onKeyDown={(e) => e.key === "Enter" && commitRename()}
                   />
                 ) : (
-                  <span onDoubleClick={(e) => item.type !== "folder" && (e.stopPropagation(), startRename(item))}>
-                    {item.name}
-                  </span>
+                  <span onDoubleClick={(e) => (e.stopPropagation(), startRename(entry))}>{entry.name}</span>
                 )}
               </div>
             ))}
-            {items.length === 0 && (
+            {filtered.length === 0 && (
               <span style={{ color: "var(--anchoran-text-secondary)", fontSize: 13 }}>
-                {searching ? "No results." : inTrash ? "Trash is empty." : "This folder is empty. Drag files here from Windows to import them."}
+                {query ? "No results." : "This folder is empty."}
               </span>
             )}
           </div>
@@ -398,39 +377,31 @@ export function FilesApp() {
             <thead>
               <tr style={{ textAlign: "left", color: "var(--anchoran-text-secondary)" }}>
                 <th style={{ fontWeight: 500, padding: "6px 8px" }}>Name</th>
-                <th style={{ fontWeight: 500, padding: "6px 8px" }}>Type</th>
+                <th style={{ fontWeight: 500, padding: "6px 8px" }}>Size</th>
                 <th style={{ fontWeight: 500, padding: "6px 8px" }}>Modified</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {filtered.map((entry) => (
                 <tr
-                  key={item.id}
-                  data-selected={selected.has(item.id)}
-                  onClick={(e) => toggleSelect(item.id, e)}
-                  onDoubleClick={() => {
-                    if (inTrash) return;
-                    if (item.type === "folder") setCurrentId(item.id);
-                    else setOpenFileId(item.id);
-                  }}
+                  key={entry.path}
+                  data-selected={selected.has(entry.path)}
+                  onClick={(e) => toggleSelect(entry.path, e)}
+                  onDoubleClick={() => openEntry(entry)}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (!selected.has(item.id)) setSelected(new Set([item.id]));
-                    setMenu({ x: e.clientX, y: e.clientY, item });
+                    if (!selected.has(entry.path)) setSelected(new Set([entry.path]));
+                    setMenu({ x: e.clientX, y: e.clientY, entry });
                   }}
                   style={{ cursor: "default", borderTop: "1px solid var(--anchoran-border)" }}
                 >
                   <td style={{ padding: "7px 8px", display: "flex", alignItems: "center", gap: 8 }}>
-                    <Icon name={item.type === "folder" ? "folder" : "file"} size={15} />
-                    {item.name}
+                    <Icon name={entry.isDirectory ? "folder" : "file"} size={15} />
+                    {entry.name}
                   </td>
-                  <td style={{ padding: "7px 8px", color: "var(--anchoran-text-secondary)" }}>
-                    {item.type === "folder" ? "Folder" : "File"}
-                  </td>
-                  <td style={{ padding: "7px 8px", color: "var(--anchoran-text-secondary)" }}>
-                    {formatDate(item.updatedAt)}
-                  </td>
+                  <td style={{ padding: "7px 8px", color: "var(--anchoran-text-secondary)" }}>{formatSize(entry.size, entry.isDirectory)}</td>
+                  <td style={{ padding: "7px 8px", color: "var(--anchoran-text-secondary)" }}>{formatDate(entry.modifiedAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -438,12 +409,7 @@ export function FilesApp() {
         )}
       </div>
       {menu && (
-        <ContextMenu
-          x={menu.x}
-          y={menu.y}
-          items={menu.item ? itemMenuItems(menu.item) : emptySpaceMenuItems()}
-          onClose={() => setMenu(null)}
-        />
+        <ContextMenu x={menu.x} y={menu.y} items={menu.entry ? entryMenuItems(menu.entry) : emptySpaceMenuItems()} onClose={() => setMenu(null)} />
       )}
     </div>
   );

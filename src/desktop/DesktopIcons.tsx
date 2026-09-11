@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 import { useWindowStore } from "@/windowmanager/windowStore";
-import { useFsStore, DESKTOP_ID, type FsNode } from "@/filesystem/fs";
 import { APP_REGISTRY } from "@/applications/registry";
 import { useDesktopIconsStore, type IconKey } from "./desktopIconsStore";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
@@ -17,6 +16,12 @@ function slotFor(index: number, columnsPerScreen = 8) {
   return { x: ORIGIN_X + col * GRID_X, y: ORIGIN_Y + row * GRID_Y };
 }
 
+interface DesktopFile {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+}
+
 interface IconEntry {
   key: IconKey;
   icon: IconName;
@@ -25,18 +30,36 @@ interface IconEntry {
   menu: ContextMenuItem[];
 }
 
+/** The real Windows Desktop folder — these icons are actual files, not a virtual stand-in. */
 export function DesktopIcons() {
   const openApp = useWindowStore((s) => s.openApp);
   const pinnedApps = useDesktopIconsStore((s) => s.pinnedApps);
   const unpinApp = useDesktopIconsStore((s) => s.unpinApp);
   const positions = useDesktopIconsStore((s) => s.positions);
   const setPosition = useDesktopIconsStore((s) => s.setPosition);
-  const desktopFiles = useFsStore((s) => s.childrenOf(DESKTOP_ID));
-  const removeMany = useFsStore((s) => s.removeMany);
-  const rename = useFsStore((s) => s.rename);
+  const [desktopFiles, setDesktopFiles] = useState<DesktopFile[]>([]);
   const [dragging, setDragging] = useState<IconKey | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
   const [renaming, setRenaming] = useState<{ key: IconKey; value: string } | null>(null);
+
+  async function refresh() {
+    if (!window.anchoran) return;
+    const folders = await window.anchoran.fsSpecialFolders();
+    const result = await window.anchoran.fsListDir(folders.desktop);
+    if (!("error" in result)) {
+      setDesktopFiles(result.entries.map((e) => ({ name: e.name, path: e.path, isDirectory: e.isDirectory })));
+    }
+  }
+
+  useEffect(() => {
+    refresh();
+    // Light polling so files created elsewhere (the desktop's own
+    // right-click "New Folder", something saved there by another app,
+    // a real drag-and-drop from Explorer) show up without needing a
+    // cross-component event bus for something this cheap to just poll.
+    const interval = window.setInterval(refresh, 2500);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const entries: IconEntry[] = [
     ...pinnedApps
@@ -51,14 +74,20 @@ export function DesktopIcons() {
           { label: "Remove from desktop", onSelect: () => unpinApp(id) },
         ],
       })),
-    ...desktopFiles.map((node): IconEntry => ({
-      key: `file:${node.id}` as IconKey,
-      icon: node.type === "folder" ? "folder" : "file",
-      label: node.name,
-      onOpen: () => openApp("files"),
+    ...desktopFiles.map((file): IconEntry => ({
+      key: `file:${file.path}` as IconKey,
+      icon: file.isDirectory ? "folder" : "file",
+      label: file.name,
+      onOpen: () => (file.isDirectory ? openApp("files") : window.anchoran!.fsOpenPath(file.path)),
       menu: [
-        { label: "Rename", onSelect: () => setRenaming({ key: `file:${node.id}` as IconKey, value: node.name }) },
-        { label: "Delete", onSelect: () => removeMany([node.id]) },
+        { label: "Rename", onSelect: () => setRenaming({ key: `file:${file.path}` as IconKey, value: file.name }) },
+        {
+          label: "Delete",
+          onSelect: async () => {
+            await window.anchoran!.fsDelete([file.path]);
+            refresh();
+          },
+        },
       ],
     })),
   ];
@@ -93,13 +122,19 @@ export function DesktopIcons() {
     window.addEventListener("pointerup", onUp);
   }
 
+  async function commitRename(key: IconKey, value: string) {
+    const file = desktopFiles.find((f) => `file:${f.path}` === key);
+    if (value.trim() && file) {
+      await window.anchoran!.fsRename(file.path, value.trim());
+      refresh();
+    }
+    setRenaming(null);
+  }
+
   return (
     <div className="desktop-icons">
       {entries.map((entry, i) => {
         const pos = positions[entry.key] ?? slotFor(i);
-        const node: FsNode | undefined = entry.key.startsWith("file:")
-          ? desktopFiles.find((n) => `file:${n.id}` === entry.key)
-          : undefined;
         return (
           <div
             key={entry.key}
@@ -121,10 +156,7 @@ export function DesktopIcons() {
                 onChange={(e) => setRenaming({ key: entry.key, value: e.target.value })}
                 onClick={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
-                onBlur={() => {
-                  if (renaming.value.trim() && node) rename(node.id, renaming.value.trim());
-                  setRenaming(null);
-                }}
+                onBlur={() => commitRename(entry.key, renaming.value)}
                 onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
                 style={{ width: "100%", fontSize: 12, textAlign: "center" }}
               />
@@ -134,9 +166,7 @@ export function DesktopIcons() {
           </div>
         );
       })}
-      {menu && (
-        <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />
-      )}
+      {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
     </div>
   );
 }

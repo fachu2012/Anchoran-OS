@@ -1,97 +1,102 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Icon } from "@/components/Icon";
-import { useFsStore } from "@/filesystem/fs";
 import { printTextAsPdf } from "@/core/print";
+import { useNotificationStore } from "@/notifications/notificationStore";
 import "@/applications/apps.css";
 import "./notes.css";
 
-const NOTES_FOLDER_ID = "notes";
-
+/**
+ * Notes is now a real Notepad-style editor: it can open, edit and save
+ * any real text file on Windows (via the native Open/Save As dialogs),
+ * the same as any file editor — not tied to a fixed folder of its own
+ * documents. Files' own right-click → "Open with…" launches the
+ * user's actual chosen app via Windows itself (see fs-open-with in
+ * electron/main.ts); this is the app people would pick when they want
+ * something Anchoran-native for a quick edit.
+ */
 export function NotesApp() {
-  const childrenOf = useFsStore((s) => s.childrenOf);
-  const createFile = useFsStore((s) => s.createFile);
-  const rename = useFsStore((s) => s.rename);
-  const remove = useFsStore((s) => s.remove);
-  const updateContent = useFsStore((s) => s.updateContent);
-  const getNode = useFsStore((s) => s.getNode);
+  const [path, setPath] = useState<string | null>(null);
+  const [title, setTitle] = useState("Untitled");
+  const [content, setContent] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const pushNotification = useNotificationStore((s) => s.push);
 
-  const notes = childrenOf(NOTES_FOLDER_ID).filter((n) => n.type === "file");
-  const [activeId, setActiveId] = useState<string | null>(notes[0]?.id ?? null);
+  function newDocument() {
+    setPath(null);
+    setTitle("Untitled");
+    setContent("");
+    setDirty(false);
+  }
 
-  useEffect(() => {
-    if (!activeId && notes.length > 0) setActiveId(notes[0].id);
-    if (activeId && !notes.some((n) => n.id === activeId)) setActiveId(notes[0]?.id ?? null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notes.length]);
+  async function openFile() {
+    if (!window.anchoran) return;
+    const result = await window.anchoran.pickOpenTextFile();
+    if (!result) return;
+    if ("error" in result) {
+      pushNotification("Notes", result.error);
+      return;
+    }
+    setPath(result.path);
+    setTitle(result.path.slice(result.path.lastIndexOf("\\") + 1));
+    setContent(result.content);
+    setDirty(false);
+  }
 
-  const active = activeId ? getNode(activeId) : undefined;
+  async function save() {
+    if (!window.anchoran) return;
+    if (path) {
+      const result = await window.anchoran.fsWriteTextFile(path, content);
+      if (!result.success) pushNotification("Notes", result.error ?? "Couldn't save.");
+      else setDirty(false);
+      return;
+    }
+    await saveAs();
+  }
 
-  function newNote() {
-    const id = createFile(NOTES_FOLDER_ID, `Untitled ${notes.length + 1}.txt`, "");
-    setActiveId(id);
+  async function saveAs() {
+    if (!window.anchoran) return;
+    const result = await window.anchoran.pickSaveTextFile(`${title}.txt`, content);
+    if (!result) return;
+    if ("error" in result) {
+      pushNotification("Notes", result.error);
+      return;
+    }
+    setPath(result.path);
+    setTitle(result.path.slice(result.path.lastIndexOf("\\") + 1));
+    setDirty(false);
   }
 
   return (
     <div className="notes-root">
-      <div className="notes-sidebar">
-        <button className="app-toolbar-btn" style={{ margin: 8 }} onClick={newNote}>
-          <Icon name="file" size={14} /> New Note
+      <div className="app-toolbar">
+        <button className="app-toolbar-btn" onClick={newDocument}>
+          <Icon name="file" size={14} /> New
         </button>
-        <div className="notes-list">
-          {notes.map((note) => (
-            <button
-              key={note.id}
-              className="notes-list-item"
-              data-active={note.id === activeId}
-              onClick={() => setActiveId(note.id)}
-            >
-              <span className="notes-list-item-title">{note.name}</span>
-              <span
-                className="notes-list-item-delete"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  remove(note.id);
-                }}
-                role="button"
-                aria-label={`Delete ${note.name}`}
-              >
-                <Icon name="close" size={12} />
-              </span>
-            </button>
-          ))}
-          {notes.length === 0 && <div className="notes-empty">No notes yet.</div>}
-        </div>
+        <button className="app-toolbar-btn" onClick={openFile}>
+          Open…
+        </button>
+        <button className="app-toolbar-btn" onClick={save}>
+          Save{dirty ? " •" : ""}
+        </button>
+        <button className="app-toolbar-btn" onClick={saveAs}>
+          Save As…
+        </button>
+        <button className="app-toolbar-btn" onClick={() => printTextAsPdf(title.replace(/\.[^.]+$/, ""), content)}>
+          Print
+        </button>
+        <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--anchoran-text-secondary)" }}>{title}</span>
       </div>
-      <div className="notes-editor">
-        {active ? (
-          <>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input
-                className="notes-title-input"
-                value={active.name}
-                onChange={(e) => rename(active.id, e.target.value)}
-                style={{ flex: 1 }}
-              />
-              <button
-                className="app-toolbar-btn"
-                onClick={() => printTextAsPdf(active.name.replace(/\.[^.]+$/, ""), active.content ?? "")}
-                aria-label="Print"
-              >
-                Print
-              </button>
-            </div>
-            <textarea
-              className="notes-textarea"
-              placeholder="Start typing…"
-              value={active.content ?? ""}
-              onChange={(e) => updateContent(active.id, e.target.value)}
-            />
-          </>
-        ) : (
-          <div className="notes-empty" style={{ padding: 24 }}>
-            Select a note, or create a new one.
-          </div>
-        )}
+      <div className="notes-editor" style={{ width: "100%" }}>
+        <textarea
+          className="notes-textarea"
+          placeholder="Start typing…"
+          value={content}
+          onChange={(e) => {
+            setContent(e.target.value);
+            setDirty(true);
+          }}
+          autoFocus
+        />
       </div>
     </div>
   );

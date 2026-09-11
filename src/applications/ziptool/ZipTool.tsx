@@ -1,56 +1,53 @@
 import { useState } from "react";
 import JSZip from "jszip";
 import { Icon } from "@/components/Icon";
-import { useFsStore, ROOT_ID, TRASH_ID, type FsNode } from "@/filesystem/fs";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import "@/applications/apps.css";
 import "./ziptool.css";
 
+const TEXT_LIKE = /\.(txt|md|json|csv|log|js|ts|css|html|xml|yml|yaml)$/i;
+
 export function ZipToolApp() {
-  const nodes = useFsStore((s) => s.nodes);
-  const childrenOf = useFsStore((s) => s.childrenOf);
-  const createFolder = useFsStore((s) => s.createFolder);
-  const createFile = useFsStore((s) => s.createFile);
   const pushNotification = useNotificationStore((s) => s.push);
-  const [folderId, setFolderId] = useState(ROOT_ID);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
-  const folders = Object.values(nodes).filter((n) => n.type === "folder" && n.id !== TRASH_ID);
-
-  function addNodeToZip(zip: JSZip, node: FsNode, relPath: string) {
-    if (node.type === "folder") {
-      const folder = zip.folder(relPath) ?? zip;
-      for (const child of childrenOf(node.id)) {
-        addNodeToZip(zip, child, `${relPath}/${child.name}`);
-      }
-      void folder;
-    } else {
-      const content = node.content ?? "";
-      if (content.startsWith("data:")) {
-        const base64 = content.split(",")[1] ?? "";
-        zip.file(relPath, base64, { base64: true });
+  async function addDirToZip(zip: JSZip, dirPath: string, relPath: string) {
+    const result = await window.anchoran!.fsListDir(dirPath);
+    if ("error" in result) return;
+    for (const entry of result.entries) {
+      const entryRel = relPath ? `${relPath}/${entry.name}` : entry.name;
+      if (entry.isDirectory) {
+        await addDirToZip(zip, entry.path, entryRel);
       } else {
-        zip.file(relPath, content);
+        const isText = TEXT_LIKE.test(entry.name);
+        if (isText) {
+          const text = await window.anchoran!.fsReadTextFile(entry.path);
+          zip.file(entryRel, "content" in text ? text.content : "");
+        } else {
+          const img = await window.anchoran!.fsReadImageFile(entry.path);
+          if ("dataUrl" in img) {
+            zip.file(entryRel, img.dataUrl.split(",")[1] ?? "", { base64: true });
+          } else {
+            zip.file(entryRel, ""); // Unsupported binary type — recorded as an empty placeholder.
+          }
+        }
       }
     }
   }
 
   async function exportZip() {
+    if (!window.anchoran) return;
+    const folder = await window.anchoran.pickFolder("Choose a folder to export");
+    if (!folder) return;
     setBusy(true);
     setStatus(null);
     try {
-      const root = nodes[folderId];
       const zip = new JSZip();
-      for (const child of childrenOf(folderId)) {
-        addNodeToZip(zip, child, child.name);
-      }
+      const folderName = folder.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? "Export";
+      await addDirToZip(zip, folder, "");
       const base64 = await zip.generateAsync({ type: "base64" });
-      if (!window.anchoran) {
-        setStatus("Exporting requires the Anchoran desktop app.");
-        return;
-      }
-      const result = await window.anchoran.saveAndOpenFile(`${root?.name ?? "Export"}.zip`, base64);
+      const result = await window.anchoran.saveAndOpenFile(`${folderName}.zip`, base64);
       setStatus(result.success ? "Exported and opened." : result.error ?? "Couldn't export.");
     } finally {
       setBusy(false);
@@ -59,42 +56,44 @@ export function ZipToolApp() {
 
   async function importZip() {
     if (!window.anchoran) return;
+    const zipResult = await window.anchoran.pickZipFile();
+    if (!zipResult) return;
+    if ("error" in zipResult) {
+      setStatus(zipResult.error);
+      return;
+    }
+    const destParent = await window.anchoran.pickFolder("Choose where to extract");
+    if (!destParent) return;
     setBusy(true);
     setStatus(null);
     try {
-      const result = await window.anchoran.pickZipFile();
-      if (!result) return;
-      if ("error" in result) {
-        setStatus(result.error);
+      const zip = await JSZip.loadAsync(zipResult.base64, { base64: true });
+      const rootFolderName = zipResult.fileName.replace(/\.zip$/i, "");
+      const rootDirResult = await window.anchoran.fsCreateFolder(destParent, rootFolderName);
+      if ("error" in rootDirResult) {
+        setStatus(rootDirResult.error);
         return;
       }
-      const zip = await JSZip.loadAsync(result.base64, { base64: true });
-      const rootFolderName = result.fileName.replace(/\.zip$/i, "");
-      const rootId = createFolder(folderId, rootFolderName);
-      const folderIdByPath = new Map<string, string>([["", rootId]]);
-
+      const dirByPath = new Map<string, string>([["", rootDirResult.path]]);
       const entries = Object.values(zip.files).sort((a, b) => a.name.length - b.name.length);
       for (const entry of entries) {
         const parts = entry.name.replace(/\/$/, "").split("/");
         const name = parts[parts.length - 1];
         const parentPath = parts.slice(0, -1).join("/");
-        const parentId = folderIdByPath.get(parentPath) ?? rootId;
+        const parentDir = dirByPath.get(parentPath) ?? rootDirResult.path;
         if (entry.dir) {
-          const newId = createFolder(parentId, name);
-          folderIdByPath.set(parts.join("/"), newId);
+          const created = await window.anchoran.fsCreateFolder(parentDir, name);
+          if (!("error" in created)) dirByPath.set(parts.join("/"), created.path);
+        } else if (TEXT_LIKE.test(name)) {
+          const text = await entry.async("text");
+          await window.anchoran.fsCreateFile(parentDir, name, text);
         } else {
-          const isTextLike = /\.(txt|md|json|csv|log|js|ts|css|html|xml|yml|yaml)$/i.test(name);
-          if (isTextLike) {
-            const text = await entry.async("text");
-            createFile(parentId, name, text);
-          } else {
-            const base64 = await entry.async("base64");
-            createFile(parentId, name, `data:application/octet-stream;base64,${base64}`);
-          }
+          const base64 = await entry.async("base64");
+          await window.anchoran.fsWriteDataUrl(parentDir, name, `data:application/octet-stream;base64,${base64}`);
         }
       }
-      setStatus(`Imported "${result.fileName}".`);
-      pushNotification("Zip Tool", `Imported ${result.fileName}.`);
+      setStatus(`Imported "${zipResult.fileName}" into ${rootDirResult.path}.`);
+      pushNotification("Zip Tool", `Imported ${zipResult.fileName}.`);
     } finally {
       setBusy(false);
     }
@@ -105,15 +104,8 @@ export function ZipToolApp() {
       <div className="app-content ziptool-content">
         <div className="ziptool-section">
           <div className="ziptool-section-title">Export a folder to .zip</div>
-          <select value={folderId} onChange={(e) => setFolderId(e.target.value)} className="ziptool-select">
-            {folders.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
           <button className="app-toolbar-btn" onClick={exportZip} disabled={busy}>
-            <Icon name="zipTool" size={14} /> Export .zip
+            <Icon name="zipTool" size={14} /> Choose folder to export…
           </button>
         </div>
         <div className="ziptool-section">

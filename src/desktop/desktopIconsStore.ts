@@ -4,12 +4,13 @@ import type { AppId } from "@/core/types";
 
 /**
  * Desktop icons come in two flavors: pinned app shortcuts (persisted as
- * a plain AppId list) and the user's actual Desktop folder in Anchoran's
- * virtual filesystem (src/filesystem/fs.ts, DESKTOP_ID) — real files and
- * folders they've dropped there. Both kinds can be freely dragged around
- * the wallpaper; a manually-set position is kept in `positions` keyed by
- * `app:<id>` or `file:<nodeId>`, and anything without one falls back to
- * an automatic grid slot computed by the component.
+ * a plain AppId list) and the user's real Windows Desktop folder
+ * (fetched live via window.anchoran.fsListDir — see DesktopIcons.tsx),
+ * i.e. actual files and folders on disk. Both kinds can be freely
+ * dragged around the wallpaper; a manually-set position is kept in
+ * `positions` keyed by `app:<id>` or `file:<realPath>`, and anything
+ * without one falls back to an automatic grid slot computed by the
+ * component.
  */
 
 const PINNED_KEY = "desktopPinnedApps";

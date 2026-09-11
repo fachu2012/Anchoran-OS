@@ -5,6 +5,68 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.0.0] - 2026-09-11
+
+### Changed — major architecture shift
+
+- **Files now browses your real Windows filesystem, replacing the
+  isolated virtual filesystem entirely.** "This PC" shows your actual
+  Desktop, Documents, Downloads, Pictures, Music, Videos and drives;
+  every operation (create, rename, move, copy, cut/paste, multi-select)
+  acts on real files and folders. Deleting sends items to the real
+  Windows Recycle Bin — recoverable there, same as Explorer — rather
+  than the old virtual Trash. Right-click → **Open with…** opens
+  Windows' own real "How do you want to open this file?" picker.
+- **Desktop icons are your real Windows Desktop folder now**, not a
+  virtual stand-in.
+- **Browser downloads go straight to your real Downloads folder** —
+  the previous interception that imported them into the virtual
+  filesystem is gone (it also wasn't working reliably).
+- **Notes is now a real Notepad-style editor**: it can open, edit, save
+  and "Save As" any real text file on your PC via the native Open/Save
+  dialogs, instead of being limited to its own fixed virtual folder.
+- **Paint, Pixel Art, Wallpaper Maker, Screenshot, Voice Recorder and
+  Screen Recorder now save into your real Pictures/Music/Videos
+  folders**; Photo Viewer and Media Player browse those same real
+  folders directly.
+- **Zip Tool now zips/unzips real folders** you pick from disk, instead
+  of the virtual filesystem.
+- **"Anchoran Browser" is gone.** In its place, the Browser entry opens
+  your actual, already-installed Google Chrome as its own separate
+  Windows application (falling back to your default browser if Chrome
+  isn't installed) — using Chrome's name for an embedded, Anchoran-made
+  imitation of it would have been misleading.
+- **Fixed: right-click didn't work inside embedded web content**
+  (`<webview>`, e.g. in Chat) — Electron doesn't give guest pages a
+  context menu for free. Added a real one (Copy, Copy Image, Copy
+  Link, Cut/Paste, Select All, Reload) built from the actual click
+  target.
+
+### Fixed
+
+- Registering the Windows key as a global shortcut could throw instead
+  of failing gracefully on some Electron/Windows combinations, which —
+  because it ran unguarded at startup — silently skipped every startup
+  step after it (the Ctrl+Alt+L fallback, download handling, CPU
+  sampling, the first update check). Now handled explicitly.
+
+## [1.19.1] - 2026-09-11
+
+### Fixed
+
+- **Registering the Windows key as a global shortcut could throw
+  instead of failing gracefully**, on some Electron/Windows
+  combinations (`TypeError: Error processing argument at index 0,
+  conversion failure from Super`, caught via a real user's Event
+  Viewer log — thanks!). Because this ran unguarded inside
+  `app.whenReady().then(...)`, an uncaught throw here silently skipped
+  every startup step after it too: the Ctrl+Alt+L fallback shortcut,
+  Browser download interception, CPU sampling for System Monitor, and
+  the first update check on launch. Both shortcut registrations are
+  now wrapped so a thrown exception is treated exactly like the
+  documented `false` return value, logged, and startup continues
+  normally either way.
+
 ## [1.19.0] - 2026-09-11
 
 ### Added

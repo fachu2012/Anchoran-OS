@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useFsStore, ROOT_ID } from "@/filesystem/fs";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { ANCHORAN_VERSION } from "@/core/version";
 import "@/applications/apps.css";
@@ -16,17 +15,17 @@ export function TerminalApp() {
     { id: entryId++, text: "Anchoran OS Terminal. Type \"help\" to get started." },
   ]);
   const [input, setInput] = useState("");
-  const [cwd, setCwd] = useState(ROOT_ID);
+  const [cwd, setCwd] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
   const commandHistory = useRef<string[]>([]);
   const [historyCursor, setHistoryCursor] = useState<number | null>(null);
 
-  const childrenOf = useFsStore((s) => s.childrenOf);
-  const getPath = useFsStore((s) => s.getPath);
-  const createFolder = useFsStore((s) => s.createFolder);
-  const createFile = useFsStore((s) => s.createFile);
   const openApp = useWindowStore((s) => s.openApp);
   const awaitingUpdate = useRef(false);
+
+  useEffect(() => {
+    window.anchoran?.fsSpecialFolders().then((folders) => setCwd(folders.home));
+  }, []);
 
   function print(text: string) {
     setHistory((h) => [...h, { id: entryId++, text }]);
@@ -56,11 +55,7 @@ export function TerminalApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function pathString(id: string) {
-    return "/" + getPath(id).map((n) => n.name).join("/");
-  }
-
-  function run(raw: string) {
+  async function run(raw: string) {
     const line = raw.trim();
     print(`user@anchoran:~$ ${raw}`);
     if (!line) return;
@@ -94,39 +89,48 @@ export function TerminalApp() {
         print(rest);
         break;
       case "pwd":
-        print(pathString(cwd));
+        print(cwd);
         break;
       case "ls": {
-        const items = childrenOf(cwd);
-        print(items.length ? items.map((n) => (n.type === "folder" ? `${n.name}/` : n.name)).join("  ") : "");
+        const result = await window.anchoran?.fsListDir(cwd);
+        if (!result) print("ls: not available outside the Anchoran desktop app.");
+        else if ("error" in result) print(`ls: ${result.error}`);
+        else print(result.entries.map((n) => (n.isDirectory ? `${n.name}\\` : n.name)).join("  "));
         break;
       }
       case "cd": {
         if (!args[0] || args[0] === "~") {
-          setCwd(ROOT_ID);
+          const folders = await window.anchoran?.fsSpecialFolders();
+          if (folders) setCwd(folders.home);
           break;
         }
-        if (args[0] === "..") {
-          const path = getPath(cwd);
-          if (path.length > 1) setCwd(path[path.length - 2].id);
-          break;
-        }
-        const target = childrenOf(cwd).find((n) => n.name === args[0] && n.type === "folder");
-        if (target) setCwd(target.id);
+        const target = args[0] === ".." ? cwd.slice(0, Math.max(cwd.lastIndexOf("\\"), 2)) : `${cwd}\\${args[0]}`;
+        const result = await window.anchoran?.fsListDir(target);
+        if (result && !("error" in result)) setCwd(target);
         else print(`cd: no such directory: ${args[0]}`);
         break;
       }
       case "mkdir":
         if (!args[0]) print("mkdir: missing folder name");
-        else createFolder(cwd, args[0]);
+        else {
+          const result = await window.anchoran?.fsCreateFolder(cwd, args[0]);
+          if (result && "error" in result) print(`mkdir: ${result.error}`);
+        }
         break;
       case "touch":
         if (!args[0]) print("touch: missing file name");
-        else createFile(cwd, args[0]);
+        else {
+          const result = await window.anchoran?.fsCreateFile(cwd, args[0], "");
+          if (result && "error" in result) print(`touch: ${result.error}`);
+        }
         break;
       case "cat": {
-        const file = childrenOf(cwd).find((n) => n.name === args[0] && n.type === "file");
-        if (file) print(file.content || "");
+        if (!args[0]) {
+          print("cat: missing file name");
+          break;
+        }
+        const result = await window.anchoran?.fsReadTextFile(`${cwd}\\${args[0]}`);
+        if (result && "content" in result) print(result.content);
         else print(`cat: no such file: ${args[0]}`);
         break;
       }

@@ -56,10 +56,6 @@ contextBridge.exposeInMainWorld("anchoran", {
   importMedia: (): Promise<{ dataUrl: string; fileName: string } | { error: string } | null> =>
     ipcRenderer.invoke("anchoran:import-media"),
 
-  onDownloadImported: (callback: (download: { fileName: string; content: string; isText: boolean }) => void): void => {
-    ipcRenderer.on("anchoran:download-imported", (_e, download) => callback(download));
-  },
-
   exportData: (): Promise<{ success: boolean; path?: string }> => ipcRenderer.invoke("anchoran:export-data"),
   importData: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke("anchoran:import-data"),
   resetData: (): Promise<boolean> => ipcRenderer.invoke("anchoran:reset-data"),
@@ -70,8 +66,20 @@ contextBridge.exposeInMainWorld("anchoran", {
   getCaptureSources: (): Promise<{ id: string; name: string; thumbnailDataUrl: string }[]> =>
     ipcRenderer.invoke("anchoran:get-capture-sources"),
 
+  openChrome: (): Promise<{ success: boolean; usedFallback: boolean }> => ipcRenderer.invoke("anchoran:open-chrome"),
+
   pickZipFile: (): Promise<{ base64: string; fileName: string } | { error: string } | null> =>
     ipcRenderer.invoke("anchoran:pick-zip-file"),
+  pickFolder: (title: string): Promise<string | null> => ipcRenderer.invoke("anchoran:pick-folder", title),
+
+  showWebviewContextMenu: (
+    webContentsId: number,
+    x: number,
+    y: number,
+    params: { isEditable: boolean; selectionText: string; linkURL: string; srcURL: string; hasImageContents: boolean }
+  ): void => {
+    ipcRenderer.send("anchoran:webview-context-menu", webContentsId, x, y, params);
+  },
 
   readLog: (): Promise<string[]> => ipcRenderer.invoke("anchoran:read-log"),
 
@@ -97,4 +105,49 @@ contextBridge.exposeInMainWorld("anchoran", {
   onSystemModeStatusChange: (callback: (running: boolean) => void): void => {
     ipcRenderer.on("anchoran:system-mode-status", (_e, running) => callback(running));
   },
+
+  // Real Windows filesystem access for Files, Notes, and every app
+  // that saves what it creates — see electron/main.ts's "Real
+  // filesystem" section for the full rationale.
+  fsSpecialFolders: (): Promise<Record<"home" | "desktop" | "documents" | "downloads" | "pictures" | "music" | "videos", string>> =>
+    ipcRenderer.invoke("anchoran:fs-special-folders"),
+  fsListDrives: (): Promise<string[]> => ipcRenderer.invoke("anchoran:fs-list-drives"),
+  fsListDir: (
+    dirPath: string
+  ): Promise<{ entries: { name: string; path: string; isDirectory: boolean; size: number; modifiedAt: number }[] } | { error: string }> =>
+    ipcRenderer.invoke("anchoran:fs-list-dir", dirPath),
+  fsReadTextFile: (filePath: string): Promise<{ content: string } | { error: string }> =>
+    ipcRenderer.invoke("anchoran:fs-read-text-file", filePath),
+  fsReadImageFile: (filePath: string): Promise<{ dataUrl: string } | { error: string }> =>
+    ipcRenderer.invoke("anchoran:fs-read-image-file", filePath),
+  fsIsTextFile: (filePath: string): Promise<boolean> => ipcRenderer.invoke("anchoran:fs-is-text-file", filePath),
+  fsWriteTextFile: (filePath: string, content: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:fs-write-text-file", filePath, content),
+  fsCreateFolder: (parentPath: string, name: string): Promise<{ path: string } | { error: string }> =>
+    ipcRenderer.invoke("anchoran:fs-create-folder", parentPath, name),
+  fsCreateFile: (parentPath: string, name: string, content?: string): Promise<{ path: string } | { error: string }> =>
+    ipcRenderer.invoke("anchoran:fs-create-file", parentPath, name, content),
+  fsWriteDataUrl: (parentPath: string, name: string, dataUrl: string): Promise<{ path: string } | { error: string }> =>
+    ipcRenderer.invoke("anchoran:fs-write-data-url", parentPath, name, dataUrl),
+  fsRename: (oldPath: string, newName: string): Promise<{ path: string } | { error: string }> =>
+    ipcRenderer.invoke("anchoran:fs-rename", oldPath, newName),
+  fsDelete: (paths: string[]): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:fs-delete", paths),
+  fsCopy: (sourcePaths: string[], destDir: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:fs-copy", sourcePaths, destDir),
+  fsMove: (sourcePaths: string[], destDir: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:fs-move", sourcePaths, destDir),
+  fsOpenPath: (filePath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:fs-open-path", filePath),
+  fsOpenWith: (filePath: string): void => {
+    ipcRenderer.send("anchoran:fs-open-with", filePath);
+  },
+  fsShowInExplorer: (filePath: string): void => {
+    ipcRenderer.send("anchoran:fs-show-in-explorer", filePath);
+  },
+
+  pickOpenTextFile: (): Promise<{ path: string; content: string } | { error: string } | null> =>
+    ipcRenderer.invoke("anchoran:pick-open-text-file"),
+  pickSaveTextFile: (defaultName: string, content: string): Promise<{ path: string } | { error: string } | null> =>
+    ipcRenderer.invoke("anchoran:pick-save-text-file", defaultName, content),
 });

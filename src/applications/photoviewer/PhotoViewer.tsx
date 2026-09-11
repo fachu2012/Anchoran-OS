@@ -1,49 +1,71 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { useFsStore, TRASH_ID } from "@/filesystem/fs";
 import "@/applications/apps.css";
 import "./photoviewer.css";
 
+const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]);
+
+interface Photo {
+  name: string;
+  path: string;
+  dataUrl: string;
+}
+
 export function PhotoViewerApp() {
-  const nodes = useFsStore((s) => s.nodes);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [loading, setLoading] = useState(true);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
-  const images = useMemo(
-    () =>
-      Object.values(nodes).filter(
-        (n) => n.type === "file" && n.parentId !== TRASH_ID && n.content?.startsWith("data:image")
-      ),
-    [nodes]
-  );
+  useEffect(() => {
+    async function load() {
+      if (!window.anchoran) {
+        setLoading(false);
+        return;
+      }
+      const folders = await window.anchoran.fsSpecialFolders();
+      const result = await window.anchoran.fsListDir(folders.pictures);
+      if ("error" in result) {
+        setLoading(false);
+        return;
+      }
+      const imageFiles = result.entries.filter(
+        (e) => !e.isDirectory && IMAGE_EXT.has(e.name.slice(e.name.lastIndexOf(".")).toLowerCase())
+      );
+      const loaded: Photo[] = [];
+      for (const file of imageFiles) {
+        const img = await window.anchoran!.fsReadImageFile(file.path);
+        if ("dataUrl" in img) loaded.push({ name: file.name, path: file.path, dataUrl: img.dataUrl });
+      }
+      setPhotos(loaded);
+      setLoading(false);
+    }
+    load();
+  }, []);
 
-  if (openIndex !== null && images[openIndex]) {
-    const img = images[openIndex];
+  if (openIndex !== null && photos[openIndex]) {
+    const photo = photos[openIndex];
     return (
       <div className="app-root">
         <div className="app-toolbar">
           <button className="app-toolbar-btn" onClick={() => setOpenIndex(null)}>
             <Icon name="chevronRight" size={13} style={{ transform: "rotate(180deg)" }} /> Back
           </button>
-          <span style={{ fontSize: 12.5 }}>{img.name}</span>
+          <span style={{ fontSize: 12.5 }}>{photo.name}</span>
           <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-            <button
-              className="app-toolbar-btn"
-              disabled={openIndex === 0}
-              onClick={() => setOpenIndex((i) => (i! > 0 ? i! - 1 : i))}
-            >
+            <button className="app-toolbar-btn" disabled={openIndex === 0} onClick={() => setOpenIndex((i) => (i! > 0 ? i! - 1 : i))}>
               Prev
             </button>
             <button
               className="app-toolbar-btn"
-              disabled={openIndex === images.length - 1}
-              onClick={() => setOpenIndex((i) => (i! < images.length - 1 ? i! + 1 : i))}
+              disabled={openIndex === photos.length - 1}
+              onClick={() => setOpenIndex((i) => (i! < photos.length - 1 ? i! + 1 : i))}
             >
               Next
             </button>
           </div>
         </div>
         <div className="app-content photoviewer-full">
-          <img src={img.content} alt={img.name} />
+          <img src={photo.dataUrl} alt={photo.name} />
         </div>
       </div>
     );
@@ -52,15 +74,16 @@ export function PhotoViewerApp() {
   return (
     <div className="app-root">
       <div className="app-content photoviewer-grid">
-        {images.length === 0 && (
+        {loading && <div style={{ color: "var(--anchoran-text-secondary)", fontSize: 12.5 }}>Loading your Pictures folder…</div>}
+        {!loading && photos.length === 0 && (
           <div style={{ color: "var(--anchoran-text-secondary)", fontSize: 12.5 }}>
-            No images yet — create one in Paint, Pixel Art or Wallpaper Maker.
+            No images in your Pictures folder yet — create one in Paint, Pixel Art or Wallpaper Maker, or add photos there.
           </div>
         )}
-        {images.map((img, i) => (
-          <div key={img.id} className="photoviewer-thumb" onClick={() => setOpenIndex(i)}>
-            <img src={img.content} alt={img.name} />
-            <span>{img.name}</span>
+        {photos.map((photo, i) => (
+          <div key={photo.path} className="photoviewer-thumb" onClick={() => setOpenIndex(i)}>
+            <img src={photo.dataUrl} alt={photo.name} />
+            <span>{photo.name}</span>
           </div>
         ))}
       </div>

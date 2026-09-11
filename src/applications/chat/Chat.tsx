@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import { useWebviewContextMenu } from "@/core/useWebviewContextMenu";
 import "@/applications/apps.css";
 
 // The user's own chat app (Firebase-backed, their project) — embedded
@@ -7,11 +9,18 @@ const CHAT_URL = "https://fprichat.vercel.app/";
 const isElectron = typeof window !== "undefined" && !!window.anchoran;
 
 export function ChatApp() {
+  const webviewRef = useRef<HTMLElement>(null);
+  useWebviewContextMenu(webviewRef);
+
   return (
     <div className="app-root">
       <div className="app-content" style={{ padding: 0 }}>
         {isElectron ? (
-          <webview src={CHAT_URL} style={{ width: "100%", height: "100%", display: "flex" }} />
+          <webview
+            ref={webviewRef as never}
+            src={CHAT_URL}
+            style={{ width: "100%", height: "100%", display: "flex" }}
+          />
         ) : (
           <iframe
             title="Anchoran Chat"

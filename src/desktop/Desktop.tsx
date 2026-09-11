@@ -5,7 +5,6 @@ import { Taskbar } from "./Taskbar";
 import { DesktopIcons } from "./DesktopIcons";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { useDesktopIconsStore } from "./desktopIconsStore";
-import { useFsStore, DESKTOP_ID } from "@/filesystem/fs";
 import { useClipboardHistoryStore } from "@/core/clipboardHistoryStore";
 import { WindowManager } from "@/windowmanager/WindowManager";
 import { Launcher } from "@/launcher/Launcher";
@@ -37,8 +36,10 @@ export function Desktop({
   const cycleFocus = useWindowStore((s) => s.cycleFocus);
   const openApp = useWindowStore((s) => s.openApp);
   const clearIconPositions = useDesktopIconsStore((s) => s.clearPositions);
-  const createFolder = useFsStore((s) => s.createFolder);
-  const createFile = useFsStore((s) => s.createFile);
+  const [desktopPath, setDesktopPath] = useState<string | null>(null);
+  useEffect(() => {
+    window.anchoran?.fsSpecialFolders().then((f) => setDesktopPath(f.desktop));
+  }, []);
 
   useEffect(() => {
     // Ctrl+Tab / Ctrl+Shift+Tab: Anchoran's own window switcher. Not
@@ -67,8 +68,8 @@ export function Desktop({
   }, [recordClipboard]);
 
   const desktopContextItems: ContextMenuItem[] = [
-    { label: "New Folder", onSelect: () => createFolder(DESKTOP_ID, "New Folder") },
-    { label: "New File", onSelect: () => createFile(DESKTOP_ID, "New File.txt") },
+    { label: "New Folder", onSelect: () => desktopPath && window.anchoran?.fsCreateFolder(desktopPath, "New Folder") },
+    { label: "New File", onSelect: () => desktopPath && window.anchoran?.fsCreateFile(desktopPath, "New File.txt", "") },
     { label: "Sort Icons", onSelect: () => clearIconPositions() },
     {
       label: "Change Wallpaper…",

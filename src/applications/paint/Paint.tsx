@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { useFsStore, ROOT_ID } from "@/filesystem/fs";
+import { saveGeneratedFile } from "@/core/saveGenerated";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import "@/applications/apps.css";
 import "./paint.css";
@@ -14,7 +14,6 @@ export function PaintApp() {
   const [color, setColor] = useState(COLORS[0]);
   const [size, setSize] = useState(4);
   const [tool, setTool] = useState<"brush" | "eraser">("brush");
-  const createFile = useFsStore((s) => s.createFile);
   const pushNotification = useNotificationStore((s) => s.push);
 
   useEffect(() => {
@@ -66,12 +65,12 @@ export function PaintApp() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  function saveToFiles() {
+  async function saveToFiles() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dataUrl = canvas.toDataURL("image/png");
-    createFile(ROOT_ID, `Painting ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.png`, dataUrl);
-    pushNotification("Paint", "Saved to Files.");
+    const result = await saveGeneratedFile("picture", `Painting ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.png`, dataUrl);
+    pushNotification("Paint", "error" in result ? result.error : "Saved to Pictures.");
   }
 
   return (
