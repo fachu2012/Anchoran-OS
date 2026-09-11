@@ -31,6 +31,7 @@ export type IconName =
   | "minimize"
   | "maximize"
   | "restore"
+  | "restart"
   | "chevronRight"
   | "folder"
   | "file"
@@ -63,6 +64,7 @@ const PATHS: Record<IconName, string> = {
   minimize: "M5 12.5h14",
   maximize: "M6.5 6.5h11v11h-11v-11Z",
   restore: "M8.5 4.5h11v11h-3M4.5 8.5h11v11h-11v-11Z",
+  restart: "M18.5 8a6.5 6.5 0 1 0 1.3 5.5M18.5 4v4.5H14",
   chevronRight: "M9.5 5.5 16 12l-6.5 6.5",
   folder: "M3.5 7A1.5 1.5 0 0 1 5 5.5h4l1.6 2H19a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18V7Z",
   file: "M7 3.5h7l4 4v13H7v-17Zm7 0v4h4",

@@ -1,5 +1,6 @@
 import { Icon } from "@/components/Icon";
 import { Clock } from "./Clock";
+import { RunningWindows } from "./RunningWindows";
 import { useNotificationStore } from "@/notifications/notificationStore";
 
 export function SystemBar({
@@ -21,6 +22,7 @@ export function SystemBar({
           Anchoran
         </button>
       </div>
+      <RunningWindows />
       <div className="system-bar-right">
         <button className="system-bar-btn" onClick={onToggleNotifications} aria-label="Notifications">
           <Icon name="notification" size={16} />

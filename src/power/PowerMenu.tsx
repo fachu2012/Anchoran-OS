@@ -24,7 +24,7 @@ export function PowerMenu({
           <Icon name="minimize" size={16} /> Sleep
         </button>
         <button className="power-item" onClick={onRestart}>
-          <Icon name="restore" size={16} /> Restart Anchoran
+          <Icon name="restart" size={16} /> Restart Anchoran
         </button>
         <button className="power-item" onClick={onShutDown}>
           <Icon name="power" size={16} /> Shut Down Anchoran

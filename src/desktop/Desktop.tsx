@@ -8,6 +8,7 @@ import { WindowManager } from "@/windowmanager/WindowManager";
 import { Launcher } from "@/launcher/Launcher";
 import { PowerMenu } from "@/power/PowerMenu";
 import { NotificationToasts } from "@/notifications/NotificationCenter";
+import { NotificationPanel } from "@/notifications/NotificationPanel";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import "./desktop.css";
 
@@ -16,14 +17,18 @@ export function Desktop({
   onSleep,
   onShutDown,
   onRestart,
+  launcherOpen,
+  setLauncherOpen,
 }: {
   onLock: () => void;
   onSleep: () => void;
   onShutDown: () => void;
   onRestart: () => void;
+  launcherOpen: boolean;
+  setLauncherOpen: (open: boolean | ((v: boolean) => boolean)) => void;
 }) {
-  const [launcherOpen, setLauncherOpen] = useState(false);
   const [powerOpen, setPowerOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
 
@@ -45,11 +50,12 @@ export function Desktop({
       <WindowManager />
       <SystemBar
         onToggleLauncher={() => setLauncherOpen((v) => !v)}
-        onToggleNotifications={() => pushNotification("Notifications", "You're all caught up.")}
+        onToggleNotifications={() => setNotificationsOpen((v) => !v)}
         onTogglePower={() => setPowerOpen((v) => !v)}
       />
       <Dock onLauncher={() => setLauncherOpen(true)} />
       <NotificationToasts />
+      {notificationsOpen && <NotificationPanel onClose={() => setNotificationsOpen(false)} />}
 
       {launcherOpen && (
         <Launcher onClose={() => setLauncherOpen(false)} onPower={() => setPowerOpen(true)} />

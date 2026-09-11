@@ -26,6 +26,7 @@ interface WindowManagerState {
   closeWindow: (windowId: string) => void;
   focusWindow: (windowId: string) => void;
   minimizeWindow: (windowId: string) => void;
+  restoreWindow: (windowId: string) => void;
   toggleMaximize: (windowId: string) => void;
   moveWindow: (windowId: string, x: number, y: number) => void;
   resizeWindow: (windowId: string, width: number, height: number) => void;
@@ -126,6 +127,17 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
         w.windowId === windowId ? { ...w, isMinimized: true } : w
       ),
       focusedWindowId: s.focusedWindowId === windowId ? null : s.focusedWindowId,
+    }));
+  },
+
+  restoreWindow: (windowId) => {
+    const zIndex = get().nextZIndex + 1;
+    set((s) => ({
+      windows: s.windows.map((w) =>
+        w.windowId === windowId ? { ...w, isMinimized: false, zIndex } : w
+      ),
+      focusedWindowId: windowId,
+      nextZIndex: zIndex,
     }));
   },
 

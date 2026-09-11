@@ -171,7 +171,7 @@ export const useFsStore = create<FsState>((set, get) => ({
 
   getPath: (id) => {
     const path: FsNode[] = [];
-    let current = get().nodes[id];
+    let current: FsNode | undefined = get().nodes[id];
     while (current) {
       path.unshift(current);
       current = current.parentId ? get().nodes[current.parentId] : undefined;

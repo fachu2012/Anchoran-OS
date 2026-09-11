@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Icon } from "@/components/Icon";
+import { Icon, type IconName } from "@/components/Icon";
 import { APP_LIST } from "@/applications/registry";
 import { useWindowStore } from "@/windowmanager/windowStore";
+import { useNotificationStore } from "@/notifications/notificationStore";
 import "@/applications/apps.css";
 
 /**
@@ -14,6 +15,7 @@ export function AppCenterApp() {
     new Set(APP_LIST.filter((a) => a.id !== "appCenter").map((a) => a.id))
   );
   const openApp = useWindowStore((s) => s.openApp);
+  const pushNotification = useNotificationStore((s) => s.push);
 
   return (
     <div className="app-root">
@@ -24,7 +26,7 @@ export function AppCenterApp() {
             return (
               <div className="appcenter-card" key={app.id}>
                 <div className="appcenter-icon-badge">
-                  <Icon name={app.icon as any} size={20} />
+                  <Icon name={app.icon as IconName} size={20} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <div>{app.title}</div>
@@ -37,6 +39,7 @@ export function AppCenterApp() {
                       openApp(app.id);
                     } else {
                       setInstalled((prev) => new Set(prev).add(app.id));
+                      pushNotification("App Center", `${app.title} was installed.`);
                     }
                   }}
                 >
