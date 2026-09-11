@@ -1,0 +1,178 @@
+.desktop-root {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.desktop-wallpaper {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.desktop-icons {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 1;
+}
+
+.desktop-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 84px;
+  padding: 10px 6px;
+  border-radius: var(--anchoran-radius-md);
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  cursor: default;
+}
+
+.desktop-icon:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.desktop-icon span {
+  font-size: 12px;
+  text-align: center;
+}
+
+/* System bar */
+.system-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  background: color-mix(in srgb, var(--anchoran-surface) 78%, transparent);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--anchoran-border);
+  z-index: 50;
+  color: var(--anchoran-text-primary);
+}
+
+.system-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.system-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.system-bar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.system-bar-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--anchoran-text-primary);
+  border-radius: var(--anchoran-radius-sm);
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 12.5px;
+}
+
+.system-bar-btn:hover {
+  background: var(--anchoran-border);
+}
+
+.system-clock {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dock */
+.dock {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: color-mix(in srgb, var(--anchoran-surface) 82%, transparent);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-lg);
+  box-shadow: var(--anchoran-shadow-soft);
+  z-index: 50;
+}
+
+.dock-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: var(--anchoran-radius-md);
+  background: transparent;
+  color: var(--anchoran-text-primary);
+  cursor: pointer;
+  transition: background var(--anchoran-duration-fast) var(--anchoran-ease),
+    transform var(--anchoran-duration-fast) var(--anchoran-ease);
+}
+
+.dock-btn:hover {
+  background: var(--anchoran-border);
+  transform: translateY(-2px);
+}
+
+.dock-divider {
+  width: 1px;
+  height: 26px;
+  background: var(--anchoran-border);
+  margin: 0 2px;
+}
+
+/* Context menu */
+.context-menu {
+  position: fixed;
+  min-width: 190px;
+  background: var(--anchoran-surface);
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-md);
+  box-shadow: var(--anchoran-shadow-window);
+  padding: 6px;
+  z-index: 900;
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--anchoran-radius-sm);
+  font-size: 12.5px;
+  color: var(--anchoran-text-primary);
+  cursor: pointer;
+}
+
+.context-menu-item:hover {
+  background: var(--anchoran-border);
+}
