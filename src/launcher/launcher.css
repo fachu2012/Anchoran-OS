@@ -71,21 +71,53 @@
 .launcher-item {
   display: flex;
   align-items: center;
-  gap: 12px;
   width: 100%;
-  padding: 10px 12px;
-  border: none;
-  background: transparent;
   border-radius: var(--anchoran-radius-md);
   color: var(--anchoran-text-primary);
-  font-size: 13.5px;
-  cursor: pointer;
-  text-align: left;
 }
 
 .launcher-item:hover,
 .launcher-item[data-active="true"] {
   background: var(--anchoran-accent-soft);
+  color: var(--anchoran-accent);
+}
+
+.launcher-item-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.launcher-item-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-right: 6px;
+  border: none;
+  background: transparent;
+  border-radius: var(--anchoran-radius-sm);
+  color: var(--anchoran-text-disabled);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.launcher-item-pin:hover {
+  background: var(--anchoran-border);
+  color: var(--anchoran-text-primary);
+}
+
+.launcher-item-pin[data-pinned="true"] {
   color: var(--anchoran-accent);
 }
 

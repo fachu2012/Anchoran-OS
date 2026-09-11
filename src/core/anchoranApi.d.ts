@@ -31,6 +31,8 @@ declare global {
     logError: (scope: string, message: string) => void;
     getDisplays: () => Promise<{ id: number; label: string; isPrimary: boolean }[]>;
     moveToDisplay: (displayId: number) => void;
+    importImage: () => Promise<{ dataUrl: string; fileName: string } | { error: string } | null>;
+
     exportData: () => Promise<{ success: boolean; path?: string }>;
     importData: () => Promise<{ success: boolean; error?: string }>;
     resetData: () => Promise<boolean>;

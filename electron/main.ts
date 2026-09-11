@@ -128,26 +128,25 @@ function createMainWindow() {
  * outside what Electron exposes) — a heavier, more invasive technique
  * that this project intentionally has not added yet.
  *
- * Ctrl+Win is registered as a reliable, always-available fallback for
- * opening the Launcher. Windows' Start Menu trigger only fires on a
- * "clean" press/release of the bare Windows key — holding Ctrl at the
- * same time takes it out of Explorer's reserved territory, so this
- * combination registers and fires normally where the bare key alone
- * cannot. (Ctrl+Space was tried before that and dropped — it frequently
- * collides with Windows' own input-method/keyboard-layout switch
- * hotkey; Ctrl+Alt+L was tried after that as a safer but less
- * discoverable combo.) The Launcher is always one click away from the
- * dock and system bar regardless of any shortcut. Anchoran never
- * disables or intercepts Windows' own critical shortcuts (Ctrl+Alt+Del,
- * Task Manager, sign-out, etc.) and never modifies system security
- * policy.
+ * Ctrl+Alt+L is registered as a reliable, always-available fallback for
+ * opening the Launcher — a combination that doesn't touch the Windows
+ * key at all, so it avoids that whole class of OS-reserved collision.
+ * (Two earlier choices were tried and dropped for exactly that reason:
+ * Ctrl+Space frequently collides with Windows' own input-method/
+ * keyboard-layout switch hotkey, and Ctrl+Win — despite not being the
+ * bare Windows key — turned out to still be claimed by Windows itself
+ * on some machines, e.g. for Ink Workspace/accessibility shortcuts.)
+ * The Launcher is always one click away from the dock and system bar
+ * regardless of any shortcut. Anchoran never disables or intercepts
+ * Windows' own critical shortcuts (Ctrl+Alt+Del, Task Manager,
+ * sign-out, etc.) and never modifies system security policy.
  */
 function registerGlobalShortcuts() {
   const superRegistered = globalShortcut.register("Super", () => {
     mainWindow?.webContents.send("anchoran:toggle-launcher");
   });
 
-  const fallbackRegistered = globalShortcut.register("Control+Super", () => {
+  const fallbackRegistered = globalShortcut.register("CommandOrControl+Alt+L", () => {
     mainWindow?.webContents.send("anchoran:toggle-launcher");
   });
 
@@ -158,7 +157,7 @@ function registerGlobalShortcuts() {
     );
   }
   if (!fallbackRegistered) {
-    logToDisk("main:shortcuts", "Could not register the Ctrl+Win fallback shortcut either.");
+    logToDisk("main:shortcuts", "Could not register the Ctrl+Alt+L fallback shortcut either.");
   }
 
   // Surface this to the user instead of only logging it silently — if
@@ -280,6 +279,46 @@ ipcMain.handle("anchoran:reset-data", () => {
   configStore.clear();
   dataStore.clear();
   return true;
+});
+
+const IMAGE_MIME_BY_EXT: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".bmp": "image/bmp",
+};
+
+/**
+ * Shared "import an image from Windows" dialog — used wherever
+ * Anchoran needs a real photo from the user's own files (wallpapers,
+ * the account avatar during onboarding, etc.) rather than one of its
+ * own code-generated assets. Returns a data URL so the renderer can
+ * use/persist it directly with no further IPC round-trip.
+ */
+ipcMain.handle("anchoran:import-image", async () => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "Import Image",
+    filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif", "bmp"] }],
+    properties: ["openFile"],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+
+  const filePath = result.filePaths[0];
+  const ext = path.extname(filePath).toLowerCase();
+  const mime = IMAGE_MIME_BY_EXT[ext];
+  if (!mime) return null;
+
+  const buffer = fs.readFileSync(filePath);
+  // A generous but bounded cap — this ends up base64-encoded inside a
+  // JSON preferences file, so an unbounded photo would bloat it badly.
+  if (buffer.byteLength > 8 * 1024 * 1024) {
+    return { error: "Image is too large (max 8MB)." };
+  }
+  const dataUrl = `data:${mime};base64,${buffer.toString("base64")}`;
+  return { dataUrl, fileName: path.basename(filePath) };
 });
 
 /**

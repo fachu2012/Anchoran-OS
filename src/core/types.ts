@@ -48,4 +48,10 @@ export interface AnchoranPreferences {
    * config store, the same way a screensaver password would be.
    */
   lockPin: string | null;
+  /** A small imported photo (data URL), shown on the lock screen and in Settings → Users. */
+  avatarDataUrl: string | null;
+  /** Set when wallpaperId is "custom" — an imported image (data URL) instead of a built-in gradient. */
+  customWallpaperDataUrl: string | null;
+  /** True once the first-run welcome wizard (username/PIN/avatar/wallpaper) has been completed or skipped. */
+  onboardingComplete: boolean;
 }

@@ -64,6 +64,25 @@
   z-index: 50;
   color: var(--anchoran-text-primary);
   animation: taskbar-in var(--anchoran-duration-slow) var(--anchoran-ease-out);
+  transition: transform var(--anchoran-duration-base) var(--anchoran-ease),
+    opacity var(--anchoran-duration-base) var(--anchoran-ease);
+}
+
+/* Auto-hide while a window is maximized — slides down out of view,
+   revealed by hovering the hotzone strip at the very bottom edge. */
+.taskbar[data-hidden="true"] {
+  transform: translate(-50%, calc(100% + 20px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.taskbar-hotzone {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  z-index: 49;
 }
 
 @keyframes taskbar-in {
@@ -159,6 +178,12 @@
 .taskbar-btn[data-focused="true"] {
   background: var(--anchoran-accent-soft);
   color: var(--anchoran-accent);
+}
+
+.taskbar-btn[data-drag-over="true"] {
+  background: var(--anchoran-accent-soft);
+  outline: 1.5px dashed var(--anchoran-accent);
+  outline-offset: -3px;
 }
 
 .taskbar-dot {

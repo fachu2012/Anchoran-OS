@@ -2,11 +2,15 @@ import { useMemo, useState } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 import { APP_LIST } from "@/applications/registry";
 import { useWindowStore } from "@/windowmanager/windowStore";
+import { useTaskbarStore } from "@/desktop/taskbarStore";
 import "./launcher.css";
 
 export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: () => void }) {
   const [query, setQuery] = useState("");
   const openApp = useWindowStore((s) => s.openApp);
+  const pinned = useTaskbarStore((s) => s.pinned);
+  const pin = useTaskbarStore((s) => s.pin);
+  const unpin = useTaskbarStore((s) => s.unpin);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -36,14 +40,32 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
           />
         </div>
         <div className="launcher-results">
-          {results.map((app, i) => (
-            <button key={app.id} className="launcher-item" data-active={i === 0} onClick={() => launch(app.id)}>
-              <span className="launcher-item-icon">
-                <Icon name={app.icon as IconName} size={18} />
-              </span>
-              {app.title}
-            </button>
-          ))}
+          {results.map((app, i) => {
+            const isPinned = pinned.includes(app.id);
+            return (
+              <div key={app.id} className="launcher-item" data-active={i === 0}>
+                <button className="launcher-item-main" onClick={() => launch(app.id)}>
+                  <span className="launcher-item-icon">
+                    <Icon name={app.icon as IconName} size={18} />
+                  </span>
+                  {app.title}
+                </button>
+                <button
+                  className="launcher-item-pin"
+                  data-pinned={isPinned}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isPinned) unpin(app.id);
+                    else pin(app.id);
+                  }}
+                  aria-label={isPinned ? `Unpin ${app.title}` : `Pin ${app.title} to taskbar`}
+                  title={isPinned ? "Unpin from taskbar" : "Pin to taskbar"}
+                >
+                  <Icon name="pin" size={14} />
+                </button>
+              </div>
+            );
+          })}
           {results.length === 0 && (
             <div style={{ padding: 16, fontSize: 13, color: "var(--anchoran-text-secondary)" }}>
               No applications found.

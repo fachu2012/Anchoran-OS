@@ -33,3 +33,9 @@ nsis:
   createDesktopShortcut: false
   createStartMenuShortcut: false
   shortcutName: Anchoran Setup
+  # The one file end users should actually download and run. Named
+  # clearly and distinctly from the internal engine's
+  # AnchoranOS-UpdatePackage-*.exe (electron-builder.yml at the repo
+  # root) — a near-identical filename between the two caused real
+  # confusion once already.
+  artifactName: AnchoranOS-Setup-${version}.${ext}

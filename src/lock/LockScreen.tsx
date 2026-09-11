@@ -7,6 +7,7 @@ const UNLOCK_ANIMATION_MS = 220;
 export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const username = usePreferencesStore((s) => s.username);
   const lockPin = usePreferencesStore((s) => s.lockPin);
+  const avatarDataUrl = usePreferencesStore((s) => s.avatarDataUrl);
   const [now] = useState(new Date());
   const [unlocking, setUnlocking] = useState(false);
   const [pinPromptOpen, setPinPromptOpen] = useState(false);
@@ -89,7 +90,9 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
             width: 72,
             height: 72,
             borderRadius: "50%",
-            background: "rgba(255,255,255,0.15)",
+            background: avatarDataUrl
+              ? `url(${avatarDataUrl}) center/cover`
+              : "rgba(255,255,255,0.15)",
             border: "1px solid rgba(255,255,255,0.3)",
             display: "flex",
             alignItems: "center",
@@ -97,7 +100,7 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
             fontSize: 22,
           }}
         >
-          {username.slice(0, 1).toUpperCase()}
+          {!avatarDataUrl && username.slice(0, 1).toUpperCase()}
         </div>
         <div style={{ fontSize: 14, marginTop: 6 }}>{username}</div>
 

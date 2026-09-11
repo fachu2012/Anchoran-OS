@@ -168,14 +168,15 @@ palette; on success it launches `AnchoranOS.exe` and closes itself.
   open its own Start Menu. Electron's `globalShortcut` API — the only
   mechanism a normal, non-elevated app has — cannot reliably override this;
   doing so would require a native, system-wide low-level keyboard hook,
-  which this project has intentionally not added yet. **`Ctrl+Win` is
+  which this project has intentionally not added yet. **`Ctrl+Alt+L` is
   registered as a reliable fallback** and always opens the Anchoran
-  Launcher — Windows' Start Menu trigger only fires on a clean press of
-  the bare Windows key, so holding Ctrl at the same time takes it out of
-  Explorer's reserved territory (earlier choices, `Ctrl+Space` and
-  `Ctrl+Alt+L`, were dropped: the former collides with Windows' own
-  input-method switch hotkey, the latter just worked but was less
-  discoverable). The Launcher is also always reachable from the dock and
+  Launcher — a combination that doesn't touch the Windows key at all, so
+  it avoids that whole class of OS-reserved collision (two earlier
+  choices were dropped for exactly that reason: `Ctrl+Space` frequently
+  collides with Windows' own input-method switch hotkey, and `Ctrl+Win` —
+  despite not being the bare Windows key — turned out to still be claimed
+  by Windows on some machines, e.g. for Ink Workspace/accessibility
+  shortcuts). The Launcher is also always reachable from the dock and
   system bar. Anchoran never disables or intercepts Windows' own critical
   shortcuts (Ctrl+Alt+Del, Task Manager, sign-out, forced shutdown, or any
   recovery mechanism).

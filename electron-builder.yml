@@ -38,7 +38,14 @@ nsis:
   # own --publish), the actual uploaded asset name has to match that
   # computed name exactly, and GitHub's own upload API mangles spaces
   # unpredictably. Pinning this removes the mismatch entirely.
-  artifactName: Anchoran-OS-Setup-${version}.${ext}
+  #
+  # Deliberately NOT named anything containing "Setup" or matching
+  # AnchoranSetup's own filename: this is the internal NSIS engine —
+  # bundled inside AnchoranSetup for first installs, and downloaded
+  # silently by electron-updater for in-place updates — never something
+  # an end user should run by hand. A near-identical filename to the
+  # real installer caused exactly that confusion once already.
+  artifactName: AnchoranOS-UpdatePackage-${version}.${ext}
 
 # electron-builder reads the app version from package.json, which is
 # kept in sync with the single source of truth (version.json) by

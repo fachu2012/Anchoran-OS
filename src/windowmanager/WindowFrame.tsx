@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import { Icon } from "@/components/Icon";
 import { useWindowStore, type AnchoranWindow, type Bounds } from "./windowStore";
 import { APP_REGISTRY } from "@/applications/registry";
@@ -38,6 +38,15 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
   const setBounds = useWindowStore((s) => s.setBounds);
   const setSnapPreview = useWindowStore((s) => s.setSnapPreview);
   const [exiting, setExiting] = useState<"closing" | "minimizing" | null>(null);
+
+  // The component instance is reused across minimize <-> restore (it
+  // stays mounted, just renders null while minimized — see below), so
+  // without this, `exiting` stays stuck at "minimizing" from the last
+  // time and immediately replays that exit animation the moment the
+  // window is restored, undoing the restore almost instantly.
+  useEffect(() => {
+    if (!win.isMinimized) setExiting(null);
+  }, [win.isMinimized]);
 
   const minSize = APP_REGISTRY[win.appId].minSize ?? { width: 320, height: 220 };
 
@@ -134,8 +143,12 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
 
   if (win.isMinimized) return null;
 
+  // Maximized fills the entire screen — the taskbar auto-hides itself
+  // while any window is maximized (see Taskbar.tsx), so there's no
+  // reason to reserve space for it here the way snapping-to-an-edge
+  // still does.
   const style = win.isMaximized
-    ? { left: 0, top: 0, width: "100%", height: `calc(100% - ${TASKBAR_HEIGHT}px)`, zIndex: win.zIndex }
+    ? { left: 0, top: 0, width: "100%", height: "100%", zIndex: win.zIndex }
     : { left: win.x, top: win.y, width: win.width, height: win.height, zIndex: win.zIndex };
 
   return (
@@ -143,6 +156,7 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
       className="wm-window"
       style={style}
       data-focused={isFocused}
+      data-maximized={win.isMaximized}
       data-exiting={exiting ?? undefined}
       onPointerDown={() => focusWindow(win.windowId)}
     >

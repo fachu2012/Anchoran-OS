@@ -11,6 +11,8 @@ import { useNotificationStore } from "@/notifications/notificationStore";
 import { persistGet, persistSet } from "@/core/persist";
 import { playLoginSound } from "@/core/sound";
 import { recordUpdateIfVersionChanged } from "@/core/updateHistory";
+import { usePreferencesStore } from "@/theme/preferencesStore";
+import { Onboarding } from "@/onboarding/Onboarding";
 
 const WELCOMED_KEY = "welcomed";
 
@@ -26,6 +28,7 @@ export default function App() {
   // update. Gates BootScreen's first mount so it never briefly renders
   // with the wrong (generic) status stages before this resolves.
   const [finishingUpdateVersion, setFinishingUpdateVersion] = useState<string | null | undefined>(undefined);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const pushNotification = useNotificationStore((s) => s.push);
 
   useEffect(() => {
@@ -36,7 +39,7 @@ export default function App() {
     // main process as a global shortcut and forwarded here to toggle
     // Anchoran's own Launcher — see electron/main.ts and project
     // instructions §11/§16 for the security scope of this behavior.
-    // Ctrl+Win is the reliable fallback, registered alongside it.
+    // Ctrl+Alt+L is the reliable fallback, registered alongside it.
     window.anchoran?.onToggleLauncher(() => setLauncherOpen((v) => !v));
 
     // Tells the user when neither shortcut could be registered at all
@@ -46,7 +49,7 @@ export default function App() {
       if (!fallbackRegistered) {
         pushNotification(
           "Launcher shortcut",
-          "Ctrl+Win is already used by another app on this PC. Open the Launcher from the dock instead."
+          "Ctrl+Alt+L is already used by another app on this PC. Open the Launcher from the dock instead."
         );
       }
     });
@@ -68,6 +71,14 @@ export default function App() {
     setBooted(true);
     playLoginSound();
 
+    // First-ever boot after installing: the welcome wizard (username,
+    // PIN, avatar, wallpaper) takes the place of both the lock screen
+    // and the generic "Welcome" toast this once — see onOnboardingDone.
+    if (!usePreferencesStore.getState().onboardingComplete) {
+      setShowOnboarding(true);
+      return;
+    }
+
     // Anchoran always starts locked, like a real PC — with a PIN set,
     // LockScreen requires it; without one, it unlocks on any input.
     setLocked(true);
@@ -75,8 +86,15 @@ export default function App() {
     const alreadyWelcomed = await persistGet("config", WELCOMED_KEY, false);
     if (!alreadyWelcomed) {
       persistSet("config", WELCOMED_KEY, true);
-      pushNotification("Welcome", "This is Anchoran OS. Press Ctrl+Win or use the dock to open the Launcher.");
+      pushNotification("Welcome", "This is Anchoran OS. Press Ctrl+Alt+L or use the dock to open the Launcher.");
     }
+  }
+
+  function onOnboardingDone() {
+    setShowOnboarding(false);
+    persistSet("config", WELCOMED_KEY, true);
+    // No lock screen right after setup — the user just entered their
+    // PIN moments ago; re-locking immediately would be redundant.
   }
 
   function handleExitComplete() {
@@ -113,6 +131,7 @@ export default function App() {
             // underneath before BootScreen itself takes over.
             <div style={{ position: "absolute", inset: 0, background: "#000000", zIndex: 2000 }} />
           ))}
+        {showOnboarding && <Onboarding onComplete={onOnboardingDone} />}
         {locked && <LockScreen onUnlock={() => setLocked(false)} />}
         {updateReadyVersion && !exitMode && !updateTheaterVersion && (
           <UpdateReadyScreen

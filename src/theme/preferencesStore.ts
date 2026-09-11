@@ -14,6 +14,9 @@ const DEFAULT_PREFERENCES: AnchoranPreferences = {
   soundEnabled: true,
   soundVolume: 0.6,
   lockPin: null,
+  avatarDataUrl: null,
+  customWallpaperDataUrl: null,
+  onboardingComplete: false,
 };
 
 interface PreferencesState extends AnchoranPreferences {
@@ -21,12 +24,15 @@ interface PreferencesState extends AnchoranPreferences {
   setThemeMode: (mode: AnchoranPreferences["themeMode"]) => void;
   setAccentColor: (color: string) => void;
   setWallpaper: (wallpaperId: string) => void;
+  setCustomWallpaper: (dataUrl: string) => void;
   setUiScale: (scale: number) => void;
   setAnimationsEnabled: (enabled: boolean) => void;
   setUsername: (name: string) => void;
   setSoundEnabled: (enabled: boolean) => void;
   setSoundVolume: (volume: number) => void;
   setLockPin: (pin: string | null) => void;
+  setAvatar: (dataUrl: string | null) => void;
+  completeOnboarding: () => void;
 }
 
 /**
@@ -49,6 +55,9 @@ function toPersistable(s: AnchoranPreferences): AnchoranPreferences {
     soundEnabled: s.soundEnabled,
     soundVolume: s.soundVolume,
     lockPin: s.lockPin,
+    avatarDataUrl: s.avatarDataUrl,
+    customWallpaperDataUrl: s.customWallpaperDataUrl,
+    onboardingComplete: s.onboardingComplete,
   };
 }
 
@@ -70,6 +79,10 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   },
   setWallpaper: (wallpaperId) => {
     set({ wallpaperId });
+    persist(get());
+  },
+  setCustomWallpaper: (customWallpaperDataUrl) => {
+    set({ customWallpaperDataUrl, wallpaperId: "custom" });
     persist(get());
   },
   setUiScale: (uiScale) => {
@@ -94,6 +107,14 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   },
   setLockPin: (lockPin) => {
     set({ lockPin });
+    persist(get());
+  },
+  setAvatar: (avatarDataUrl) => {
+    set({ avatarDataUrl });
+    persist(get());
+  },
+  completeOnboarding: () => {
+    set({ onboardingComplete: true });
     persist(get());
   },
 }));

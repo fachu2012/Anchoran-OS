@@ -40,7 +40,8 @@ export type IconName =
   | "converter"
   | "colorPicker"
   | "plus"
-  | "copy";
+  | "copy"
+  | "pin";
 
 const PATHS: Record<IconName, string> = {
   files:
@@ -80,6 +81,7 @@ const PATHS: Record<IconName, string> = {
     "M14.5 4.5 19 9l-8.3 8.3a2 2 0 0 1-1.3.6l-3.4.3.3-3.4a2 2 0 0 1 .6-1.3L14.5 4.5Zm2 2L20 3M5 21h4",
   plus: "M12 5.5v13M5.5 12h13",
   copy: "M8.5 8.5h10v10h-10v-10ZM5.5 5.5h10v3M5.5 5.5v10h3",
+  pin: "M9 4.5h6l.8 5.2L19 13v2h-6v5l-1 2-1-2v-5H5v-2l3.2-3.3L9 4.5Z",
 };
 
 export function Icon({

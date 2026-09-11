@@ -5,6 +5,62 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.7.0] - 2026-09-11
+
+### Fixed
+
+- **Restoring a minimized window immediately re-minimized itself.**
+  `WindowFrame` stays mounted across minimize/restore (it just renders
+  nothing while minimized), but its exit-animation state was never
+  reset — so restoring replayed the leftover "minimizing" animation the
+  instant the window reappeared. Fixed by resetting that state whenever
+  a window stops being minimized.
+
+### Added
+
+- **Taskbar apps can now be reordered** (drag an icon to a new
+  position among the pinned ones) **and pinned/unpinned** (right-click
+  any taskbar icon, or use the new pin button on each Launcher result).
+  The pinned set and its order persist across restarts.
+
+## [1.6.0] - 2026-09-11
+
+### Fixed
+
+- **Installer filenames were dangerously similar**: `Anchoran-OS-Setup-*.exe`
+  (the internal NSIS engine — never meant to be run directly) vs.
+  `Anchoran Setup *.exe` (the real, fullscreen installer end users should
+  download) were one word apart, and it caused exactly the confusion
+  you'd expect. Renamed clearly: the internal one is now
+  `AnchoranOS-UpdatePackage-<version>.exe`, the one to actually run is
+  `AnchoranOS-Setup-<version>.exe`. The GitHub Release description also
+  now says explicitly which file to download.
+- Launcher fallback shortcut reverted from `Ctrl+Win` back to
+  `Ctrl+Alt+L` — `Ctrl+Win`, despite not being the bare Windows key,
+  turned out to still be claimed by Windows itself on some machines
+  (e.g. Ink Workspace/accessibility shortcuts).
+- **Maximizing a window left a gap at the bottom and kept rounded
+  corners.** Maximized windows now fill the entire screen with square
+  corners, and the taskbar auto-hides itself while any window is
+  maximized — sliding away, reappearing on hovering the very bottom
+  edge, and turning back off automatically the moment a window is
+  restored or minimized.
+
+### Added
+
+- **First-run welcome wizard** (`Onboarding`): shown once, the first
+  time Anchoran boots after installing — set a username, an optional
+  lock PIN, an optional profile picture, and a wallpaper, each step
+  skippable. Takes the place of the lock screen and the generic
+  "Welcome" toast that first time only.
+- **"Import from Windows…"**: a shared image-import dialog, now used for
+  wallpapers (Settings → Personalization) and the account profile
+  picture (Settings → Users, and during onboarding) — picks a real photo
+  from the user's own files instead of only Anchoran's built-in
+  gradients.
+- The lock screen now shows the imported profile picture instead of
+  just an initial, when one is set.
+
 ## [1.5.0] - 2026-09-11
 
 ### Added

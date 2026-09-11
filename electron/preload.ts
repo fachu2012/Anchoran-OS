@@ -51,6 +51,9 @@ contextBridge.exposeInMainWorld("anchoran", {
     ipcRenderer.send("anchoran:move-to-display", displayId);
   },
 
+  importImage: (): Promise<{ dataUrl: string; fileName: string } | { error: string } | null> =>
+    ipcRenderer.invoke("anchoran:import-image"),
+
   exportData: (): Promise<{ success: boolean; path?: string }> => ipcRenderer.invoke("anchoran:export-data"),
   importData: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke("anchoran:import-data"),
   resetData: (): Promise<boolean> => ipcRenderer.invoke("anchoran:reset-data"),

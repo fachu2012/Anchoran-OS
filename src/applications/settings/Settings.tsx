@@ -130,7 +130,35 @@ export function SettingsApp() {
                   aria-label={wp.name}
                 />
               ))}
+              {prefs.customWallpaperDataUrl && (
+                <button
+                  onClick={() => prefs.setWallpaper("custom")}
+                  style={{
+                    width: 110,
+                    height: 66,
+                    borderRadius: 8,
+                    border:
+                      prefs.wallpaperId === "custom"
+                        ? "2px solid var(--anchoran-accent)"
+                        : "1px solid var(--anchoran-border)",
+                    backgroundImage: `url(${prefs.customWallpaperDataUrl})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    cursor: "pointer",
+                  }}
+                  aria-label="Imported wallpaper"
+                />
+              )}
             </div>
+            <button
+              className="app-toolbar-btn"
+              onClick={async () => {
+                const result = await window.anchoran?.importImage();
+                if (result && "dataUrl" in result) prefs.setCustomWallpaper(result.dataUrl);
+              }}
+            >
+              Import from Windows…
+            </button>
           </div>
         )}
 
@@ -297,6 +325,45 @@ function UsersSection() {
 
   return (
     <>
+      <div className="settings-row">
+        <div>
+          <div className="settings-row-label">Profile picture</div>
+          <div className="settings-row-desc">Shown on the lock screen.</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: prefs.avatarDataUrl
+                ? `url(${prefs.avatarDataUrl}) center/cover`
+                : "var(--anchoran-accent-soft)",
+              color: "var(--anchoran-accent)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 15,
+            }}
+          >
+            {!prefs.avatarDataUrl && prefs.username.slice(0, 1).toUpperCase()}
+          </div>
+          <button
+            className="app-toolbar-btn"
+            onClick={async () => {
+              const result = await window.anchoran?.importImage();
+              if (result && "dataUrl" in result) prefs.setAvatar(result.dataUrl);
+            }}
+          >
+            Import from Windows…
+          </button>
+          {prefs.avatarDataUrl && (
+            <button className="app-toolbar-btn" onClick={() => prefs.setAvatar(null)}>
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
       <div className="settings-row">
         <div className="settings-row-label">Username</div>
         <input

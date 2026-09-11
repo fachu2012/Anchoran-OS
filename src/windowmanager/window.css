@@ -15,7 +15,13 @@
   overflow: hidden;
   pointer-events: auto;
   animation: wm-open var(--anchoran-duration-slow) var(--anchoran-ease-out);
-  transition: box-shadow var(--anchoran-duration-base) var(--anchoran-ease);
+  transition: box-shadow var(--anchoran-duration-base) var(--anchoran-ease),
+    border-radius var(--anchoran-duration-fast) var(--anchoran-ease);
+}
+
+.wm-window[data-maximized="true"] {
+  border-radius: 0;
+  border-width: 0;
 }
 
 [data-animations="off"] .wm-window {

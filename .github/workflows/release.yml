@@ -85,7 +85,10 @@ jobs:
       - name: Attach to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          body: "Full Changelog on https://github.com/fachu2012/Anchoran-OS/blob/main/CHANGELOG.md"
+          body: |
+            **Download `AnchoranOS-Setup-<version>.exe` to install or update Anchoran OS.** That's the only file you need — do not run `AnchoranOS-UpdatePackage-<version>.exe`; it's an internal component the app uses for its own auto-updates.
+
+            Full Changelog on https://github.com/fachu2012/Anchoran-OS/blob/main/CHANGELOG.md
           # Explicit, not relying on the action's defaults: publish
           # immediately (not a draft awaiting manual review) and mark
           # it as the repo's Latest release, so it shows up without a
