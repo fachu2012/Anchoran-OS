@@ -46,7 +46,16 @@ export type AppId =
   | "paint"
   | "pixelArt"
   | "wallpaperMaker"
-  | "photoViewer";
+  | "photoViewer"
+  | "screenshot"
+  | "voiceRecorder"
+  | "networkMonitor"
+  | "eventViewer"
+  | "mediaPlayer"
+  | "zipTool"
+  | "spreadsheet"
+  | "magnifier"
+  | "screenRecorder";
 
 export type AppCategory = "System" | "Productivity" | "Utilities" | "Internet" | "Games";
 

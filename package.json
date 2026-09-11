@@ -1,7 +1,7 @@
 {
   "name": "anchoran-os",
   "productName": "Anchoran OS",
-  "version": "1.16.0",
+  "version": "1.18.0",
   "description": "Anchoran OS - an immersive desktop environment shell for Windows.",
   "author": "Anchoran",
   "private": true,
@@ -40,6 +40,7 @@
     "electron-store": "^8.2.0",
     "electron-updater": "^6.3.9",
     "jspdf": "^4.2.1",
+    "jszip": "^3.10.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zustand": "^4.5.4"

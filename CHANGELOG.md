@@ -5,6 +5,42 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.18.0] - 2026-09-11
+
+### Added
+
+- **The last 3 apps from the original 34-app plan**: Spreadsheet (cell
+  references and formulas — `=A1+B2`, `=SUM(A1:A5)` — via a small
+  dependency-free formula engine, no `eval`), Magnifier (a live
+  magnifying lens that follows your cursor over a real captured screen
+  feed, 2x/3x/4x), and Screen Recorder (records the real screen to a
+  `.webm` video, saved into Files and playable in Media Player).
+
+This closes out the full app-and-feature backlog planned for this
+update. `TODO.md` tracks what's next (the "secondary OS" kiosk-mode
+idea) as a deliberately separate, not-yet-started initiative.
+
+## [1.17.0] - 2026-09-11
+
+### Added
+
+- **6 more apps** ("Wave 8", the batch needing real OS integration):
+  Screenshot (captures your actual screen via Electron's
+  `desktopCapturer`, no simulation), Voice Recorder (records from your
+  real microphone via `MediaRecorder`), Network Monitor (live
+  online/offline status and real measured latency), Event Viewer
+  (reads Anchoran's own real on-disk log file — the same one that's
+  always recorded errors, update checks and shortcut failures, now
+  actually visible), Media Player (plays imported or recorded
+  audio/video), and Zip Tool (exports any folder to a real `.zip`, or
+  imports one from Windows, via JSZip).
+- `TODO.md`: tracks the "secondary OS / kiosk mode" idea discussed but
+  not yet started — launching Anchoran on top of an already-running
+  Windows session, claiming the Win key and Alt+Tab via a native
+  low-level keyboard hook while Windows keeps running underneath
+  untouched, with a normal reboot or Anchoran's own shutdown as the way
+  back. Deliberately not the Winlogon shell-replacement approach.
+
 ## [1.16.0] - 2026-09-11
 
 ### Added

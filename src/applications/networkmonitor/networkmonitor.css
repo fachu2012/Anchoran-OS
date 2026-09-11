@@ -1,0 +1,30 @@
+.networkmonitor-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.networkmonitor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.networkmonitor-history {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.networkmonitor-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--anchoran-text-secondary);
+}
+
+.networkmonitor-row span[data-fail="true"] {
+  color: #E5484D;
+}

@@ -32,12 +32,16 @@ declare global {
     getDisplays: () => Promise<{ id: number; label: string; isPrimary: boolean }[]>;
     moveToDisplay: (displayId: number) => void;
     importImage: () => Promise<{ dataUrl: string; fileName: string } | { error: string } | null>;
+    importMedia: () => Promise<{ dataUrl: string; fileName: string } | { error: string } | null>;
     onDownloadImported: (callback: (download: { fileName: string; content: string; isText: boolean }) => void) => void;
 
     exportData: () => Promise<{ success: boolean; path?: string }>;
     importData: () => Promise<{ success: boolean; error?: string }>;
     resetData: () => Promise<boolean>;
     saveAndOpenFile: (fileName: string, base64: string) => Promise<{ success: boolean; error?: string }>;
+    getCaptureSources: () => Promise<{ id: string; name: string; thumbnailDataUrl: string }[]>;
+    pickZipFile: () => Promise<{ base64: string; fileName: string } | { error: string } | null>;
+    readLog: () => Promise<string[]>;
 
     checkForUpdates: () => void;
     onUpdateStatus: (callback: (status: AnchoranUpdateStatus) => void) => void;

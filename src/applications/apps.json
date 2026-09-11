@@ -418,5 +418,86 @@
     "description": "Browse and view images saved in your files.",
     "defaultSize": { "width": 680, "height": 520 },
     "minSize": { "width": 440, "height": 380 }
+  },
+  {
+    "id": "screenshot",
+    "title": "Screenshot",
+    "icon": "screenshot",
+    "category": "Utilities",
+    "description": "Capture your real screen and save it to Files.",
+    "defaultSize": { "width": 520, "height": 460 },
+    "minSize": { "width": 400, "height": 360 }
+  },
+  {
+    "id": "voiceRecorder",
+    "title": "Voice Recorder",
+    "icon": "voiceRecorder",
+    "category": "Utilities",
+    "description": "Record voice memos from your real microphone.",
+    "defaultSize": { "width": 360, "height": 420 },
+    "minSize": { "width": 300, "height": 360 }
+  },
+  {
+    "id": "networkMonitor",
+    "title": "Network Monitor",
+    "icon": "networkMonitor",
+    "category": "System",
+    "description": "Real connectivity status and latency over time.",
+    "defaultSize": { "width": 480, "height": 480 },
+    "minSize": { "width": 380, "height": 400 }
+  },
+  {
+    "id": "eventViewer",
+    "title": "Event Viewer",
+    "icon": "eventViewer",
+    "category": "System",
+    "description": "Anchoran's own real event and error log.",
+    "defaultSize": { "width": 640, "height": 480 },
+    "minSize": { "width": 460, "height": 360 }
+  },
+  {
+    "id": "mediaPlayer",
+    "title": "Media Player",
+    "icon": "mediaPlayer",
+    "category": "Utilities",
+    "description": "Play audio and video imported into Anchoran.",
+    "defaultSize": { "width": 640, "height": 440 },
+    "minSize": { "width": 460, "height": 360 }
+  },
+  {
+    "id": "zipTool",
+    "title": "Zip Tool",
+    "icon": "zipTool",
+    "category": "Utilities",
+    "description": "Export a folder to a real .zip, or import one.",
+    "defaultSize": { "width": 440, "height": 420 },
+    "minSize": { "width": 380, "height": 360 }
+  },
+  {
+    "id": "spreadsheet",
+    "title": "Spreadsheet",
+    "icon": "spreadsheet",
+    "category": "Productivity",
+    "description": "A simple spreadsheet with cell references and formulas.",
+    "defaultSize": { "width": 760, "height": 520 },
+    "minSize": { "width": 480, "height": 360 }
+  },
+  {
+    "id": "magnifier",
+    "title": "Magnifier",
+    "icon": "magnifier",
+    "category": "Utilities",
+    "description": "A live magnifying glass that follows your cursor.",
+    "defaultSize": { "width": 680, "height": 460 },
+    "minSize": { "width": 420, "height": 320 }
+  },
+  {
+    "id": "screenRecorder",
+    "title": "Screen Recorder",
+    "icon": "screenRecorder",
+    "category": "Utilities",
+    "description": "Record your real screen to a video file.",
+    "defaultSize": { "width": 360, "height": 440 },
+    "minSize": { "width": 300, "height": 380 }
   }
 ]

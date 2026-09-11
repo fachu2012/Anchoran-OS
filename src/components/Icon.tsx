@@ -76,7 +76,16 @@ export type IconName =
   | "paint"
   | "pixelArt"
   | "wallpaperMaker"
-  | "photoViewer";
+  | "photoViewer"
+  | "screenshot"
+  | "voiceRecorder"
+  | "networkMonitor"
+  | "eventViewer"
+  | "mediaPlayer"
+  | "zipTool"
+  | "spreadsheet"
+  | "magnifier"
+  | "screenRecorder";
 
 const PATHS: Record<IconName, string> = {
   files:
@@ -173,6 +182,23 @@ const PATHS: Record<IconName, string> = {
   wallpaperMaker: "M4 5.5h16v13H4v-13Zm0 9 5-5 4 4 3-3 4 4",
   photoViewer:
     "M4.5 5.5h15v13h-15v-13Zm2.3 2.7a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8ZM6 16.5l4-4.5 3 3 2.5-3L18 16.5Z",
+  screenshot:
+    "M4.5 8V6.5a1.5 1.5 0 0 1 1.5-1.5H8M4.5 16v1.5A1.5 1.5 0 0 0 6 19h2M16 5.5h2A1.5 1.5 0 0 1 19.5 7v1.5M19.5 16V17.5A1.5 1.5 0 0 1 18 19h-2M8 12a4 4 0 1 0 8 0 4 4 0 0 0-8 0Z",
+  voiceRecorder:
+    "M12 4.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3ZM7 11v1.5a5 5 0 0 0 10 0V11M12 17.5v2.5",
+  networkMonitor:
+    "M4.5 19h15M6.5 19v-5h3v5M11.5 19V9h3v10M16.5 19v-8h3v8",
+  eventViewer:
+    "M4.5 6.5h15v11h-15v-11Zm2.5 3h1.5M9.5 9.5h9M6.5 12.5h1.5M9.5 12.5h6M6.5 15.5h1.5M9.5 15.5h4",
+  mediaPlayer: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm-2-4.5v-7l6 3.5-6 3.5Z",
+  zipTool:
+    "M9.5 3.5h5v3h-5v-3Zm0 3h5v3h-5v-3Zm0 3h5v3h-5v-3ZM6.5 12.5h11v8h-11v-8Zm4-9v3h2v-3",
+  spreadsheet:
+    "M4.5 4.5h15v15h-15v-15Zm0 5h15M4.5 14.5h15M9.5 4.5v15M14.5 4.5v15",
+  magnifier:
+    "M10.5 4.5a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm4.2 10.2L19.5 19.5M10.5 8v5M8 10.5h5",
+  screenRecorder:
+    "M4.5 6.5h11v11h-11v-11Zm11 3 4-2.5v7l-4-2.5M9 10.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z",
 };
 
 export function Icon({

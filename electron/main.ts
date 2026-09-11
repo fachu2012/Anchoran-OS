@@ -1,7 +1,8 @@
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, screen, session, shell } from "electron";
+import { app, BrowserWindow, desktopCapturer, dialog, globalShortcut, ipcMain, screen, session, shell } from "electron";
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
+import { execFile, spawn } from "node:child_process";
 import Store from "electron-store";
 import { autoUpdater } from "electron-updater";
 
@@ -308,6 +309,28 @@ ipcMain.handle("anchoran:save-and-open-file", async (_event, fileName: string, b
   }
 });
 
+/**
+ * Screenshot app: lists the real capturable screens/windows via
+ * Electron's own desktopCapturer — the standard, sanctioned way an
+ * Electron app takes a screenshot, no OS-level bypass involved. The
+ * renderer takes it from here with `navigator.mediaDevices.getUserMedia`
+ * against the chosen source id.
+ */
+ipcMain.handle("anchoran:get-capture-sources", async () => {
+  const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 320, height: 180 } });
+  return sources.map((s) => ({ id: s.id, name: s.name, thumbnailDataUrl: s.thumbnail.toDataURL() }));
+});
+
+/** Event Viewer: reads Anchoran's own real log file (see logToDisk above) — the same events it has always written, just made visible. */
+ipcMain.handle("anchoran:read-log", () => {
+  try {
+    const content = fs.readFileSync(logFile, "utf-8");
+    return content.split("\n").filter(Boolean).slice(-500).reverse();
+  } catch {
+    return [];
+  }
+});
+
 ipcMain.handle("anchoran:reset-data", () => {
   configStore.clear();
   dataStore.clear();
@@ -390,6 +413,103 @@ ipcMain.handle("anchoran:import-image", async () => {
   }
   const dataUrl = `data:${mime};base64,${buffer.toString("base64")}`;
   return { dataUrl, fileName: path.basename(filePath) };
+});
+
+const MEDIA_MIME_BY_EXT: Record<string, string> = {
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+  ".m4a": "audio/mp4",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+};
+
+/** Same idea as import-image, for the Media Player app — audio/video instead of a photo. */
+ipcMain.handle("anchoran:import-media", async () => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "Import Media",
+    filters: [{ name: "Audio & Video", extensions: ["mp3", "wav", "ogg", "m4a", "mp4", "webm"] }],
+    properties: ["openFile"],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+
+  const filePath = result.filePaths[0];
+  const ext = path.extname(filePath).toLowerCase();
+  const mime = MEDIA_MIME_BY_EXT[ext];
+  if (!mime) return null;
+
+  const buffer = fs.readFileSync(filePath);
+  if (buffer.byteLength > 30 * 1024 * 1024) {
+    return { error: "File is too large (max 30MB)." };
+  }
+  const dataUrl = `data:${mime};base64,${buffer.toString("base64")}`;
+  return { dataUrl, fileName: path.basename(filePath) };
+});
+
+/** Zip Tool: lets the user pick a real .zip from Windows to import — unzipping itself happens in the renderer via JSZip. */
+ipcMain.handle("anchoran:pick-zip-file", async () => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "Import Zip",
+    filters: [{ name: "Zip archives", extensions: ["zip"] }],
+    properties: ["openFile"],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const filePath = result.filePaths[0];
+  const buffer = fs.readFileSync(filePath);
+  if (buffer.byteLength > 50 * 1024 * 1024) {
+    return { error: "Zip file is too large (max 50MB)." };
+  }
+  return { base64: buffer.toString("base64"), fileName: path.basename(filePath) };
+});
+
+/**
+ * Kiosk Mode: makes Anchoran the Windows shell for the CURRENT USER
+ * ACCOUNT ONLY, by writing the per-user Winlogon "Shell" value under
+ * HKEY_CURRENT_USER — the same key Windows itself reads at sign-in to
+ * decide what to launch instead of explorer.exe. This is a standard,
+ * documented Windows configuration point (used by real kiosk-mode
+ * deployments), needs no admin rights (HKCU is user-writable), touches
+ * nothing about Windows' own boot process, kernel, or recovery tools
+ * (Safe Mode, Ctrl+Alt+Del, Task Manager, System Restore all keep
+ * working exactly as before), and only ever affects the single
+ * Windows account it was turned on for. It takes effect on the NEXT
+ * sign-in, never immediately, and can be turned off the same way at
+ * any time — plus "Open Windows Desktop" below always provides an
+ * immediate way back into Explorer without touching the registry at
+ * all, so the user is never without an escape hatch.
+ */
+const WINLOGON_KEY = "HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon";
+
+function runReg(args: string[]): Promise<{ success: boolean; output: string }> {
+  return new Promise((resolve) => {
+    execFile("reg.exe", args, (err, stdout, stderr) => {
+      resolve({ success: !err, output: err ? stderr || String(err) : stdout });
+    });
+  });
+}
+
+ipcMain.handle("anchoran:get-kiosk-shell-status", async () => {
+  const { success, output } = await runReg(["query", WINLOGON_KEY, "/v", "Shell"]);
+  if (!success) return { enabled: false, supported: process.platform === "win32" };
+  const enabled = output.toLowerCase().includes(path.basename(process.execPath).toLowerCase()) && app.isPackaged;
+  return { enabled, supported: process.platform === "win32" };
+});
+
+ipcMain.handle("anchoran:set-kiosk-shell", async (_event, enabled: boolean) => {
+  if (process.platform !== "win32") return { success: false, error: "Only supported on Windows." };
+  if (enabled && !app.isPackaged) {
+    return { success: false, error: "Only available in an installed build, not a dev run." };
+  }
+  const target = enabled ? process.execPath : "explorer.exe";
+  const { success, output } = await runReg(["add", WINLOGON_KEY, "/v", "Shell", "/t", "REG_SZ", "/d", target, "/f"]);
+  return success ? { success: true } : { success: false, error: output };
+});
+
+/** Always-available escape hatch: opens a normal Explorer window immediately, regardless of the Shell registry setting or when it takes effect. */
+ipcMain.on("anchoran:open-windows-desktop", () => {
+  if (process.platform === "win32") spawn("explorer.exe", [], { detached: true }).unref();
 });
 
 /**

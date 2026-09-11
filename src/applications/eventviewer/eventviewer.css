@@ -1,0 +1,51 @@
+.eventviewer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 11.5px;
+}
+
+.eventviewer-empty {
+  color: var(--anchoran-text-secondary);
+  font-size: 12.5px;
+  font-family: inherit;
+  padding: 20px;
+  text-align: center;
+}
+
+.eventviewer-row {
+  display: flex;
+  gap: 10px;
+  padding: 5px 6px;
+  border-radius: 4px;
+}
+
+.eventviewer-row:hover {
+  background: var(--anchoran-surface-hover);
+}
+
+.eventviewer-row[data-error="true"] .eventviewer-scope {
+  color: #E5484D;
+}
+
+.eventviewer-time {
+  color: var(--anchoran-text-secondary);
+  flex-shrink: 0;
+  width: 150px;
+}
+
+.eventviewer-scope {
+  flex-shrink: 0;
+  width: 150px;
+  color: var(--anchoran-accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eventviewer-message {
+  flex: 1;
+  word-break: break-word;
+  color: var(--anchoran-text-primary);
+}

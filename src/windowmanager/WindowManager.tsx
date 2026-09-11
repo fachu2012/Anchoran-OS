@@ -81,6 +81,27 @@ const APP_COMPONENTS: Record<AppId, React.LazyExoticComponent<() => JSX.Element>
   photoViewer: lazy(() =>
     import("@/applications/photoviewer/PhotoViewer").then((m) => ({ default: m.PhotoViewerApp }))
   ),
+  screenshot: lazy(() => import("@/applications/screenshot/Screenshot").then((m) => ({ default: m.ScreenshotApp }))),
+  voiceRecorder: lazy(() =>
+    import("@/applications/voicerecorder/VoiceRecorder").then((m) => ({ default: m.VoiceRecorderApp }))
+  ),
+  networkMonitor: lazy(() =>
+    import("@/applications/networkmonitor/NetworkMonitor").then((m) => ({ default: m.NetworkMonitorApp }))
+  ),
+  eventViewer: lazy(() =>
+    import("@/applications/eventviewer/EventViewer").then((m) => ({ default: m.EventViewerApp }))
+  ),
+  mediaPlayer: lazy(() =>
+    import("@/applications/mediaplayer/MediaPlayer").then((m) => ({ default: m.MediaPlayerApp }))
+  ),
+  zipTool: lazy(() => import("@/applications/ziptool/ZipTool").then((m) => ({ default: m.ZipToolApp }))),
+  spreadsheet: lazy(() =>
+    import("@/applications/spreadsheet/Spreadsheet").then((m) => ({ default: m.SpreadsheetApp }))
+  ),
+  magnifier: lazy(() => import("@/applications/magnifier/Magnifier").then((m) => ({ default: m.MagnifierApp }))),
+  screenRecorder: lazy(() =>
+    import("@/applications/screenrecorder/ScreenRecorder").then((m) => ({ default: m.ScreenRecorderApp }))
+  ),
 };
 
 function AppLoadingFallback() {
