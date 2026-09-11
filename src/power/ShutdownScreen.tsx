@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-
-const ANCHORAN_LOGO = new URL("../../assets/logo/anchoran-logo.svg", import.meta.url).href;
+import { AnchoranLogo } from "@/components/AnchoranLogo";
+import { usePreferencesStore } from "@/theme/preferencesStore";
 
 // "update" used to be a mode here too, but the update flow now has its
 // own, much more elaborate pre-install sequence — see UpdateTheater.
@@ -24,6 +24,7 @@ const BLACKOUT_MS = 450;
  * real exit/restart/lock action once the animation has finished.
  */
 export function ShutdownScreen({ mode, onComplete }: { mode: ExitMode; onComplete: () => void }) {
+  const accentColor = usePreferencesStore((s) => s.accentColor);
   const [stage, setStage] = useState<"dimming" | "holding" | "blackout">("dimming");
   const [labelIndex, setLabelIndex] = useState(0);
   const labels = STAGE_LABELS[mode];
@@ -61,11 +62,9 @@ export function ShutdownScreen({ mode, onComplete }: { mode: ExitMode; onComplet
         transition: `opacity ${stage === "blackout" ? BLACKOUT_MS : DIM_MS}ms cubic-bezier(0.4,0,0.4,1)`,
       }}
     >
-      <img
-        src={ANCHORAN_LOGO}
-        alt=""
-        width={60}
-        height={60}
+      <AnchoranLogo
+        size={60}
+        color={accentColor}
         style={{
           opacity: stage === "blackout" ? 0 : 0.88,
           transform: stage === "blackout" ? "scale(0.9)" : "scale(1)",

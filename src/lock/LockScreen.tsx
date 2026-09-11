@@ -3,6 +3,7 @@ import { Wallpaper } from "@/desktop/Wallpaper";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 
 const UNLOCK_ANIMATION_MS = 220;
+const DEFAULT_AVATAR = new URL("../../assets/avatar/default-avatar.png", import.meta.url).href;
 
 export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const username = usePreferencesStore((s) => s.username);
@@ -90,18 +91,10 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
             width: 72,
             height: 72,
             borderRadius: "50%",
-            background: avatarDataUrl
-              ? `url(${avatarDataUrl}) center/cover`
-              : "rgba(255,255,255,0.15)",
+            background: `url(${avatarDataUrl || DEFAULT_AVATAR}) center/cover`,
             border: "1px solid rgba(255,255,255,0.3)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 22,
           }}
-        >
-          {!avatarDataUrl && username.slice(0, 1).toUpperCase()}
-        </div>
+        />
         <div style={{ fontSize: 14, marginTop: 6 }}>{username}</div>
 
         {!pinPromptOpen ? (

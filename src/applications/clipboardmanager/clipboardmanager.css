@@ -1,0 +1,40 @@
+.clipboard-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.clipboard-row {
+  padding: 8px 10px;
+  border-radius: var(--anchoran-radius-sm);
+  border: 1px solid var(--anchoran-border);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.clipboard-row:hover {
+  background: var(--anchoran-surface-hover);
+}
+
+.clipboard-row-text {
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.clipboard-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--anchoran-text-secondary);
+}
+
+.clipboard-copied {
+  color: var(--anchoran-accent);
+}

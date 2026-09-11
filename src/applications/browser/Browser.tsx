@@ -10,7 +10,7 @@ function normalizeUrl(input: string): string {
 const isElectron = typeof window !== "undefined" && !!window.anchoran;
 
 export function BrowserApp() {
-  const [urlInput, setUrlInput] = useState("https://www.anthropic.com");
+  const [urlInput, setUrlInput] = useState("https://www.google.com");
   const [activeUrl, setActiveUrl] = useState(urlInput);
 
   function navigate() {

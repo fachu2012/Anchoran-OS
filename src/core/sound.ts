@@ -18,6 +18,18 @@ function getContext(): AudioContext | null {
   return audioCtx;
 }
 
+// Defense in depth: even with the main process's autoplay-policy switch,
+// resume the context on the very first real user interaction, in case
+// the very first sound (the boot chime) still raced the browser's own
+// activation check.
+if (typeof window !== "undefined") {
+  const unlock = () => {
+    audioCtx?.resume().catch(() => {});
+  };
+  window.addEventListener("pointerdown", unlock, { once: true });
+  window.addEventListener("keydown", unlock, { once: true });
+}
+
 function playTone(freq: number, startOffset: number, duration: number, gain: number, ctx: AudioContext) {
   const osc = ctx.createOscillator();
   const gainNode = ctx.createGain();

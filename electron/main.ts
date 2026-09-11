@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, screen } from "electron";
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, screen, session, shell } from "electron";
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
@@ -6,6 +6,16 @@ import Store from "electron-store";
 import { autoUpdater } from "electron-updater";
 
 const isDev = process.env.ANCHORAN_DEV === "1";
+
+// Chromium's default autoplay policy blocks any audio (including a
+// synthesized Web Audio API tone) from starting until a real user
+// gesture has happened in that page. Anchoran's boot chime plays
+// automatically at the end of the boot sequence — no click precedes
+// it — so without this switch it was being silently blocked, and the
+// AudioContext it created stayed suspended, which could keep later
+// sounds (notifications, errors) silent too. Must be set before the
+// app is ready.
+app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
 // version.json is the single source of truth for Anchoran's version.
 // It is read once at startup and exposed to the renderer over IPC.
@@ -24,7 +34,8 @@ const dataRoot = app.getPath("userData");
 const configDir = path.join(dataRoot, "config");
 const dataDir = path.join(dataRoot, "data");
 const logsDir = path.join(dataRoot, "logs");
-for (const dir of [configDir, dataDir, logsDir]) {
+const cacheDir = path.join(dataRoot, "cache");
+for (const dir of [configDir, dataDir, logsDir, cacheDir]) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
@@ -275,11 +286,71 @@ ipcMain.handle("anchoran:import-data", async () => {
   }
 });
 
+/**
+ * "Print" for apps that produce a document (Notes, JSON Formatter,
+ * text files in Files, …): the renderer builds an actual PDF client
+ * side (jsPDF), hands it here as base64, and this writes it to
+ * Anchoran's own cache folder and opens it with whatever the user's
+ * real Windows PDF viewer is — the same as double-clicking a PDF in
+ * Explorer. Nothing about the file's origin is hidden from that viewer;
+ * it's a real, disposable file on disk, just not one Anchoran keeps
+ * track of afterward.
+ */
+ipcMain.handle("anchoran:save-and-open-file", async (_event, fileName: string, base64: string) => {
+  try {
+    const safeName = fileName.replace(/[\\/:*?"<>|]/g, "_");
+    const filePath = path.join(cacheDir, `${Date.now()}-${safeName}`);
+    fs.writeFileSync(filePath, Buffer.from(base64, "base64"));
+    const openError = await shell.openPath(filePath);
+    return { success: !openError, error: openError || undefined };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
 ipcMain.handle("anchoran:reset-data", () => {
   configStore.clear();
   dataStore.clear();
   return true;
 });
+
+// The Browser app's <webview> has no `partition` set, so it uses the
+// app's default session — this is what lets a single listener here
+// catch every download it triggers.
+const DOWNLOAD_TEXT_EXTENSIONS = new Set([
+  ".txt", ".md", ".json", ".csv", ".log", ".js", ".ts", ".css", ".html", ".xml", ".yml", ".yaml",
+]);
+
+function interceptWebviewDownloads() {
+  session.defaultSession.on("will-download", (_event, item) => {
+    // Redirected into Anchoran's own cache folder instead of Windows'
+    // real Downloads folder, and instead of the native "Save As" dialog
+    // — the file then gets imported into Anchoran's own virtual
+    // filesystem (Files → Downloads) below, the same as a drag-and-drop
+    // import, so it never actually lives in a Windows-visible folder.
+    const tempName = `${Date.now()}-${item.getFilename()}`;
+    const tempPath = path.join(cacheDir, tempName);
+    item.setSavePath(tempPath);
+
+    item.once("done", (_doneEvent, state) => {
+      if (state !== "completed") {
+        fs.rm(tempPath, { force: true }, () => {});
+        return;
+      }
+      const fileName = item.getFilename();
+      const ext = path.extname(fileName).toLowerCase();
+      const isText = DOWNLOAD_TEXT_EXTENSIONS.has(ext);
+      let content = "";
+      try {
+        if (isText) content = fs.readFileSync(tempPath, "utf-8");
+      } catch {
+        // Falls through with empty content — still records the download.
+      }
+      mainWindow?.webContents.send("anchoran:download-imported", { fileName, content, isText });
+      fs.rm(tempPath, { force: true }, () => {});
+    });
+  });
+}
 
 const IMAGE_MIME_BY_EXT: Record<string, string> = {
   ".png": "image/png",
@@ -434,6 +505,7 @@ ipcMain.on("anchoran:quit-and-install-update", () => {
 app.whenReady().then(() => {
   createMainWindow();
   registerGlobalShortcuts();
+  interceptWebviewDownloads();
   setInterval(sampleCpuUsage, 1000);
   if (!isDev) {
     autoUpdater.checkForUpdates().catch((err) => {

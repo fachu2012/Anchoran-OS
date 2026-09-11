@@ -1,0 +1,332 @@
+[
+  {
+    "id": "files",
+    "title": "Files",
+    "icon": "files",
+    "category": "System",
+    "description": "Browse, organize and search Anchoran's own filesystem.",
+    "core": true,
+    "defaultSize": { "width": 920, "height": 600 },
+    "minSize": { "width": 480, "height": 320 }
+  },
+  {
+    "id": "terminal",
+    "title": "Terminal",
+    "icon": "terminal",
+    "category": "System",
+    "description": "A command-line shell for Anchoran's filesystem and system commands.",
+    "core": true,
+    "allowMultipleInstances": true,
+    "defaultSize": { "width": 760, "height": 460 },
+    "minSize": { "width": 420, "height": 260 }
+  },
+  {
+    "id": "settings",
+    "title": "Settings",
+    "icon": "settings",
+    "category": "System",
+    "description": "Appearance, sound, notifications, users, privacy and system info.",
+    "core": true,
+    "defaultSize": { "width": 880, "height": 600 },
+    "minSize": { "width": 640, "height": 440 }
+  },
+  {
+    "id": "notes",
+    "title": "Notes",
+    "icon": "notes",
+    "category": "Productivity",
+    "description": "A simple multi-document text editor.",
+    "allowMultipleInstances": true,
+    "defaultSize": { "width": 640, "height": 520 },
+    "minSize": { "width": 360, "height": 280 }
+  },
+  {
+    "id": "calculator",
+    "title": "Calculator",
+    "icon": "calculator",
+    "category": "Utilities",
+    "description": "A standard calculator.",
+    "defaultSize": { "width": 340, "height": 480 },
+    "minSize": { "width": 300, "height": 420 }
+  },
+  {
+    "id": "browser",
+    "title": "Anchoran Browser",
+    "icon": "browser",
+    "category": "Internet",
+    "description": "Browse the web from inside Anchoran.",
+    "defaultSize": { "width": 1000, "height": 660 },
+    "minSize": { "width": 480, "height": 360 }
+  },
+  {
+    "id": "systemMonitor",
+    "title": "System Monitor",
+    "icon": "systemMonitor",
+    "category": "System",
+    "description": "Real CPU, memory and platform information.",
+    "defaultSize": { "width": 720, "height": 520 },
+    "minSize": { "width": 480, "height": 360 }
+  },
+  {
+    "id": "appCenter",
+    "title": "Anchoran Webstore",
+    "icon": "appCenter",
+    "category": "System",
+    "description": "Browse and install Anchoran's applications.",
+    "core": true,
+    "defaultSize": { "width": 900, "height": 600 },
+    "minSize": { "width": 620, "height": 420 }
+  },
+  {
+    "id": "clock",
+    "title": "Clock",
+    "icon": "clock",
+    "category": "Utilities",
+    "description": "World clocks, a stopwatch and a countdown timer.",
+    "defaultSize": { "width": 420, "height": 520 },
+    "minSize": { "width": 340, "height": 420 }
+  },
+  {
+    "id": "converter",
+    "title": "Converter",
+    "icon": "converter",
+    "category": "Utilities",
+    "description": "Convert length, weight, temperature and data size.",
+    "defaultSize": { "width": 380, "height": 460 },
+    "minSize": { "width": 320, "height": 400 }
+  },
+  {
+    "id": "colorPicker",
+    "title": "Color Picker",
+    "icon": "colorPicker",
+    "category": "Utilities",
+    "description": "Pick colors and copy HEX, RGB or HSL values.",
+    "defaultSize": { "width": 420, "height": 480 },
+    "minSize": { "width": 360, "height": 420 }
+  },
+  {
+    "id": "chat",
+    "title": "Chat",
+    "icon": "chat",
+    "category": "Internet",
+    "description": "Anchoran's messaging app.",
+    "defaultSize": { "width": 420, "height": 640 },
+    "minSize": { "width": 340, "height": 420 }
+  },
+  {
+    "id": "todo",
+    "title": "To-Do List",
+    "icon": "todo",
+    "category": "Productivity",
+    "description": "A simple checklist with due dates.",
+    "defaultSize": { "width": 400, "height": 520 },
+    "minSize": { "width": 320, "height": 360 }
+  },
+  {
+    "id": "pomodoro",
+    "title": "Pomodoro Timer",
+    "icon": "pomodoro",
+    "category": "Productivity",
+    "description": "Focused work sessions with short breaks.",
+    "defaultSize": { "width": 340, "height": 440 },
+    "minSize": { "width": 300, "height": 400 }
+  },
+  {
+    "id": "qrCode",
+    "title": "QR Code",
+    "icon": "qrCode",
+    "category": "Utilities",
+    "description": "Generate a QR code from any text or link.",
+    "defaultSize": { "width": 380, "height": 460 },
+    "minSize": { "width": 320, "height": 400 }
+  },
+  {
+    "id": "passwordGenerator",
+    "title": "Password Generator",
+    "icon": "passwordGenerator",
+    "category": "Utilities",
+    "description": "Generate strong random passwords.",
+    "defaultSize": { "width": 400, "height": 420 },
+    "minSize": { "width": 340, "height": 380 }
+  },
+  {
+    "id": "jsonFormatter",
+    "title": "JSON Formatter",
+    "icon": "jsonFormatter",
+    "category": "Utilities",
+    "description": "Format, validate and minify JSON.",
+    "defaultSize": { "width": 560, "height": 520 },
+    "minSize": { "width": 380, "height": 340 }
+  },
+  {
+    "id": "wordCounter",
+    "title": "Word Counter",
+    "icon": "wordCounter",
+    "category": "Utilities",
+    "description": "Count words, characters and reading time.",
+    "defaultSize": { "width": 480, "height": 480 },
+    "minSize": { "width": 340, "height": 340 }
+  },
+  {
+    "id": "snake",
+    "title": "Snake",
+    "icon": "snake",
+    "category": "Games",
+    "description": "The classic snake game.",
+    "defaultSize": { "width": 420, "height": 480 },
+    "minSize": { "width": 360, "height": 420 }
+  },
+  {
+    "id": "game2048",
+    "title": "2048",
+    "icon": "game2048",
+    "category": "Games",
+    "description": "Slide and merge tiles to reach 2048.",
+    "defaultSize": { "width": 400, "height": 480 },
+    "minSize": { "width": 340, "height": 420 }
+  },
+  {
+    "id": "ticTacToe",
+    "title": "Tic-Tac-Toe",
+    "icon": "ticTacToe",
+    "category": "Games",
+    "description": "Classic two-player tic-tac-toe.",
+    "defaultSize": { "width": 360, "height": 440 },
+    "minSize": { "width": 320, "height": 400 }
+  },
+  {
+    "id": "memoryMatch",
+    "title": "Memory Match",
+    "icon": "memoryMatch",
+    "category": "Games",
+    "description": "Flip cards and find every matching pair.",
+    "defaultSize": { "width": 420, "height": 480 },
+    "minSize": { "width": 360, "height": 420 }
+  },
+  {
+    "id": "diceRoller",
+    "title": "Dice Roller",
+    "icon": "diceRoller",
+    "category": "Games",
+    "description": "Roll one or more dice with a running history.",
+    "defaultSize": { "width": 360, "height": 440 },
+    "minSize": { "width": 300, "height": 380 }
+  },
+  {
+    "id": "coinFlip",
+    "title": "Coin Flip",
+    "icon": "coinFlip",
+    "category": "Games",
+    "description": "Flip a coin and keep a tally of heads and tails.",
+    "defaultSize": { "width": 340, "height": 420 },
+    "minSize": { "width": 300, "height": 380 }
+  },
+  {
+    "id": "connectFour",
+    "title": "Connect Four",
+    "icon": "connectFour",
+    "category": "Games",
+    "description": "Drop discs and connect four in a row, two players.",
+    "defaultSize": { "width": 440, "height": 500 },
+    "minSize": { "width": 380, "height": 440 }
+  },
+  {
+    "id": "checkers",
+    "title": "Checkers",
+    "icon": "checkers",
+    "category": "Games",
+    "description": "Classic two-player checkers on an 8x8 board.",
+    "defaultSize": { "width": 440, "height": 500 },
+    "minSize": { "width": 380, "height": 440 }
+  },
+  {
+    "id": "minesweeper",
+    "title": "Minesweeper",
+    "icon": "minesweeper",
+    "category": "Games",
+    "description": "Clear the board without detonating a mine.",
+    "defaultSize": { "width": 420, "height": 500 },
+    "minSize": { "width": 360, "height": 440 }
+  },
+  {
+    "id": "sudoku",
+    "title": "Sudoku",
+    "icon": "sudoku",
+    "category": "Games",
+    "description": "Classic 9x9 number puzzle with three difficulty levels.",
+    "defaultSize": { "width": 440, "height": 560 },
+    "minSize": { "width": 380, "height": 480 }
+  },
+  {
+    "id": "typingTest",
+    "title": "Typing Speed Test",
+    "icon": "typingTest",
+    "category": "Utilities",
+    "description": "Measure your typing speed in words per minute.",
+    "defaultSize": { "width": 520, "height": 400 },
+    "minSize": { "width": 400, "height": 340 }
+  },
+  {
+    "id": "calendar",
+    "title": "Calendar",
+    "icon": "calendar",
+    "category": "Productivity",
+    "description": "A monthly calendar with your own events.",
+    "defaultSize": { "width": 640, "height": 560 },
+    "minSize": { "width": 460, "height": 420 }
+  },
+  {
+    "id": "clipboardManager",
+    "title": "Clipboard Manager",
+    "icon": "clipboardManager",
+    "category": "Utilities",
+    "description": "A history of everything you've copied inside Anchoran.",
+    "defaultSize": { "width": 380, "height": 480 },
+    "minSize": { "width": 320, "height": 380 }
+  },
+  {
+    "id": "kanban",
+    "title": "Kanban Board",
+    "icon": "kanban",
+    "category": "Productivity",
+    "description": "Organize tasks across To Do, Doing and Done columns.",
+    "defaultSize": { "width": 760, "height": 520 },
+    "minSize": { "width": 520, "height": 400 }
+  },
+  {
+    "id": "textDiff",
+    "title": "Text Diff",
+    "icon": "textDiff",
+    "category": "Utilities",
+    "description": "Compare two pieces of text and highlight the differences.",
+    "defaultSize": { "width": 640, "height": 520 },
+    "minSize": { "width": 440, "height": 380 }
+  },
+  {
+    "id": "habitTracker",
+    "title": "Habit Tracker",
+    "icon": "habitTracker",
+    "category": "Productivity",
+    "description": "Track daily habits and keep your streaks going.",
+    "defaultSize": { "width": 480, "height": 520 },
+    "minSize": { "width": 380, "height": 420 }
+  },
+  {
+    "id": "currencyConverter",
+    "title": "Currency Converter",
+    "icon": "currencyConverter",
+    "category": "Utilities",
+    "description": "Convert between currencies using live exchange rates.",
+    "defaultSize": { "width": 380, "height": 420 },
+    "minSize": { "width": 320, "height": 380 }
+  },
+  {
+    "id": "weather",
+    "title": "Weather",
+    "icon": "weather",
+    "category": "Utilities",
+    "description": "Current conditions and a short forecast for any city.",
+    "defaultSize": { "width": 400, "height": 480 },
+    "minSize": { "width": 340, "height": 420 }
+  }
+]

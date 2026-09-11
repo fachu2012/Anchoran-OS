@@ -13,17 +13,33 @@ const SNAP_ZONE_PX = 24;
 
 type ResizeDirection = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
+const CORNER_ZONE_PX = 56;
+
 function computeSnapZone(clientX: number, clientY: number): Bounds | null {
   const vw = window.innerWidth;
   const vh = window.innerHeight - TASKBAR_HEIGHT;
+  const halfW = Math.round(vw / 2);
+  const halfH = Math.round(vh / 2);
+
+  // Corners take priority over the plain edges below — a drag into the
+  // top-left 56px square means "quarter", not "left half".
+  const nearTop = clientY <= CORNER_ZONE_PX;
+  const nearBottom = clientY >= vh - CORNER_ZONE_PX;
+  const nearLeft = clientX <= CORNER_ZONE_PX;
+  const nearRight = clientX >= vw - CORNER_ZONE_PX;
+  if (nearTop && nearLeft) return { x: 0, y: 0, width: halfW, height: halfH };
+  if (nearTop && nearRight) return { x: halfW, y: 0, width: vw - halfW, height: halfH };
+  if (nearBottom && nearLeft) return { x: 0, y: halfH, width: halfW, height: vh - halfH };
+  if (nearBottom && nearRight) return { x: halfW, y: halfH, width: vw - halfW, height: vh - halfH };
+
   if (clientY <= SNAP_ZONE_PX) {
     return { x: 0, y: 0, width: vw, height: vh };
   }
   if (clientX <= SNAP_ZONE_PX) {
-    return { x: 0, y: 0, width: Math.round(vw / 2), height: vh };
+    return { x: 0, y: 0, width: halfW, height: vh };
   }
   if (clientX >= vw - SNAP_ZONE_PX) {
-    return { x: Math.round(vw / 2), y: 0, width: Math.round(vw / 2), height: vh };
+    return { x: halfW, y: 0, width: vw - halfW, height: vh };
   }
   return null;
 }

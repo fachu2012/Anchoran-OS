@@ -41,7 +41,32 @@ export type IconName =
   | "colorPicker"
   | "plus"
   | "copy"
-  | "pin";
+  | "pin"
+  | "chat"
+  | "todo"
+  | "pomodoro"
+  | "qrCode"
+  | "passwordGenerator"
+  | "jsonFormatter"
+  | "wordCounter"
+  | "snake"
+  | "game2048"
+  | "ticTacToe"
+  | "memoryMatch"
+  | "diceRoller"
+  | "coinFlip"
+  | "connectFour"
+  | "checkers"
+  | "minesweeper"
+  | "sudoku"
+  | "typingTest"
+  | "calendar"
+  | "clipboardManager"
+  | "kanban"
+  | "textDiff"
+  | "habitTracker"
+  | "currencyConverter"
+  | "weather";
 
 const PATHS: Record<IconName, string> = {
   files:
@@ -82,6 +107,44 @@ const PATHS: Record<IconName, string> = {
   plus: "M12 5.5v13M5.5 12h13",
   copy: "M8.5 8.5h10v10h-10v-10ZM5.5 5.5h10v3M5.5 5.5v10h3",
   pin: "M9 4.5h6l.8 5.2L19 13v2h-6v5l-1 2-1-2v-5H5v-2l3.2-3.3L9 4.5Z",
+  chat: "M4.5 5.5h15v11h-8L7 20v-3.5H4.5v-11Z M8 10h8 M8 13h5",
+  todo: "M5 6.5h14M5 12h14M5 17.5h14M4.2 6.5l.8.8 1.2-1.4M4.2 12l.8.8 1.2-1.4M4.2 17.5l.8.8 1.2-1.4",
+  pomodoro: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-12v4l2.6 2.6M9 3h6",
+  qrCode:
+    "M4.5 4.5h6v6h-6v-6Zm9 0h6v6h-6v-6Zm-9 9h6v6h-6v-6Zm10.5-1.5h1.5v1.5M19.5 15h1v1M15 15h1.5v1.5M13.5 19.5h1v1M17 19.5h3v-3",
+  passwordGenerator:
+    "M7 12.5V9a5 5 0 0 1 10 0v3.5M5.5 12.5h13v8h-13v-8ZM12 16v1.8",
+  jsonFormatter: "M8.5 4.5c-2 0-3 1-3 3v3l-2 1.5 2 1.5v3c0 2 1 3 3 3M15.5 4.5c2 0 3 1 3 3v3l2 1.5-2 1.5v3c0 2-1 3-3 3",
+  wordCounter: "M4.5 5.5h15M4.5 10h15M4.5 14.5h9M4.5 19h6M17 14.5a2.5 2.5 0 1 1 2.5 2.5",
+  snake: "M5 6.5h6a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6M17 6.5h.01M17 4.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z",
+  game2048: "M4.5 4.5h6.5v6.5H4.5v-6.5Zm9 0H19v6.5h-5.5v-6.5Zm-9 9H10v6.5H4.5v-6.5Zm9.5.5 4.5 5.5m0-5.5-4.5 5.5",
+  ticTacToe: "M9 4.5v15M15 4.5v15M4.5 9h15M4.5 15h15M6 6.5l3 3M9 6.5l-3 3M15.5 15.5a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z",
+  memoryMatch: "M4.5 4.5h7v7h-7v-7Zm8 0h7v7h-7v-7Zm-8 8h7v7h-7v-7Zm8 0h7v7h-7v-7Z",
+  diceRoller:
+    "M5.5 5.5h13v13h-13v-13Zm3 3h.01M12 9h.01M15.5 8.5h.01M8.5 15.5h.01M12 15h.01M15.5 15.5h.01M8.5 12h.01M15.5 12h.01",
+  coinFlip: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-11.5v7M9.2 10.2 12 8.5l2.8 1.7",
+  connectFour:
+    "M4 4.5h16v15H4v-15Zm3 3a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6Zm5 0a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6Zm5 4.5a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6Zm-5 4a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6Zm-5-2a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6Z",
+  checkers:
+    "M4 4.5h16v16H4v-16Zm4 4h.01M8 16h.01M16 8h.01M16 16h.01M6.5 6h3v3h-3v-3Zm8 8h3v3h-3v-3Z",
+  minesweeper:
+    "M12 4.5v2M12 17.5v2M4.5 12h2M17.5 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4M12 16.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Z",
+  sudoku:
+    "M4 4.5h16v16H4v-16Zm5.3 0v16M14.7 4.5v16M4 9.3h16M4 14.7h16M7 7l1.6 1.6M8.6 7 7 8.6",
+  typingTest:
+    "M4 6.5h16v11H4v-11Zm2.5 2.5h1.4M9.5 9h1.4M12.5 9h1.4M15.5 9h1.4M6.5 12h1.4M9.5 12h5M15.5 12h1.4M8 15h8",
+  calendar: "M5 5.5h14v14H5v-14Zm0 4.5h14M8.5 3.5v4M15.5 3.5v4M8 14h1.5M11.5 14h1.5M15 14h1.5M8 17h1.5",
+  clipboardManager:
+    "M9 4.5h6v3H9v-3ZM6.5 6.5H8v2h8v-2h1.5v13h-11v-13Zm2 6h7M8.5 15.5h7M8.5 18h4.5",
+  kanban: "M4.5 4.5h15v15h-15v-15Zm4 2v6M12 6.5v10M16 6.5v3.5",
+  textDiff:
+    "M5 5.5h7v5H5v-5Zm7 8h7v5h-7v-5ZM8.5 10.5V13M15.5 13v-2.5M9 7.5h1.5M14 15.5h1.5",
+  habitTracker:
+    "M4.5 5.5h4v4h-4v-4Zm6.75 0h4v4h-4v-4Zm6.75 0h4v4h-4v-4ZM4.5 12h4v4h-4v-4Zm6.75 0h4v4h-4v-4Zm6.75 0h4v4h-4v-4Z",
+  currencyConverter:
+    "M9 4.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Zm6 6a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM9 7v5M7 9.3h4M15 12.7v5M13 15h4",
+  weather:
+    "M7.5 18a4 4 0 0 1-.6-7.95 5 5 0 0 1 9.7-1.7A3.8 3.8 0 0 1 17 18H7.5Z",
 };
 
 export function Icon({

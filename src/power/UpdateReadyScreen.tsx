@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from "react";
-
-const ANCHORAN_LOGO = new URL("../../assets/logo/anchoran-logo.svg", import.meta.url).href;
+import { AnchoranLogo } from "@/components/AnchoranLogo";
+import { usePreferencesStore } from "@/theme/preferencesStore";
 
 const btnBase: CSSProperties = {
   padding: "9px 18px",
@@ -26,6 +26,7 @@ export function UpdateReadyScreen({
   onInstallNow: () => void;
   onLater: () => void;
 }) {
+  const accentColor = usePreferencesStore((s) => s.accentColor);
   const [confirming, setConfirming] = useState(false);
 
   return (
@@ -43,7 +44,7 @@ export function UpdateReadyScreen({
         animation: "update-ready-in 400ms cubic-bezier(0.16,1,0.3,1)",
       }}
     >
-      <img src={ANCHORAN_LOGO} alt="" width={56} height={56} style={{ opacity: 0.92 }} />
+      <AnchoranLogo size={56} color={accentColor} style={{ opacity: 0.92 }} />
       <div style={{ color: "#F3F4F6", fontSize: 16, fontWeight: 300, letterSpacing: 0.4 }}>
         Anchoran OS {version} is ready to install
       </div>
@@ -62,7 +63,7 @@ export function UpdateReadyScreen({
             </button>
             <button
               onClick={() => setConfirming(true)}
-              style={{ ...btnBase, background: "#5B84E8", color: "#fff" }}
+              style={{ ...btnBase, background: accentColor, color: "#fff" }}
             >
               Restart & Update
             </button>
@@ -78,7 +79,7 @@ export function UpdateReadyScreen({
             >
               Cancel
             </button>
-            <button onClick={onInstallNow} style={{ ...btnBase, background: "#5B84E8", color: "#fff" }}>
+            <button onClick={onInstallNow} style={{ ...btnBase, background: accentColor, color: "#fff" }}>
               Yes, update
             </button>
           </div>

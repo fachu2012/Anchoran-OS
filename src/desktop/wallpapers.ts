@@ -1,11 +1,17 @@
 /**
- * Anchoran's default wallpapers are generated entirely from CSS
- * gradients rather than raster placeholders — this was approved as
- * "generable por código" in the asset inventory, and gives a clean,
- * on-brand background with no improvised imagery. Photographic /
- * illustrated wallpapers can be added later as real image files
- * without changing this registry's shape.
+ * Anchoran's default wallpapers. Most are real generated images
+ * (assets/wallpapers/*.png); "Mist" stays a plain CSS gradient since it
+ * has no matching commissioned image yet. `preview` is a CSS
+ * `background` value used directly for both the desktop wallpaper and
+ * its picker swatch in Settings/Onboarding — a plain gradient and a
+ * `url(...) center/cover` image both work as drop-in values here.
  */
+const DEFAULT_IMG = new URL("../../assets/wallpapers/default.png", import.meta.url).href;
+const SLATE_IMG = new URL("../../assets/wallpapers/slate.png", import.meta.url).href;
+const DAWN_IMG = new URL("../../assets/wallpapers/dawn.png", import.meta.url).href;
+const EMBER_IMG = new URL("../../assets/wallpapers/ember.png", import.meta.url).href;
+const VERDANT_IMG = new URL("../../assets/wallpapers/verdant.png", import.meta.url).href;
+
 export interface WallpaperDefinition {
   id: string;
   name: string;
@@ -16,19 +22,17 @@ export const WALLPAPERS: WallpaperDefinition[] = [
   {
     id: "default",
     name: "Anchoran Deep",
-    preview:
-      "radial-gradient(120% 90% at 18% 8%, rgba(110,155,247,0.20) 0%, rgba(110,155,247,0) 42%), " +
-      "linear-gradient(165deg, #05060A 0%, #0C1524 38%, #16233F 68%, #1E3A8A 100%)",
+    preview: `url(${DEFAULT_IMG}) center/cover no-repeat`,
   },
   {
     id: "slate",
     name: "Slate",
-    preview: "linear-gradient(160deg, #1B1F27 0%, #2A303C 100%)",
+    preview: `url(${SLATE_IMG}) center/cover no-repeat`,
   },
   {
     id: "dawn",
     name: "Dawn",
-    preview: "linear-gradient(160deg, #E8ECF3 0%, #C9D6EC 55%, #A9BEE6 100%)",
+    preview: `url(${DAWN_IMG}) center/cover no-repeat`,
   },
   {
     id: "mist",
@@ -38,16 +42,12 @@ export const WALLPAPERS: WallpaperDefinition[] = [
   {
     id: "ember",
     name: "Ember",
-    preview:
-      "radial-gradient(110% 85% at 82% 92%, rgba(180,83,9,0.22) 0%, rgba(180,83,9,0) 45%), " +
-      "linear-gradient(165deg, #06070A 0%, #1A1410 42%, #2A1B10 72%, #7C3A0F 100%)",
+    preview: `url(${EMBER_IMG}) center/cover no-repeat`,
   },
   {
     id: "verdant",
     name: "Verdant",
-    preview:
-      "radial-gradient(120% 90% at 20% 90%, rgba(15,118,110,0.22) 0%, rgba(15,118,110,0) 45%), " +
-      "linear-gradient(165deg, #05070A 0%, #0B1A18 40%, #0F2B26 70%, #0F766E 100%)",
+    preview: `url(${VERDANT_IMG}) center/cover no-repeat`,
   },
 ];
 

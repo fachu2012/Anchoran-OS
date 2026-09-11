@@ -1,0 +1,54 @@
+.typing-stats {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--anchoran-text-secondary);
+}
+
+.typing-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.typing-sample {
+  font-size: 16px;
+  line-height: 1.7;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  padding: 12px 14px;
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-md);
+  background: var(--anchoran-surface);
+}
+
+.typing-char {
+  color: var(--anchoran-text-secondary);
+}
+
+.typing-char[data-state="correct"] {
+  color: var(--anchoran-accent);
+}
+
+.typing-char[data-state="wrong"] {
+  color: #E5484D;
+  text-decoration: underline;
+}
+
+.typing-input {
+  resize: none;
+  background: var(--anchoran-surface);
+  border: 1px solid var(--anchoran-border);
+  border-radius: 6px;
+  color: var(--anchoran-text-primary);
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+}
+
+.typing-input:focus {
+  border-color: var(--anchoran-accent);
+}
+
+.typing-result {
+  font-size: 13.5px;
+  color: var(--anchoran-accent);
+}

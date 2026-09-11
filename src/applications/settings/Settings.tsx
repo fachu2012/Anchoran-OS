@@ -5,9 +5,11 @@ import { ANCHORAN_VERSION } from "@/core/version";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { playNotificationSound } from "@/core/sound";
 import { useUpdateHistoryStore } from "@/core/updateHistory";
+import { AnchoranLogo } from "@/components/AnchoranLogo";
 import "@/applications/apps.css";
 
-const ANCHORAN_LOGO = new URL("../../../assets/logo/anchoran-logo.svg", import.meta.url).href;
+const DEFAULT_AVATAR = new URL("../../../assets/avatar/default-avatar.png", import.meta.url).href;
+
 
 const SECTIONS = [
   "Appearance",
@@ -19,7 +21,8 @@ const SECTIONS = [
   "Users",
   "Privacy",
   "System",
-  "About",
+  "Shortcuts",
+  "Updater",
 ] as const;
 
 const ACCENTS = ["#6E9BF7", "#1E3A8A", "#0F766E", "#7C3AED", "#B45309", "#94A3B8"];
@@ -178,6 +181,53 @@ export function SettingsApp() {
                 onChange={(e) => prefs.setUiScale(Number(e.target.value))}
               />
             </div>
+            <div className="settings-row">
+              <div>
+                <div className="settings-row-label">Brightness</div>
+                <div className="settings-row-desc">Dims the whole display, like a laptop's brightness keys.</div>
+              </div>
+              <input
+                type="range"
+                min={0.5}
+                max={1}
+                step={0.05}
+                value={prefs.brightness}
+                onChange={(e) => prefs.setBrightness(Number(e.target.value))}
+              />
+            </div>
+            <div className="settings-row">
+              <div>
+                <div className="settings-row-label">Night Light</div>
+                <div className="settings-row-desc">Warms the display's colors to ease eye strain in the evening.</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={prefs.nightLightEnabled}
+                onChange={(e) => prefs.setNightLightEnabled(e.target.checked)}
+              />
+            </div>
+            <div className="settings-row">
+              <div>
+                <div className="settings-row-label">High contrast</div>
+                <div className="settings-row-desc">Stronger borders and higher-contrast text throughout Anchoran.</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={prefs.highContrast}
+                onChange={(e) => prefs.setHighContrast(e.target.checked)}
+              />
+            </div>
+            <div className="settings-row">
+              <div>
+                <div className="settings-row-label">Large text</div>
+                <div className="settings-row-desc">Scales up text and UI elements beyond the interface scale above.</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={prefs.largeText}
+                onChange={(e) => prefs.setLargeText(e.target.checked)}
+              />
+            </div>
             <DisplaySection />
           </>
         )}
@@ -224,7 +274,9 @@ export function SettingsApp() {
 
         {section === "System" && <SystemSection />}
 
-        {section === "About" && <AboutSection />}
+        {section === "Shortcuts" && <ShortcutsSection />}
+
+        {section === "Updater" && <AboutSection />}
       </div>
     </div>
   );
@@ -336,18 +388,9 @@ function UsersSection() {
               width: 40,
               height: 40,
               borderRadius: "50%",
-              background: prefs.avatarDataUrl
-                ? `url(${prefs.avatarDataUrl}) center/cover`
-                : "var(--anchoran-accent-soft)",
-              color: "var(--anchoran-accent)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 15,
+              background: `url(${prefs.avatarDataUrl || DEFAULT_AVATAR}) center/cover`,
             }}
-          >
-            {!prefs.avatarDataUrl && prefs.username.slice(0, 1).toUpperCase()}
-          </div>
+          />
           <button
             className="app-toolbar-btn"
             onClick={async () => {
@@ -407,6 +450,83 @@ function UsersSection() {
             </button>
           )}
         </div>
+      </div>
+      {prefs.lockPin && (
+        <div className="settings-row">
+          <div>
+            <div className="settings-row-label">Auto-lock</div>
+            <div className="settings-row-desc">Lock Anchoran automatically after a period of inactivity.</div>
+          </div>
+          <select
+            value={prefs.autoLockMinutes}
+            onChange={(e) => prefs.setAutoLockMinutes(Number(e.target.value))}
+            style={inputStyle}
+          >
+            <option value={0}>Never</option>
+            <option value={1}>1 minute</option>
+            <option value={5}>5 minutes</option>
+            <option value={15}>15 minutes</option>
+            <option value={30}>30 minutes</option>
+            <option value={60}>1 hour</option>
+          </select>
+        </div>
+      )}
+    </>
+  );
+}
+
+const SHORTCUTS: { keys: string; action: string }[] = [
+  { keys: "Ctrl + Alt + L", action: "Open the Launcher (also works if the Windows key can't be captured)" },
+  { keys: "Ctrl + Tab", action: "Switch to the next open window" },
+  { keys: "Ctrl + Shift + Tab", action: "Switch to the previous open window" },
+  { keys: "Ctrl + Z", action: "Undo the last action in Files" },
+  { keys: "Ctrl + Y", action: "Redo in Files" },
+  { keys: "Ctrl + X / C / V", action: "Cut / Copy / Paste selected items in Files" },
+  { keys: "Delete", action: "Delete the selected item(s) in Files (or delete permanently, in Trash)" },
+  { keys: "Ctrl / Cmd + Click", action: "Multi-select items in Files" },
+  { keys: "Drag to a screen edge", action: "Snap a window to a half or, near a corner, a quarter of the screen" },
+  { keys: "Double-click a title bar", action: "Maximize or restore a window" },
+  { keys: "Right-click the desktop", action: "New Folder, New File, Sort Icons, Change Wallpaper" },
+  { keys: "Right-click a taskbar icon", action: "Pin or unpin an app" },
+  { keys: "Escape", action: "Close an open menu or panel" },
+];
+
+function ShortcutsSection() {
+  return (
+    <>
+      <p style={{ color: "var(--anchoran-text-secondary)", fontSize: 12.5, marginTop: 0 }}>
+        Every keyboard and mouse shortcut Anchoran responds to.
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {SHORTCUTS.map((s) => (
+          <div
+            key={s.keys}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              padding: "9px 0",
+              borderBottom: "1px solid var(--anchoran-border)",
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "Cascadia Code, Consolas, monospace",
+                fontSize: 12,
+                padding: "3px 8px",
+                borderRadius: 6,
+                background: "var(--anchoran-bg)",
+                border: "1px solid var(--anchoran-border)",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+                width: 190,
+              }}
+            >
+              {s.keys}
+            </span>
+            <span style={{ fontSize: 12.5, color: "var(--anchoran-text-secondary)" }}>{s.action}</span>
+          </div>
+        ))}
       </div>
     </>
   );
@@ -529,7 +649,7 @@ function AboutSection() {
 
   return (
     <div>
-      <img src={ANCHORAN_LOGO} alt="" width={40} height={40} style={{ marginBottom: 10 }} />
+      <AnchoranLogo size={40} color="var(--anchoran-accent)" style={{ marginBottom: 10 }} />
       <h2 style={{ margin: "0 0 4px", fontWeight: 500 }}>Anchoran OS</h2>
       <p style={{ color: "var(--anchoran-text-secondary)", marginTop: 0 }}>Version {ANCHORAN_VERSION}</p>
       <div style={{ display: "flex", gap: 8 }}>

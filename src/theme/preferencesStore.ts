@@ -17,6 +17,11 @@ const DEFAULT_PREFERENCES: AnchoranPreferences = {
   avatarDataUrl: null,
   customWallpaperDataUrl: null,
   onboardingComplete: false,
+  nightLightEnabled: false,
+  brightness: 1,
+  highContrast: false,
+  largeText: false,
+  autoLockMinutes: 0,
 };
 
 interface PreferencesState extends AnchoranPreferences {
@@ -33,6 +38,11 @@ interface PreferencesState extends AnchoranPreferences {
   setLockPin: (pin: string | null) => void;
   setAvatar: (dataUrl: string | null) => void;
   completeOnboarding: () => void;
+  setNightLightEnabled: (enabled: boolean) => void;
+  setBrightness: (brightness: number) => void;
+  setHighContrast: (enabled: boolean) => void;
+  setLargeText: (enabled: boolean) => void;
+  setAutoLockMinutes: (minutes: number) => void;
 }
 
 /**
@@ -58,6 +68,11 @@ function toPersistable(s: AnchoranPreferences): AnchoranPreferences {
     avatarDataUrl: s.avatarDataUrl,
     customWallpaperDataUrl: s.customWallpaperDataUrl,
     onboardingComplete: s.onboardingComplete,
+    nightLightEnabled: s.nightLightEnabled,
+    brightness: s.brightness,
+    highContrast: s.highContrast,
+    largeText: s.largeText,
+    autoLockMinutes: s.autoLockMinutes,
   };
 }
 
@@ -115,6 +130,26 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   },
   completeOnboarding: () => {
     set({ onboardingComplete: true });
+    persist(get());
+  },
+  setNightLightEnabled: (nightLightEnabled) => {
+    set({ nightLightEnabled });
+    persist(get());
+  },
+  setBrightness: (brightness) => {
+    set({ brightness });
+    persist(get());
+  },
+  setHighContrast: (highContrast) => {
+    set({ highContrast });
+    persist(get());
+  },
+  setLargeText: (largeText) => {
+    set({ largeText });
+    persist(get());
+  },
+  setAutoLockMinutes: (autoLockMinutes) => {
+    set({ autoLockMinutes });
     persist(get());
   },
 }));

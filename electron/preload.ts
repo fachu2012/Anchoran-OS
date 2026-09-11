@@ -54,9 +54,16 @@ contextBridge.exposeInMainWorld("anchoran", {
   importImage: (): Promise<{ dataUrl: string; fileName: string } | { error: string } | null> =>
     ipcRenderer.invoke("anchoran:import-image"),
 
+  onDownloadImported: (callback: (download: { fileName: string; content: string; isText: boolean }) => void): void => {
+    ipcRenderer.on("anchoran:download-imported", (_e, download) => callback(download));
+  },
+
   exportData: (): Promise<{ success: boolean; path?: string }> => ipcRenderer.invoke("anchoran:export-data"),
   importData: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke("anchoran:import-data"),
   resetData: (): Promise<boolean> => ipcRenderer.invoke("anchoran:reset-data"),
+
+  saveAndOpenFile: (fileName: string, base64: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:save-and-open-file", fileName, base64),
 
   checkForUpdates: (): void => {
     ipcRenderer.invoke("anchoran:check-for-updates");

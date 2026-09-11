@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { ANCHORAN_VERSION } from "@/core/version";
+import { useWindowStore } from "@/windowmanager/windowStore";
+import { APP_REGISTRY } from "@/applications/registry";
+import { Icon, type IconName } from "@/components/Icon";
 import "@/applications/apps.css";
 
 interface SystemInfo {
@@ -22,6 +25,9 @@ function formatUptime(totalSeconds: number) {
 export function SystemMonitorApp() {
   const [info, setInfo] = useState<SystemInfo | null>(null);
   const [renderMemMB, setRenderMemMB] = useState<number | null>(null);
+  const windows = useWindowStore((s) => s.windows);
+  const closeWindow = useWindowStore((s) => s.closeWindow);
+  const focusWindow = useWindowStore((s) => s.focusWindow);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +55,29 @@ export function SystemMonitorApp() {
   return (
     <div className="app-root">
       <div className="app-content">
+        <div className="sysmon-processes">
+          <div className="sysmon-card-label" style={{ marginBottom: 8 }}>
+            Running Apps ({windows.length})
+          </div>
+          {windows.length === 0 ? (
+            <div style={{ color: "var(--anchoran-text-secondary)", fontSize: 12.5 }}>No apps are running.</div>
+          ) : (
+            <div className="sysmon-process-list">
+              {windows.map((w) => (
+                <div key={w.windowId} className="sysmon-process-row">
+                  <Icon name={APP_REGISTRY[w.appId].icon as IconName} size={15} />
+                  <span className="sysmon-process-title" onClick={() => focusWindow(w.windowId)}>
+                    {w.title}
+                  </span>
+                  {w.isMinimized && <span className="sysmon-process-tag">Minimized</span>}
+                  <button className="app-toolbar-btn" onClick={() => closeWindow(w.windowId)}>
+                    End task
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         {!info ? (
           <p style={{ color: "var(--anchoran-text-secondary)", fontSize: 13 }}>
             System information is only available inside the Anchoran desktop app.

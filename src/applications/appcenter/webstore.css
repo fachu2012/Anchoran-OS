@@ -13,6 +13,14 @@
   gap: 2px;
 }
 
+.webstore-catalog-note {
+  margin-top: auto;
+  padding: 10px 6px 2px;
+  font-size: 10.5px;
+  color: var(--anchoran-text-disabled);
+  line-height: 1.5;
+}
+
 .webstore-search {
   display: flex;
   align-items: center;

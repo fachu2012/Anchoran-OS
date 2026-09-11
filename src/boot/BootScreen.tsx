@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ANCHORAN_VERSION } from "@/core/version";
-
-const ANCHORAN_LOGO = new URL("../../assets/logo/anchoran-logo.svg", import.meta.url).href;
+import { AnchoranLogo } from "@/components/AnchoranLogo";
+import { usePreferencesStore } from "@/theme/preferencesStore";
 
 // A deliberately slow, staged boot sequence: black screen first, then
 // the icon alone, then the wordmark, then a thick macOS-style loading
@@ -38,6 +38,7 @@ export function BootScreen({
 }
 
 function StandardBoot({ onDone }: { onDone: () => void }) {
+  const accentColor = usePreferencesStore((s) => s.accentColor);
   const [visible, setVisible] = useState(true);
   const [showLogo, setShowLogo] = useState(false);
   const [showWordmark, setShowWordmark] = useState(false);
@@ -91,11 +92,9 @@ function StandardBoot({ onDone }: { onDone: () => void }) {
         pointerEvents: visible ? "auto" : "none",
       }}
     >
-      <img
-        src={ANCHORAN_LOGO}
-        alt=""
-        width={84}
-        height={84}
+      <AnchoranLogo
+        size={84}
+        color={accentColor}
         style={{
           opacity: showLogo ? 0.96 : 0,
           transform: showLogo ? "scale(1)" : "scale(0.82)",
@@ -181,6 +180,7 @@ const PHRASE_FADE_MS = 350;
  * before the desktop appears.
  */
 function FinishingUpdateBoot({ version, onDone }: { version: string; onDone: () => void }) {
+  const accentColor = usePreferencesStore((s) => s.accentColor);
   const [phraseIndex, setPhraseIndex] = useState(-1); // -1 = show the version line first
   const [visible, setVisible] = useState(true);
 
@@ -222,7 +222,7 @@ function FinishingUpdateBoot({ version, onDone }: { version: string; onDone: () 
         pointerEvents: visible ? "auto" : "none",
       }}
     >
-      <img src={ANCHORAN_LOGO} alt="" width={72} height={72} style={{ opacity: 0.95 }} />
+      <AnchoranLogo size={72} color={accentColor} style={{ opacity: 0.95 }} />
       <div
         key={phraseIndex}
         style={{

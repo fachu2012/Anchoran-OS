@@ -6,6 +6,7 @@ import { useNotificationStore } from "@/notifications/notificationStore";
 import { useTaskbarStore } from "./taskbarStore";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { useSystemStatus } from "./systemStatus";
+import { QuickSettingsPanel } from "./QuickSettingsPanel";
 import { Clock } from "./Clock";
 import type { AppId } from "@/core/types";
 
@@ -42,6 +43,7 @@ export function Taskbar({
   const reorder = useTaskbarStore((s) => s.reorder);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; appId: AppId } | null>(null);
+  const [quickSettingsOpen, setQuickSettingsOpen] = useState(false);
 
   // Auto-hide, like a real OS taskbar: while any window is maximized,
   // the bar slides out of the way so the app can truly fill the
@@ -161,12 +163,19 @@ export function Taskbar({
             <Icon name="notification" size={16} />
             {notificationCount > 0 && <span className="taskbar-badge">{notificationCount}</span>}
           </button>
-          <Icon name="wifi" size={16} style={{ opacity: status.online ? 1 : 0.35 }} aria-label={status.online ? "Online" : "Offline"} />
-          <Icon name="volume" size={16} />
-          <div className="taskbar-battery" title={status.batterySupported ? `${batteryPercent}%${status.charging ? " (charging)" : ""}` : undefined}>
-            <Icon name="battery" size={16} />
-            {status.batterySupported && <span className="taskbar-battery-label">{batteryPercent}%</span>}
-          </div>
+          <button
+            className="taskbar-btn taskbar-tray-btn"
+            onClick={() => setQuickSettingsOpen((v) => !v)}
+            aria-label="Quick settings"
+            data-op={quickSettingsOpen}
+          >
+            <Icon name="wifi" size={16} style={{ opacity: status.online ? 1 : 0.35 }} />
+            <Icon name="volume" size={16} />
+            <div className="taskbar-battery" title={status.batterySupported ? `${batteryPercent}%${status.charging ? " (charging)" : ""}` : undefined}>
+              <Icon name="battery" size={16} />
+              {status.batterySupported && <span className="taskbar-battery-label">{batteryPercent}%</span>}
+            </div>
+          </button>
           <Clock />
         </div>
 
@@ -185,6 +194,8 @@ export function Taskbar({
           onClose={() => setContextMenu(null)}
         />
       )}
+
+      {quickSettingsOpen && <QuickSettingsPanel onClose={() => setQuickSettingsOpen(false)} />}
     </>
   );
 }

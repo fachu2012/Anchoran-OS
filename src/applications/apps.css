@@ -73,10 +73,35 @@
   outline-offset: -2px;
 }
 
+.files-item[data-selected="true"] {
+  background: var(--anchoran-accent-soft);
+  outline: 1px solid var(--anchoran-accent);
+  outline-offset: -1px;
+}
+
+.files-item[data-cut="true"] {
+  opacity: 0.5;
+}
+
 .files-item span {
   font-size: 12px;
   text-align: center;
   word-break: break-word;
+}
+
+.files-rename-input {
+  width: 100%;
+  font-size: 12px;
+  text-align: center;
+  background: var(--anchoran-surface);
+  border: 1px solid var(--anchoran-accent);
+  border-radius: 4px;
+  color: var(--anchoran-text-primary);
+  padding: 1px 3px;
+}
+
+tr[data-selected="true"] {
+  background: var(--anchoran-accent-soft);
 }
 
 /* Terminal */
@@ -273,6 +298,44 @@
   background: var(--anchoran-accent);
   border-radius: 2px;
   transition: width 400ms var(--anchoran-ease);
+}
+
+.sysmon-processes {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--anchoran-border);
+}
+
+.sysmon-process-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sysmon-process-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--anchoran-radius-sm);
+}
+
+.sysmon-process-row:hover {
+  background: var(--anchoran-surface-hover);
+}
+
+.sysmon-process-title {
+  flex: 1;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.sysmon-process-tag {
+  font-size: 10.5px;
+  color: var(--anchoran-text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--anchoran-border);
 }
 
 /* App Center */

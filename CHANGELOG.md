@@ -5,6 +5,161 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.14.0] - 2026-09-11
+
+### Added
+
+- **7 more apps** ("Wave 5"): Calendar (monthly view with your own
+  events), Clipboard Manager (a real history of everything copied
+  inside Anchoran, captured live), Kanban Board (drag cards across
+  To Do/Doing/Done), Text Diff (line-by-line comparison of two texts),
+  Habit Tracker (daily check-ins with streaks), Currency Converter and
+  Weather — the last two backed by live, free, no-key APIs
+  (frankfurter.app and Open-Meteo).
+
+## [1.13.0] - 2026-09-11
+
+### Added
+
+- **Print**: Notes, the Files text editor and JSON Formatter can now
+  print their content to a real PDF (built client-side with jsPDF),
+  opened with the user's actual Windows PDF viewer — a genuine file on
+  disk, not a simulation.
+- **Task Manager**: System Monitor now lists every running app/window
+  with an "End task" button, on top of its existing CPU/memory stats.
+- **Auto-lock**: Settings → Users can now set Anchoran to lock itself
+  automatically after 1–60 minutes of inactivity. Only active once a
+  PIN is set, so it can't lock you out of an account with no way back
+  in.
+- **Keyboard Shortcuts**: a new Settings → Shortcuts page documents
+  every shortcut Anchoran responds to, in one place.
+
+## [1.12.0] - 2026-09-11
+
+### Added
+
+- **Files**: multi-select (click, Ctrl/Cmd+click), cut/copy/paste
+  (Ctrl+X/C/V or a real right-click menu), rename in place, and full
+  undo/redo (Ctrl+Z / Ctrl+Y) across every file operation — create,
+  rename, move, delete, restore, duplicate. Multi-select also works for
+  Delete, Restore and Delete permanently in Trash.
+- **Desktop icons are now real.** A new "Desktop" folder in Anchoran's
+  filesystem holds actual files/folders shown as draggable icons on the
+  wallpaper, alongside pinned app shortcuts; both kinds can be freely
+  repositioned, renamed and deleted from a right-click menu.
+- **Desktop right-click menu**: New Folder, New File, Sort Icons (snaps
+  every icon back to the default grid), and Change Wallpaper (now
+  actually opens Settings instead of just suggesting it).
+- **Window snapping** now also supports the four screen corners
+  (quarter-tiling), in addition to the existing left/right-half and
+  top-to-maximize snap zones.
+- **Quick Settings**: a new flyout from the taskbar's system tray with
+  volume, brightness, Night Light, Focus (Do Not Disturb) and Battery
+  Saver toggles, plus a shortcut into full Settings.
+- **Night Light**, a **Brightness** slider, **High contrast** and
+  **Large text** accessibility toggles, all in Settings → Display (and
+  the Quick Settings flyout for the first three). The Interface Scale
+  slider, previously not connected to anything, now actually resizes
+  the UI too.
+
+### Changed
+
+- Settings' "About" tab is now named "Updater" — it was always the
+  update-checking/version/history screen, so the label now matches
+  what it does.
+
+## [1.11.0] - 2026-09-11
+
+### Added
+
+- **7 more games** ("Wave 2a"): Dice Roller, Coin Flip, Connect Four,
+  Checkers, Minesweeper, Sudoku (three difficulty levels, generated
+  fresh each game with a unique solution) and a Typing Speed Test.
+
+### Fixed
+
+- **System sounds (boot chime, notifications, errors) were completely
+  silent.** Chromium's autoplay policy blocks any audio — including a
+  synthesized Web Audio API tone — from starting before a real user
+  gesture has happened on the page, and Anchoran's boot chime plays
+  automatically at the end of the boot sequence with no click first.
+  The main process now launches with `autoplay-policy=no-user-gesture-required`,
+  and the renderer additionally resumes the audio context on the very
+  first click or key press as a fallback.
+
+## [1.10.0] - 2026-09-11
+
+### Added
+
+- **11 new built-in applications** ("Wave 1" of the Webstore app batch),
+  all installable/uninstallable through the Anchoran Webstore like any
+  other app:
+  - **Chat** — Anchoran's messaging app, embedding the user's own
+    Firebase-backed chat project.
+  - **To-Do List** — a persisted checklist with add, complete, delete
+    and a "hide done" filter.
+  - **Pomodoro Timer** — focus/short-break/long-break sessions with a
+    circular progress ring and a completed-sessions counter.
+  - **QR Code** — generates a QR code from any text or link.
+  - **Password Generator** — configurable length and character sets,
+    with a live strength meter, generated with `crypto.getRandomValues`.
+  - **JSON Formatter** — format, minify and validate JSON with inline
+    error reporting.
+  - **Word Counter** — live word, character, sentence, paragraph and
+    reading-time counts.
+  - **Snake**, **2048**, **Tic-Tac-Toe** and **Memory Match** — four
+    classic games, keyboard- and click/tap-playable, each tracking score
+    or moves for the current session.
+- The **Games** category is now shown in the Webstore alongside System,
+  Productivity, Utilities and Internet.
+- Anchoran Browser now opens to Google by default instead of a
+  placeholder page, and is labeled "Anchoran Browser" throughout the
+  system.
+
+## [1.9.0] - 2026-09-11
+
+### Added
+
+- **Anchoran Webstore's catalog now comes from GitHub, version-locked.**
+  Each release publishes a `webstore-registry.json` snapshot — a
+  cumulative list of every app that exists as of that version — attached
+  to its GitHub Release. Opening the Webstore fetches the registry from
+  the *release matching the currently running version*, so a user on an
+  older build only ever sees apps that existed for their version, never
+  ones a later release added. Falls back to this build's own bundled
+  list if GitHub can't be reached (offline, rate-limited, or this exact
+  version was never tagged as a release — e.g. a local dev build) —
+  shown in the Webstore's sidebar either way.
+- **The Launcher now only lists installed apps** (previously it listed
+  everything regardless of the Webstore's install state) — matches how
+  a real OS launcher works, and makes "Install" from the Webstore
+  actually mean something.
+- **Uninstall** is now possible for any non-core app, from the
+  Webstore's app detail view. Files, Terminal, Settings and the
+  Webstore itself are core and can't be removed.
+- Install/uninstall state is now a single shared store (previously
+  local to the Webstore component only), kept in sync between the
+  Webstore, Launcher, and Taskbar.
+
+### Changed
+
+- App metadata (`apps.json`) is now the one source of truth for both
+  Anchoran's local app list and each release's published Webstore
+  catalog — they can no longer drift apart.
+
+## [1.8.0] - 2026-09-11
+
+### Added
+
+- **Browser downloads no longer touch Windows' real Downloads folder.**
+  The Browser app's downloads are intercepted at the source and imported
+  straight into Anchoran's own Files app (Downloads folder) instead —
+  text-based files keep their real content; binary files are added
+  without content (same documented limitation as drag-and-drop import).
+- **Files: double-click a file to open it.** A lightweight built-in
+  text editor now opens in place, with a live-saving textarea and an
+  editable filename — previously double-clicking a file did nothing.
+
 ## [1.7.0] - 2026-09-11
 
 ### Fixed

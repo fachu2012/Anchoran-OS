@@ -4,6 +4,9 @@ import { Wallpaper } from "./Wallpaper";
 import { Taskbar } from "./Taskbar";
 import { DesktopIcons } from "./DesktopIcons";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
+import { useDesktopIconsStore } from "./desktopIconsStore";
+import { useFsStore, DESKTOP_ID } from "@/filesystem/fs";
+import { useClipboardHistoryStore } from "@/core/clipboardHistoryStore";
 import { WindowManager } from "@/windowmanager/WindowManager";
 import { Launcher } from "@/launcher/Launcher";
 import { PowerMenu } from "@/power/PowerMenu";
@@ -32,6 +35,10 @@ export function Desktop({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
   const cycleFocus = useWindowStore((s) => s.cycleFocus);
+  const openApp = useWindowStore((s) => s.openApp);
+  const clearIconPositions = useDesktopIconsStore((s) => s.clearPositions);
+  const createFolder = useFsStore((s) => s.createFolder);
+  const createFile = useFsStore((s) => s.createFile);
 
   useEffect(() => {
     // Ctrl+Tab / Ctrl+Shift+Tab: Anchoran's own window switcher. Not
@@ -49,8 +56,27 @@ export function Desktop({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [cycleFocus]);
 
+  const recordClipboard = useClipboardHistoryStore((s) => s.record);
+  useEffect(() => {
+    function onCopy() {
+      const text = window.getSelection()?.toString();
+      if (text) recordClipboard(text);
+    }
+    window.addEventListener("copy", onCopy);
+    return () => window.removeEventListener("copy", onCopy);
+  }, [recordClipboard]);
+
   const desktopContextItems: ContextMenuItem[] = [
-    { label: "Change Wallpaper…", onSelect: () => pushNotification("Settings", "Open Settings → Personalization to change your wallpaper.") },
+    { label: "New Folder", onSelect: () => createFolder(DESKTOP_ID, "New Folder") },
+    { label: "New File", onSelect: () => createFile(DESKTOP_ID, "New File.txt") },
+    { label: "Sort Icons", onSelect: () => clearIconPositions() },
+    {
+      label: "Change Wallpaper…",
+      onSelect: () => {
+        openApp("settings");
+        pushNotification("Settings", "Choose your wallpaper under Personalization.");
+      },
+    },
     { label: "Refresh", onSelect: () => {} },
   ];
 

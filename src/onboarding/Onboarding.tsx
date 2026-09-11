@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { WALLPAPERS } from "@/desktop/wallpapers";
+import { AnchoranLogo } from "@/components/AnchoranLogo";
 import "./onboarding.css";
 
-const ANCHORAN_LOGO = new URL("../../assets/logo/anchoran-logo.svg", import.meta.url).href;
+const DEFAULT_AVATAR = new URL("../../assets/avatar/default-avatar.png", import.meta.url).href;
 
 type Step = "welcome" | "username" | "pin" | "avatar" | "wallpaper" | "finish";
 const STEPS: Step[] = ["welcome", "username", "pin", "avatar", "wallpaper", "finish"];
@@ -48,7 +49,7 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
   return (
     <div className="onboarding-root">
       <div className="onboarding-card">
-        <img src={ANCHORAN_LOGO} alt="" width={44} height={44} className="onboarding-logo" />
+        <AnchoranLogo size={44} color={prefs.accentColor} className="onboarding-logo" />
 
         {step === "welcome" && (
           <>
@@ -153,10 +154,8 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
             <p className="onboarding-body">Optional — shown on your lock screen.</p>
             <div
               className="onboarding-avatar"
-              style={prefs.avatarDataUrl ? { backgroundImage: `url(${prefs.avatarDataUrl})` } : undefined}
-            >
-              {!prefs.avatarDataUrl && usernameDraft.slice(0, 1).toUpperCase()}
-            </div>
+              style={{ backgroundImage: `url(${prefs.avatarDataUrl || DEFAULT_AVATAR})` }}
+            />
             <button className="onboarding-btn" onClick={importAvatar}>
               Import from Windows…
             </button>

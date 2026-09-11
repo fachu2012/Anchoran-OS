@@ -11,9 +11,34 @@ export type AppId =
   | "appCenter"
   | "clock"
   | "converter"
-  | "colorPicker";
+  | "colorPicker"
+  | "chat"
+  | "todo"
+  | "pomodoro"
+  | "qrCode"
+  | "passwordGenerator"
+  | "jsonFormatter"
+  | "wordCounter"
+  | "snake"
+  | "game2048"
+  | "ticTacToe"
+  | "memoryMatch"
+  | "diceRoller"
+  | "coinFlip"
+  | "connectFour"
+  | "checkers"
+  | "minesweeper"
+  | "sudoku"
+  | "typingTest"
+  | "calendar"
+  | "clipboardManager"
+  | "kanban"
+  | "textDiff"
+  | "habitTracker"
+  | "currencyConverter"
+  | "weather";
 
-export type AppCategory = "System" | "Productivity" | "Utilities" | "Internet";
+export type AppCategory = "System" | "Productivity" | "Utilities" | "Internet" | "Games";
 
 export interface AppDefinition {
   id: AppId;
@@ -22,6 +47,10 @@ export interface AppDefinition {
   icon: string;
   category: AppCategory;
   description: string;
+  /** Core apps (Files, Terminal, Settings, the Webstore) are always
+   *  installed and can't be removed — Anchoran isn't usable without
+   *  them, the same way a real OS doesn't let you uninstall Explorer. */
+  core?: boolean;
   /** Whether this app can have more than one open window at once. */
   allowMultipleInstances?: boolean;
   defaultSize: { width: number; height: number };
@@ -54,4 +83,14 @@ export interface AnchoranPreferences {
   customWallpaperDataUrl: string | null;
   /** True once the first-run welcome wizard (username/PIN/avatar/wallpaper) has been completed or skipped. */
   onboardingComplete: boolean;
+  /** Night Light: warms the whole display with an amber tint, like Windows' own blue-light filter. */
+  nightLightEnabled: boolean;
+  /** Screen brightness simulation, 0.5 (dim) to 1 (full) — applied as a CSS filter over the whole desktop. */
+  brightness: number;
+  /** Accessibility: stronger borders/contrast and flatter colors throughout the UI. */
+  highContrast: boolean;
+  /** Accessibility: scales up UI text beyond what uiScale alone affects. */
+  largeText: boolean;
+  /** Minutes of inactivity before Anchoran auto-locks; 0 disables it. Only takes effect once a PIN is set. */
+  autoLockMinutes: number;
 }

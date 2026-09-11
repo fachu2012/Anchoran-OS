@@ -22,6 +22,49 @@ const APP_COMPONENTS: Record<AppId, React.LazyExoticComponent<() => JSX.Element>
   colorPicker: lazy(() =>
     import("@/applications/colorpicker/ColorPicker").then((m) => ({ default: m.ColorPickerApp }))
   ),
+  chat: lazy(() => import("@/applications/chat/Chat").then((m) => ({ default: m.ChatApp }))),
+  todo: lazy(() => import("@/applications/todo/Todo").then((m) => ({ default: m.TodoApp }))),
+  pomodoro: lazy(() => import("@/applications/pomodoro/Pomodoro").then((m) => ({ default: m.PomodoroApp }))),
+  qrCode: lazy(() => import("@/applications/qrcode/QrCode").then((m) => ({ default: m.QrCodeApp }))),
+  passwordGenerator: lazy(() =>
+    import("@/applications/passwordgenerator/PasswordGenerator").then((m) => ({ default: m.PasswordGeneratorApp }))
+  ),
+  jsonFormatter: lazy(() =>
+    import("@/applications/jsonformatter/JsonFormatter").then((m) => ({ default: m.JsonFormatterApp }))
+  ),
+  wordCounter: lazy(() =>
+    import("@/applications/wordcounter/WordCounter").then((m) => ({ default: m.WordCounterApp }))
+  ),
+  snake: lazy(() => import("@/applications/snake/Snake").then((m) => ({ default: m.SnakeApp }))),
+  game2048: lazy(() => import("@/applications/game2048/Game2048").then((m) => ({ default: m.Game2048App }))),
+  ticTacToe: lazy(() => import("@/applications/tictactoe/TicTacToe").then((m) => ({ default: m.TicTacToeApp }))),
+  memoryMatch: lazy(() =>
+    import("@/applications/memorymatch/MemoryMatch").then((m) => ({ default: m.MemoryMatchApp }))
+  ),
+  diceRoller: lazy(() => import("@/applications/diceroller/DiceRoller").then((m) => ({ default: m.DiceRollerApp }))),
+  coinFlip: lazy(() => import("@/applications/coinflip/CoinFlip").then((m) => ({ default: m.CoinFlipApp }))),
+  connectFour: lazy(() =>
+    import("@/applications/connectfour/ConnectFour").then((m) => ({ default: m.ConnectFourApp }))
+  ),
+  checkers: lazy(() => import("@/applications/checkers/Checkers").then((m) => ({ default: m.CheckersApp }))),
+  minesweeper: lazy(() =>
+    import("@/applications/minesweeper/Minesweeper").then((m) => ({ default: m.MinesweeperApp }))
+  ),
+  sudoku: lazy(() => import("@/applications/sudoku/Sudoku").then((m) => ({ default: m.SudokuApp }))),
+  typingTest: lazy(() => import("@/applications/typingtest/TypingTest").then((m) => ({ default: m.TypingTestApp }))),
+  calendar: lazy(() => import("@/applications/calendar/Calendar").then((m) => ({ default: m.CalendarApp }))),
+  clipboardManager: lazy(() =>
+    import("@/applications/clipboardmanager/ClipboardManager").then((m) => ({ default: m.ClipboardManagerApp }))
+  ),
+  kanban: lazy(() => import("@/applications/kanban/Kanban").then((m) => ({ default: m.KanbanApp }))),
+  textDiff: lazy(() => import("@/applications/textdiff/TextDiff").then((m) => ({ default: m.TextDiffApp }))),
+  habitTracker: lazy(() =>
+    import("@/applications/habittracker/HabitTracker").then((m) => ({ default: m.HabitTrackerApp }))
+  ),
+  currencyConverter: lazy(() =>
+    import("@/applications/currencyconverter/CurrencyConverter").then((m) => ({ default: m.CurrencyConverterApp }))
+  ),
+  weather: lazy(() => import("@/applications/weather/Weather").then((m) => ({ default: m.WeatherApp }))),
 };
 
 function AppLoadingFallback() {

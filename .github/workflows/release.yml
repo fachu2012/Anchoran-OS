@@ -66,6 +66,15 @@ jobs:
           npm run build
           npx electron-builder --publish never
 
+      # Anchoran Webstore's catalog for this version: a snapshot of every
+      # app that exists as of this release (apps.json is cumulative — it
+      # only ever gains entries — so this is naturally "every app up
+      # through this version"). Fetched at runtime by a Webstore running
+      # THIS version, matched to this release's tag — see
+      # src/applications/webstoreRegistry.ts.
+      - name: Generate Webstore registry
+        run: npm run generate-webstore-registry
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -75,6 +84,7 @@ jobs:
             release/*.exe
             release/*.blockmap
             release/latest.yml
+            release/webstore-registry.json
 
       # electron-updater (the auto-update client, see electron/main.ts)
       # reads latest.yml from the release assets to know the current
@@ -101,5 +111,6 @@ jobs:
             release/*.exe
             release/*.blockmap
             release/latest.yml
+            release/webstore-registry.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

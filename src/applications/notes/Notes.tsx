@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useFsStore } from "@/filesystem/fs";
+import { printTextAsPdf } from "@/core/print";
 import "@/applications/apps.css";
 import "./notes.css";
 
@@ -64,11 +65,21 @@ export function NotesApp() {
       <div className="notes-editor">
         {active ? (
           <>
-            <input
-              className="notes-title-input"
-              value={active.name}
-              onChange={(e) => rename(active.id, e.target.value)}
-            />
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                className="notes-title-input"
+                value={active.name}
+                onChange={(e) => rename(active.id, e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <button
+                className="app-toolbar-btn"
+                onClick={() => printTextAsPdf(active.name.replace(/\.[^.]+$/, ""), active.content ?? "")}
+                aria-label="Print"
+              >
+                Print
+              </button>
+            </div>
             <textarea
               className="notes-textarea"
               placeholder="Start typing…"

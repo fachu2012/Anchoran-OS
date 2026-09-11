@@ -1,0 +1,50 @@
+.wordcounter-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.wordcounter-textarea {
+  flex: 1;
+  resize: none;
+  background: var(--anchoran-surface);
+  border: 1px solid var(--anchoran-border);
+  border-radius: 6px;
+  color: var(--anchoran-text-primary);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 12px;
+  outline: none;
+}
+
+.wordcounter-textarea:focus {
+  border-color: var(--anchoran-accent);
+}
+
+.wordcounter-stats {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.wordcounter-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 6px;
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-md);
+}
+
+.wordcounter-stat-value {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.wordcounter-stat-label {
+  font-size: 11px;
+  color: var(--anchoran-text-secondary);
+}

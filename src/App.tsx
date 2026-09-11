@@ -13,6 +13,7 @@ import { playLoginSound } from "@/core/sound";
 import { recordUpdateIfVersionChanged } from "@/core/updateHistory";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { Onboarding } from "@/onboarding/Onboarding";
+import { useFsStore, DOWNLOADS_ID } from "@/filesystem/fs";
 
 const WELCOMED_KEY = "welcomed";
 
@@ -65,6 +66,19 @@ export default function App() {
     window.anchoran?.onUpdateStatus((status) => {
       if (status.state === "downloaded") setUpdateReadyVersion(status.version);
     });
+
+    // The Browser app's downloads never touch Windows' real Downloads
+    // folder (see electron/main.ts's will-download interception) —
+    // they land here, imported straight into Anchoran's own Files app.
+    window.anchoran?.onDownloadImported(({ fileName, content, isText }) => {
+      useFsStore.getState().createFile(DOWNLOADS_ID, fileName, content);
+      pushNotification(
+        "Downloads",
+        isText
+          ? `${fileName} was saved to Anchoran → Downloads.`
+          : `${fileName} was saved to Anchoran → Downloads (binary content not yet supported — the file was added without content).`
+      );
+    });
   }, []);
 
   async function enterDesktop() {
@@ -89,6 +103,28 @@ export default function App() {
       pushNotification("Welcome", "This is Anchoran OS. Press Ctrl+Alt+L or use the dock to open the Launcher.");
     }
   }
+
+  // Auto-lock after N minutes of inactivity (mouse/keyboard/pointer),
+  // configurable in Settings → Users. Only meaningful once a PIN is
+  // set — otherwise "locking" doesn't protect anything and would just
+  // be an unwanted screen interruption.
+  const autoLockMinutes = usePreferencesStore((s) => s.autoLockMinutes);
+  const hasLockPin = usePreferencesStore((s) => !!s.lockPin);
+  useEffect(() => {
+    if (!booted || locked || !hasLockPin || autoLockMinutes <= 0) return;
+    let timer: number;
+    const reset = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setLocked(true), autoLockMinutes * 60 * 1000);
+    };
+    const events: (keyof WindowEventMap)[] = ["mousemove", "keydown", "pointerdown", "wheel"];
+    events.forEach((e) => window.addEventListener(e, reset));
+    reset();
+    return () => {
+      window.clearTimeout(timer);
+      events.forEach((e) => window.removeEventListener(e, reset));
+    };
+  }, [booted, locked, hasLockPin, autoLockMinutes]);
 
   function onOnboardingDone() {
     setShowOnboarding(false);

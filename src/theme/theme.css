@@ -67,6 +67,22 @@
   color-scheme: dark;
 }
 
+/* Accessibility: stronger borders and flatter, higher-contrast surfaces
+   throughout — every component already reads --anchoran-border(-strong)
+   and --anchoran-text-secondary, so overriding them here reaches the
+   whole UI without touching individual components. */
+[data-high-contrast="on"] {
+  --anchoran-border: rgba(15, 23, 42, 0.45);
+  --anchoran-border-strong: rgba(15, 23, 42, 0.7);
+  --anchoran-text-secondary: rgba(20, 22, 27, 0.85);
+}
+
+[data-theme="dark"][data-high-contrast="on"] {
+  --anchoran-border: rgba(255, 255, 255, 0.4);
+  --anchoran-border-strong: rgba(255, 255, 255, 0.65);
+  --anchoran-text-secondary: rgba(243, 244, 246, 0.88);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -77,6 +93,18 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
+}
+
+#root {
+  /* Night Light / brightness: one filter chain set by ThemeProvider. */
+  filter: var(--anchoran-display-filter, none);
+  /* Both the Settings → UI scale slider and the "Large text"
+     accessibility toggle resolve to this one zoom factor. */
+  zoom: calc(var(--anchoran-ui-scale, 1) * var(--anchoran-text-scale, 1));
+}
+
+[data-large-text="on"] {
+  --anchoran-text-scale: 1.18;
 }
 
 body {

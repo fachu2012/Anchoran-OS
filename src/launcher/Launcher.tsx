@@ -3,6 +3,7 @@ import { Icon, type IconName } from "@/components/Icon";
 import { APP_LIST } from "@/applications/registry";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useTaskbarStore } from "@/desktop/taskbarStore";
+import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import "./launcher.css";
 
 export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: () => void }) {
@@ -11,12 +12,18 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
   const pinned = useTaskbarStore((s) => s.pinned);
   const pin = useTaskbarStore((s) => s.pin);
   const unpin = useTaskbarStore((s) => s.unpin);
+  const installed = useInstalledAppsStore((s) => s.installed);
+
+  // The Launcher is a list of apps you can actually open — like any
+  // real OS, that means installed apps only. Anchoran Webstore is
+  // where you browse and install the rest.
+  const installedApps = useMemo(() => APP_LIST.filter((a) => installed.has(a.id)), [installed]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return APP_LIST;
-    return APP_LIST.filter((a) => a.title.toLowerCase().includes(q));
-  }, [query]);
+    if (!q) return installedApps;
+    return installedApps.filter((a) => a.title.toLowerCase().includes(q));
+  }, [installedApps, query]);
 
   function launch(appId: (typeof APP_LIST)[number]["id"]) {
     openApp(appId);

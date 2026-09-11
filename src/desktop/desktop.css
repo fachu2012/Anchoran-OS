@@ -13,15 +13,12 @@
 
 .desktop-icons {
   position: absolute;
-  top: 20px;
-  left: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  inset: 0;
   z-index: 1;
 }
 
 .desktop-icon {
+  position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -32,15 +29,25 @@
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   cursor: default;
+  border: none;
+  background: transparent;
+  user-select: none;
 }
 
-.desktop-icon:hover {
+.desktop-icon:hover,
+.desktop-icon[data-selected="true"] {
   background: rgba(255, 255, 255, 0.12);
+}
+
+.desktop-icon[data-dragging="true"] {
+  background: rgba(255, 255, 255, 0.18);
+  z-index: 2;
 }
 
 .desktop-icon span {
   font-size: 12px;
   text-align: center;
+  word-break: break-word;
 }
 
 /* Taskbar — one floating bar at the bottom: Launcher, pinned/running
@@ -184,6 +191,17 @@
   background: var(--anchoran-accent-soft);
   outline: 1.5px dashed var(--anchoran-accent);
   outline-offset: -3px;
+}
+
+.taskbar-tray-btn {
+  width: auto;
+  padding: 0 10px;
+  gap: 8px;
+}
+
+.taskbar-tray-btn[data-op="true"] {
+  background: var(--anchoran-accent-soft);
+  color: var(--anchoran-accent);
 }
 
 .taskbar-dot {

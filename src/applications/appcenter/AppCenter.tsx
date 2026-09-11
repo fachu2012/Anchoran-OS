@@ -1,52 +1,45 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 import { APP_LIST } from "@/applications/registry";
+import { fetchWebstoreCatalog } from "@/applications/webstoreRegistry";
+import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
-import { persistGet, persistSet } from "@/core/persist";
-import type { AppCategory, AppId } from "@/core/types";
+import type { AppCategory, AppId, AppDefinition } from "@/core/types";
+import { ANCHORAN_VERSION } from "@/core/version";
 import "@/applications/apps.css";
 import "./webstore.css";
 
-const INSTALLED_KEY = "installedApps";
-const CATEGORIES: (AppCategory | "All")[] = ["All", "System", "Productivity", "Utilities", "Internet"];
-
-// A handful of apps ship pre-installed (the ones that make Anchoran
-// usable day one); the rest — including the newest additions — start
-// available to install from the Webstore, so it has real content
-// instead of everything already being there.
-const DEFAULT_INSTALLED: AppId[] = ["files", "terminal", "settings", "notes", "calculator", "browser", "systemMonitor"];
+const CATEGORIES: (AppCategory | "All")[] = ["All", "System", "Productivity", "Utilities", "Internet", "Games"];
 
 /**
- * All apps ship built into Anchoran; "install" here is a simulated
- * state toggle (per the spec: "Inicialmente la instalación puede ser
- * simulada") rather than a real package manager — but the choice of
- * what's installed persists like a real one would.
+ * All apps ship built into this version of Anchoran; "install" is a
+ * local toggle (per the spec: "Inicialmente la instalación puede ser
+ * simulada"), not a real package manager fetching new code — but the
+ * *catalog* itself is real, fetched from the GitHub Release matching
+ * the running version, so it only ever shows what actually existed as
+ * of that version. See webstoreRegistry.ts.
  */
 export function AppCenterApp() {
-  const [installed, setInstalled] = useState<Set<AppId>>(new Set(DEFAULT_INSTALLED));
+  const [catalog, setCatalog] = useState<AppDefinition[]>(APP_LIST);
+  const [isRemoteCatalog, setIsRemoteCatalog] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
   const [selected, setSelected] = useState<AppId | null>(null);
   const openApp = useWindowStore((s) => s.openApp);
   const pushNotification = useNotificationStore((s) => s.push);
+  const installed = useInstalledAppsStore((s) => s.installed);
+  const install = useInstalledAppsStore((s) => s.install);
+  const uninstall = useInstalledAppsStore((s) => s.uninstall);
 
   useEffect(() => {
-    persistGet<AppId[]>("config", INSTALLED_KEY, DEFAULT_INSTALLED).then((loaded) =>
-      setInstalled(new Set(loaded))
-    );
+    fetchWebstoreCatalog().then(({ apps, isRemote }) => {
+      setCatalog(apps);
+      setIsRemoteCatalog(isRemote);
+    });
   }, []);
 
-  function install(appId: AppId, title: string) {
-    setInstalled((prev) => {
-      const next = new Set(prev).add(appId);
-      persistSet("config", INSTALLED_KEY, Array.from(next));
-      return next;
-    });
-    pushNotification("Anchoran Webstore", `${title} was installed.`);
-  }
-
-  const apps = APP_LIST.filter((a) => a.id !== "appCenter");
+  const apps = catalog.filter((a) => a.id !== "appCenter");
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return apps.filter((a) => {
@@ -57,6 +50,15 @@ export function AppCenterApp() {
   }, [apps, query, category]);
 
   const detail = selected ? apps.find((a) => a.id === selected) : null;
+
+  function onInstall(app: AppDefinition) {
+    install(app.id);
+    pushNotification("Anchoran Webstore", `${app.title} was installed.`);
+  }
+  function onUninstall(app: AppDefinition) {
+    uninstall(app.id);
+    pushNotification("Anchoran Webstore", `${app.title} was uninstalled.`);
+  }
 
   return (
     <div className="webstore-root">
@@ -70,6 +72,11 @@ export function AppCenterApp() {
             {c}
           </button>
         ))}
+        <div className="webstore-catalog-note">
+          {isRemoteCatalog
+            ? `Catalog for Anchoran ${ANCHORAN_VERSION}`
+            : "Offline — showing this build's bundled catalog"}
+        </div>
       </div>
 
       <div className="webstore-main">
@@ -88,15 +95,24 @@ export function AppCenterApp() {
               </div>
             </div>
             <p className="webstore-detail-description">{detail.description}</p>
-            {installed.has(detail.id) ? (
-              <button className="app-toolbar-btn" onClick={() => openApp(detail.id)}>
-                Open
-              </button>
-            ) : (
-              <button className="app-toolbar-btn" onClick={() => install(detail.id, detail.title)}>
-                Install
-              </button>
-            )}
+            <div style={{ display: "flex", gap: 8 }}>
+              {installed.has(detail.id) ? (
+                <>
+                  <button className="app-toolbar-btn" onClick={() => openApp(detail.id)}>
+                    Open
+                  </button>
+                  {!detail.core && (
+                    <button className="app-toolbar-btn" onClick={() => onUninstall(detail)}>
+                      Uninstall
+                    </button>
+                  )}
+                </>
+              ) : (
+                <button className="app-toolbar-btn" onClick={() => onInstall(detail)}>
+                  Install
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="webstore-grid">
@@ -116,7 +132,7 @@ export function AppCenterApp() {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (isInstalled) openApp(app.id);
-                      else install(app.id, app.title);
+                      else onInstall(app);
                     }}
                   >
                     {isInstalled ? "Open" : "Install"}
