@@ -51,10 +51,10 @@
   },
   {
     "id": "browser",
-    "title": "Google Chrome",
+    "title": "Browser",
     "icon": "browser",
     "category": "Internet",
-    "description": "Opens your real, installed Google Chrome (or your default browser if Chrome isn't installed).",
+    "description": "Browse the web from inside Anchoran, on the real Chromium engine.",
     "defaultSize": { "width": 1000, "height": 660 },
     "minSize": { "width": 480, "height": 360 }
   },

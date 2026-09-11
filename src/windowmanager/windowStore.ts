@@ -78,15 +78,6 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
   snapPreview: null,
 
   openApp: (appId) => {
-    // "Browser" isn't an in-app window at all — it launches the user's
-    // real, actually-installed Google Chrome as its own separate
-    // Windows application (see electron/main.ts's anchoran:open-chrome).
-    // Nothing to render inside Anchoran's own WindowManager for it.
-    if (appId === "browser") {
-      window.anchoran?.openChrome();
-      return "";
-    }
-
     const def = APP_REGISTRY[appId];
     const state = get();
 

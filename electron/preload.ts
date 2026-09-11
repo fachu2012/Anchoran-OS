@@ -66,7 +66,6 @@ contextBridge.exposeInMainWorld("anchoran", {
   getCaptureSources: (): Promise<{ id: string; name: string; thumbnailDataUrl: string }[]> =>
     ipcRenderer.invoke("anchoran:get-capture-sources"),
 
-  openChrome: (): Promise<{ success: boolean; usedFallback: boolean }> => ipcRenderer.invoke("anchoran:open-chrome"),
 
   pickZipFile: (): Promise<{ base64: string; fileName: string } | { error: string } | null> =>
     ipcRenderer.invoke("anchoran:pick-zip-file"),

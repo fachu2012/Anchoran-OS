@@ -12,11 +12,7 @@ const APP_COMPONENTS: Record<AppId, React.LazyExoticComponent<() => JSX.Element>
   settings: lazy(() => import("@/applications/settings/Settings").then((m) => ({ default: m.SettingsApp }))),
   notes: lazy(() => import("@/applications/notes/Notes").then((m) => ({ default: m.NotesApp }))),
   calculator: lazy(() => import("@/applications/calculator/Calculator").then((m) => ({ default: m.CalculatorApp }))),
-  // "Browser" never actually opens a window — see windowStore.ts's
-  // openApp: it launches the user's real Google Chrome as its own
-  // separate Windows process instead. This entry only exists to
-  // satisfy APP_COMPONENTS' type and is never rendered.
-  browser: lazy(() => Promise.resolve({ default: () => <></> })),
+  browser: lazy(() => import("@/applications/browser/Browser").then((m) => ({ default: m.BrowserApp }))),
   systemMonitor: lazy(() =>
     import("@/applications/systemmonitor/SystemMonitor").then((m) => ({ default: m.SystemMonitorApp }))
   ),

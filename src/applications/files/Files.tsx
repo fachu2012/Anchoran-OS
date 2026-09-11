@@ -29,6 +29,8 @@ function formatDate(ts: number) {
 }
 
 const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]);
+const AUDIO_EXT = new Set([".mp3", ".wav", ".ogg", ".m4a"]);
+const VIDEO_EXT = new Set([".mp4", ".webm"]);
 
 export function FilesApp() {
   const [currentPath, setCurrentPath] = useState<string>(THIS_PC);
@@ -115,8 +117,16 @@ export function FilesApp() {
       }
       return;
     }
-    // Not text/image — open with whatever Windows already uses for it.
-    window.anchoran!.fsOpenPath(entry.path);
+    // Anchoran 2.0.0 only natively opens images and text files — any
+    // other extension is "not supported yet" rather than silently
+    // handing it off to whatever Windows happens to use for it.
+    // Right-click → Open with… stays available as the explicit,
+    // deliberate way to launch a real Windows app for it instead.
+    if (AUDIO_EXT.has(ext) || VIDEO_EXT.has(ext)) {
+      pushNotification("Files", `${entry.name} isn't previewed in Files — open it in Media Player, or right-click → Open with…`);
+    } else {
+      pushNotification("Files", `${entry.name} isn't a file type Anchoran supports yet. Right-click → Open with… to open it with a Windows app.`);
+    }
   }
 
   async function saveOpenFile(content: string) {

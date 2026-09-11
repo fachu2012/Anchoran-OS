@@ -5,6 +5,24 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.1.6] - 2026-09-11
+
+### Changed
+
+- **Desktop icons reverted to pinned app shortcuts only** — v2.0.0
+  briefly made them mirror your real Windows Desktop folder; that's
+  gone, Anchoran's desktop stays its own stable surface again.
+- **Browser is back to being a real browser embedded inside Anchoran**
+  (Electron's `<webview>`, genuinely running the Chromium engine) —
+  not an external launch of a separate Chrome process, and not labeled
+  "Google Chrome" either way, since it isn't the actual Google-branded
+  product.
+- **Files no longer silently opens unsupported file types with
+  whatever Windows' default app is.** Double-clicking a file type
+  Anchoran doesn't natively handle (anything besides images and text)
+  now shows a clear message instead — right-click → Open with… is the
+  explicit way to launch a real Windows app for it.
+
 ## [2.0.0] - 2026-09-11
 
 ### Changed — major architecture shift

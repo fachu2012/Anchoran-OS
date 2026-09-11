@@ -39,7 +39,6 @@ declare global {
     resetData: () => Promise<boolean>;
     saveAndOpenFile: (fileName: string, base64: string) => Promise<{ success: boolean; error?: string }>;
     getCaptureSources: () => Promise<{ id: string; name: string; thumbnailDataUrl: string }[]>;
-    openChrome: () => Promise<{ success: boolean; usedFallback: boolean }>;
     pickZipFile: () => Promise<{ base64: string; fileName: string } | { error: string } | null>;
     pickFolder: (title: string) => Promise<string | null>;
     showWebviewContextMenu: (

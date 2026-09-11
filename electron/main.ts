@@ -773,35 +773,6 @@ ipcMain.handle("anchoran:pick-zip-file", async () => {
 });
 
 /**
- * Opens the user's real, actually-installed Google Chrome as its own
- * separate Windows application — not an embedded, Anchoran-skinned
- * imitation of it. Anchoran used to have its own in-house `<webview>`-
- * based "Anchoran Browser"; using the real product's name for
- * something that wasn't actually Chrome would have been misleading, so
- * this launches the genuine executable instead. Falls back to
- * whatever the user's actual default browser is if Chrome isn't
- * installed — never fakes a substitute.
- */
-ipcMain.handle("anchoran:open-chrome", async () => {
-  if (process.platform !== "win32") {
-    shell.openExternal("https://www.google.com");
-    return { success: true, usedFallback: true };
-  }
-  const candidates = [
-    path.join(process.env["ProgramFiles"] ?? "C:\\Program Files", "Google\\Chrome\\Application\\chrome.exe"),
-    path.join(process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)", "Google\\Chrome\\Application\\chrome.exe"),
-    path.join(process.env["LOCALAPPDATA"] ?? "", "Google\\Chrome\\Application\\chrome.exe"),
-  ];
-  const found = candidates.find((p) => fs.existsSync(p));
-  if (found) {
-    spawn(found, [], { detached: true }).unref();
-    return { success: true, usedFallback: false };
-  }
-  shell.openExternal("https://www.google.com");
-  return { success: true, usedFallback: true };
-});
-
-/**
  * Kiosk Mode: makes Anchoran the Windows shell for the CURRENT USER
  * ACCOUNT ONLY, by writing the per-user Winlogon "Shell" value under
  * HKEY_CURRENT_USER — the same key Windows itself reads at sign-in to
