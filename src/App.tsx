@@ -14,6 +14,7 @@ import { recordUpdateIfVersionChanged } from "@/core/updateHistory";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { Onboarding } from "@/onboarding/Onboarding";
 import { useFsStore, DOWNLOADS_ID } from "@/filesystem/fs";
+import { useWindowStore } from "@/windowmanager/windowStore";
 
 const WELCOMED_KEY = "welcomed";
 
@@ -42,6 +43,16 @@ export default function App() {
     // instructions §11/§16 for the security scope of this behavior.
     // Ctrl+Alt+L is the reliable fallback, registered alongside it.
     window.anchoran?.onToggleLauncher(() => setLauncherOpen((v) => !v));
+
+    // System Mode (see TODO.md / native/kioskhook): while it's on, the
+    // Windows key and Alt+Tab are claimed system-wide by the native
+    // helper instead of Explorer, and forwarded here — same Launcher
+    // toggle as the line above, plus Anchoran's own window switcher
+    // for Alt+Tab (the same one Ctrl+Tab already opens, see Desktop.tsx).
+    window.anchoran?.onSystemModeKey((key) => {
+      if (key === "WIN") setLauncherOpen((v) => !v);
+      else if (key === "ALTTAB") useWindowStore.getState().cycleFocus(1);
+    });
 
     // Tells the user when neither shortcut could be registered at all
     // (some other app already owns both) instead of them silently not

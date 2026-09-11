@@ -85,4 +85,16 @@ contextBridge.exposeInMainWorld("anchoran", {
     ipcRenderer.send("anchoran:quit-and-install-update");
   },
   consumePendingUpdate: (): Promise<string | null> => ipcRenderer.invoke("anchoran:consume-pending-update"),
+
+  systemModeStart: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:system-mode-start"),
+  systemModeStop: (): Promise<{ success: boolean }> => ipcRenderer.invoke("anchoran:system-mode-stop"),
+  systemModeStatus: (): Promise<{ running: boolean; supported: boolean }> =>
+    ipcRenderer.invoke("anchoran:system-mode-status"),
+  onSystemModeKey: (callback: (key: "WIN" | "ALTTAB") => void): void => {
+    ipcRenderer.on("anchoran:system-mode-key", (_e, key) => callback(key));
+  },
+  onSystemModeStatusChange: (callback: (running: boolean) => void): void => {
+    ipcRenderer.on("anchoran:system-mode-status", (_e, running) => callback(running));
+  },
 });

@@ -47,6 +47,12 @@ declare global {
     onUpdateStatus: (callback: (status: AnchoranUpdateStatus) => void) => void;
     quitAndInstallUpdate: () => void;
     consumePendingUpdate: () => Promise<string | null>;
+
+    systemModeStart: () => Promise<{ success: boolean; error?: string }>;
+    systemModeStop: () => Promise<{ success: boolean }>;
+    systemModeStatus: () => Promise<{ running: boolean; supported: boolean }>;
+    onSystemModeKey: (callback: (key: "WIN" | "ALTTAB") => void) => void;
+    onSystemModeStatusChange: (callback: (running: boolean) => void) => void;
   }
 
   type AnchoranUpdateStatus =

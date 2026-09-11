@@ -5,6 +5,28 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.19.0] - 2026-09-11
+
+### Added
+
+- **System Mode**: Anchoran can now claim the Windows key and Alt+Tab
+  system-wide while it's running (Settings → System Mode, off by
+  default every session), via a new native helper
+  (`native/kioskhook`, a small self-contained .NET process) that
+  installs a low-level Windows keyboard hook — without touching how
+  Windows boots, logs in, or what was already running before Anchoran
+  started. Pressing Win opens Anchoran's Launcher instead of the Start
+  Menu; Alt+Tab opens Anchoran's own window switcher. Turning it off,
+  closing Anchoran, or a plain reboot all immediately hand the keys
+  back to Windows — and Ctrl+Alt+Delete is never affected, by Windows'
+  own design, regardless of this feature. See `TODO.md` for the full
+  design notes, safety reasoning, and what's still pending (real
+  on-device key testing, code signing).
+- **Default-installed apps are now protected from uninstall**, not
+  just the four core ones — this now also covers System Monitor,
+  Network Monitor, Event Viewer, Media Player and Magnifier, which are
+  also installed by default from this version on.
+
 ## [1.18.1] - 2026-09-11
 
 ### Fixed

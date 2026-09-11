@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 import { APP_LIST } from "@/applications/registry";
 import { fetchWebstoreCatalog } from "@/applications/webstoreRegistry";
-import { useInstalledAppsStore } from "@/applications/installedAppsStore";
+import { useInstalledAppsStore, isProtectedApp } from "@/applications/installedAppsStore";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import type { AppCategory, AppId, AppDefinition } from "@/core/types";
@@ -101,7 +101,7 @@ export function AppCenterApp() {
                   <button className="app-toolbar-btn" onClick={() => openApp(detail.id)}>
                     Open
                   </button>
-                  {!detail.core && (
+                  {!isProtectedApp(detail.id) && (
                     <button className="app-toolbar-btn" onClick={() => onUninstall(detail)}>
                       Uninstall
                     </button>

@@ -27,6 +27,14 @@ jobs:
           node-version: 20
           cache: npm
 
+      # System Mode's keyboard-hook helper (native/kioskhook) is a
+      # small standalone .NET console app, published self-contained so
+      # end users need nothing extra installed — see native/kioskhook
+      # for the full design notes.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
       - run: npm ci
 
       - name: Typecheck
@@ -51,6 +59,7 @@ jobs:
           npm run sync-version
           npm run build:renderer
           npm run build:electron
+          npm run build:kioskhook
           npx electron-builder --publish never
 
       # AnchoranSetup: the fullscreen, Anchoran-branded installer end

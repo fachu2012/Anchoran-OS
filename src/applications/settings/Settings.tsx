@@ -5,6 +5,7 @@ import { ANCHORAN_VERSION } from "@/core/version";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { playNotificationSound } from "@/core/sound";
 import { useUpdateHistoryStore } from "@/core/updateHistory";
+import { useSystemModeStore } from "@/desktop/systemModeStore";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import "@/applications/apps.css";
 
@@ -22,6 +23,7 @@ const SECTIONS = [
   "Privacy",
   "System",
   "Shortcuts",
+  "System Mode",
   "Updater",
 ] as const;
 
@@ -276,6 +278,8 @@ export function SettingsApp() {
 
         {section === "Shortcuts" && <ShortcutsSection />}
 
+        {section === "System Mode" && <SystemModeSection />}
+
         {section === "Updater" && <AboutSection />}
       </div>
     </div>
@@ -528,6 +532,68 @@ function ShortcutsSection() {
           </div>
         ))}
       </div>
+    </>
+  );
+}
+
+function SystemModeSection() {
+  const running = useSystemModeStore((s) => s.running);
+  const starting = useSystemModeStore((s) => s.starting);
+  const error = useSystemModeStore((s) => s.error);
+  const start = useSystemModeStore((s) => s.start);
+  const stop = useSystemModeStore((s) => s.stop);
+  const refreshStatus = useSystemModeStore((s) => s.refreshStatus);
+
+  useEffect(() => {
+    refreshStatus();
+  }, [refreshStatus]);
+
+  return (
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+        <h3 style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>System Mode</h3>
+        {running && (
+          <span
+            style={{
+              fontSize: 10.5,
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: "var(--anchoran-accent-soft)",
+              color: "var(--anchoran-accent)",
+            }}
+          >
+            Active
+          </span>
+        )}
+      </div>
+      <p style={{ color: "var(--anchoran-text-secondary)", fontSize: 12.5, marginTop: 0, maxWidth: 520 }}>
+        While System Mode is on, Anchoran claims the Windows key (opens
+        the Launcher instead of the Start Menu) and Alt+Tab (opens
+        Anchoran's own window switcher instead of Windows') — everything
+        else, including Windows itself and whatever you had open before
+        starting Anchoran, keeps running untouched underneath. Turning
+        it off, closing Anchoran, or restarting your PC all immediately
+        return every key to normal Windows behavior. Ctrl+Alt+Delete is
+        never affected — Windows itself guarantees that, no matter what.
+      </p>
+      <div className="settings-row">
+        <div>
+          <div className="settings-row-label">Claim Windows key &amp; Alt+Tab</div>
+          <div className="settings-row-desc">
+            {starting
+              ? "Starting…"
+              : running
+                ? "Active for this session — turns off automatically when Anchoran closes."
+                : "Off. Starts fresh every time you launch Anchoran."}
+          </div>
+        </div>
+        <button className="app-toolbar-btn" disabled={starting} onClick={() => (running ? stop() : start())}>
+          {running ? "Turn off" : "Turn on"}
+        </button>
+      </div>
+      {error && (
+        <p style={{ color: "#E5484D", fontSize: 12, marginTop: 8 }}>{error}</p>
+      )}
     </>
   );
 }

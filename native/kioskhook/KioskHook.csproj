@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Anchoran's "System Mode" helper: a small standalone Windows process
+    that installs a low-level keyboard hook (WH_KEYBOARD_LL) so it can
+    claim the Windows key and Alt+Tab while Anchoran is running, and
+    release them the instant it's told to stop or its parent process
+    (Anchoran itself) goes away — see Program.cs for the full design
+    notes and safety guarantees. Deliberately a separate self-contained
+    executable rather than a native Node addon: it needs no C/C++
+    toolchain to build (this repo has none configured), only the .NET
+    SDK, and self-contained publishing means end users need nothing
+    extra installed either.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>AnchoranKioskHook</AssemblyName>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseWindowsForms>false</UseWindowsForms>
+  </PropertyGroup>
+
+</Project>

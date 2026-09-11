@@ -8,10 +8,33 @@ const INSTALLED_KEY = "installedApps";
 // Core apps (Files, Terminal, Settings, the Webstore itself) are always
 // installed; the rest ship with a sensible day-one default so Anchoran
 // is immediately usable, with the newest additions left for the user
-// to discover and install from the Webstore.
+// to discover and install from the Webstore. System-category tools
+// (Network Monitor, Event Viewer, …) and a couple of everyday utility
+// apps (Media Player, Magnifier) ship installed by default too — the
+// same way a real OS's own built-in tools aren't something you'd
+// expect to have to go find in a store first.
 const CORE_APP_IDS = APP_LIST.filter((a) => a.core).map((a) => a.id);
-const DEFAULT_OPTIONAL_INSTALLED: AppId[] = ["notes", "calculator", "browser", "systemMonitor"];
+const DEFAULT_OPTIONAL_INSTALLED: AppId[] = [
+  "notes",
+  "calculator",
+  "browser",
+  "systemMonitor",
+  "networkMonitor",
+  "eventViewer",
+  "mediaPlayer",
+  "magnifier",
+];
 const DEFAULT_INSTALLED: AppId[] = [...CORE_APP_IDS, ...DEFAULT_OPTIONAL_INSTALLED];
+
+// Every app installed by default — core or not — is protected from
+// uninstall. Only apps the user chose to install from the Webstore
+// themselves can be removed again.
+const PROTECTED_APP_IDS = new Set<AppId>(DEFAULT_INSTALLED);
+
+/** Whether an app is installed by default and therefore can't be uninstalled — for UI (e.g. hiding the Uninstall button). */
+export function isProtectedApp(appId: AppId): boolean {
+  return PROTECTED_APP_IDS.has(appId);
+}
 
 interface InstalledAppsState {
   installed: Set<AppId>;
@@ -39,7 +62,7 @@ export const useInstalledAppsStore = create<InstalledAppsState>((set, get) => ({
   },
 
   uninstall: (appId) => {
-    if (CORE_APP_IDS.includes(appId)) return; // core apps can't be removed
+    if (PROTECTED_APP_IDS.has(appId)) return; // default-installed apps can't be removed
     const installed = new Set(get().installed);
     installed.delete(appId);
     set({ installed });
@@ -48,8 +71,9 @@ export const useInstalledAppsStore = create<InstalledAppsState>((set, get) => ({
 }));
 
 persistGet<AppId[]>("config", INSTALLED_KEY, DEFAULT_INSTALLED).then((loaded) => {
-  // Core apps are force-included even if an old persisted list predates
-  // one of them (e.g. after an update adds a new core app).
-  const installed = new Set([...loaded, ...CORE_APP_IDS]);
+  // Every protected (default-installed) app is force-included even if
+  // an old persisted list predates it — e.g. after an update adds a
+  // new core app, or promotes a Webstore app to installed-by-default.
+  const installed = new Set([...loaded, ...PROTECTED_APP_IDS]);
   useInstalledAppsStore.setState({ installed, hydrated: true });
 });

@@ -622,6 +622,101 @@ ipcMain.on("anchoran:quit-and-install-update", () => {
   autoUpdater.quitAndInstall(true, true);
 });
 
+/**
+ * System Mode: an opt-in toggle (off by default every launch — never
+ * persisted as "was on", see src/desktop/systemModeStore.ts) that
+ * spawns native/kioskhook's compiled helper so Anchoran can claim the
+ * Windows key and Alt+Tab while it's running, without touching
+ * anything about how Windows itself starts, logs in, or what happens
+ * to whatever the user had open before launching Anchoran — see
+ * TODO.md and native/kioskhook/Program.cs for the full design and
+ * safety notes. This block only ever manages that one child process:
+ * starting it, relaying its two possible stdout lines ("WIN" /
+ * "ALTTAB") to the renderer, and making sure it is always stopped —
+ * on an explicit toggle-off, and unconditionally on every path out of
+ * the app (quit, crash, window-all-closed) — since Windows only
+ * regains normal key handling once this process is gone.
+ */
+let kioskHookProcess: ReturnType<typeof spawn> | null = null;
+
+function kioskHookExePath(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "AnchoranKioskHook.exe")
+    : path.join(__dirname, "..", "native", "kioskhook", "bin", "Release", "net8.0", "win-x64", "publish", "AnchoranKioskHook.exe");
+}
+
+function stopKioskHook() {
+  if (!kioskHookProcess) return;
+  try {
+    kioskHookProcess.stdin?.write("EXIT\n");
+  } catch {
+    // Falls through to a hard kill below regardless.
+  }
+  const proc = kioskHookProcess;
+  kioskHookProcess = null;
+  // Give it a moment to exit cleanly (releasing the hook) before
+  // forcing it, so a slow shutdown never leaves the hook installed.
+  setTimeout(() => {
+    if (!proc.killed) proc.kill();
+  }, 1500);
+}
+
+ipcMain.handle("anchoran:system-mode-start", () => {
+  if (process.platform !== "win32") return { success: false, error: "Only supported on Windows." };
+  if (kioskHookProcess) return { success: true };
+
+  const exePath = kioskHookExePath();
+  if (!fs.existsSync(exePath)) {
+    return {
+      success: false,
+      error: isDev
+        ? "Run `npm run build:kioskhook` first — it isn't built automatically in dev mode."
+        : "The System Mode helper is missing from this build.",
+    };
+  }
+
+  try {
+    const child = spawn(exePath, [String(process.pid)]);
+    kioskHookProcess = child;
+
+    child.stdout.setEncoding("utf-8");
+    let buffer = "";
+    child.stdout.on("data", (chunk: string) => {
+      buffer += chunk;
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (line === "WIN" || line === "ALTTAB") {
+          mainWindow?.webContents.send("anchoran:system-mode-key", line);
+        }
+      }
+    });
+
+    child.on("exit", () => {
+      if (kioskHookProcess === child) kioskHookProcess = null;
+      mainWindow?.webContents.send("anchoran:system-mode-status", false);
+    });
+    child.on("error", (err) => {
+      logToDisk("system-mode", `Helper process error: ${err.message}`);
+      if (kioskHookProcess === child) kioskHookProcess = null;
+    });
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:system-mode-stop", () => {
+  stopKioskHook();
+  return { success: true };
+});
+
+ipcMain.handle("anchoran:system-mode-status", () => ({
+  running: kioskHookProcess !== null,
+  supported: process.platform === "win32",
+}));
+
 app.whenReady().then(() => {
   createMainWindow();
   registerGlobalShortcuts();
@@ -636,6 +731,7 @@ app.whenReady().then(() => {
 
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
+  stopKioskHook();
 });
 
 app.on("window-all-closed", () => {
