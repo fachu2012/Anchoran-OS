@@ -5,6 +5,20 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.15.0] - 2026-09-11
+
+### Added
+
+- **6 more apps** ("Wave 6"): Password Vault (real AES-GCM encryption
+  derived from a master password via PBKDF2 — the password itself is
+  never stored, only used to re-derive the key), Reminders (real
+  timers that fire a notification at a set time of day), Text to
+  Speech (reads any text aloud via the system's speech voices, with
+  adjustable rate), Mind Map (a draggable node/link idea sketchpad),
+  Solitaire (full Klondike, with foundations and a recyclable stock),
+  and Chess (complete legal-move, check, checkmate and stalemate
+  detection for local two-player play).
+
 ## [1.14.0] - 2026-09-11
 
 ### Added

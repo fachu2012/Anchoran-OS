@@ -65,6 +65,14 @@ const APP_COMPONENTS: Record<AppId, React.LazyExoticComponent<() => JSX.Element>
     import("@/applications/currencyconverter/CurrencyConverter").then((m) => ({ default: m.CurrencyConverterApp }))
   ),
   weather: lazy(() => import("@/applications/weather/Weather").then((m) => ({ default: m.WeatherApp }))),
+  passwordVault: lazy(() =>
+    import("@/applications/passwordvault/PasswordVault").then((m) => ({ default: m.PasswordVaultApp }))
+  ),
+  reminders: lazy(() => import("@/applications/reminders/Reminders").then((m) => ({ default: m.RemindersApp }))),
+  ttsReader: lazy(() => import("@/applications/ttsreader/TtsReader").then((m) => ({ default: m.TtsReaderApp }))),
+  mindMap: lazy(() => import("@/applications/mindmap/MindMap").then((m) => ({ default: m.MindMapApp }))),
+  solitaire: lazy(() => import("@/applications/solitaire/Solitaire").then((m) => ({ default: m.SolitaireApp }))),
+  chess: lazy(() => import("@/applications/chess/Chess").then((m) => ({ default: m.ChessApp }))),
 };
 
 function AppLoadingFallback() {

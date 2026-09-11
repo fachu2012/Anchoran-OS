@@ -1,0 +1,67 @@
+.mindmap-canvas {
+  position: relative;
+  overflow: auto;
+  background-image: radial-gradient(var(--anchoran-border) 1px, transparent 1px);
+  background-size: 18px 18px;
+  padding: 0;
+}
+
+.mindmap-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1200px;
+  height: 900px;
+  pointer-events: none;
+}
+
+.mindmap-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--anchoran-surface);
+  border: 1px solid var(--anchoran-border);
+  font-size: 12.5px;
+  cursor: grab;
+  box-shadow: var(--anchoran-shadow-soft);
+  user-select: none;
+}
+
+.mindmap-node[data-root="true"] {
+  background: var(--anchoran-accent);
+  color: #fff;
+  border-color: var(--anchoran-accent);
+  font-weight: 500;
+}
+
+.mindmap-node input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+  font: inherit;
+  width: 90px;
+}
+
+.mindmap-node-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.mindmap-node-actions button {
+  border: none;
+  background: rgba(127, 127, 127, 0.15);
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: inherit;
+  padding: 0;
+}

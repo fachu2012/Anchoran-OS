@@ -66,7 +66,13 @@ export type IconName =
   | "textDiff"
   | "habitTracker"
   | "currencyConverter"
-  | "weather";
+  | "weather"
+  | "passwordVault"
+  | "reminders"
+  | "ttsReader"
+  | "mindMap"
+  | "solitaire"
+  | "chess";
 
 const PATHS: Record<IconName, string> = {
   files:
@@ -145,6 +151,18 @@ const PATHS: Record<IconName, string> = {
     "M9 4.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Zm6 6a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM9 7v5M7 9.3h4M15 12.7v5M13 15h4",
   weather:
     "M7.5 18a4 4 0 0 1-.6-7.95 5 5 0 0 1 9.7-1.7A3.8 3.8 0 0 1 17 18H7.5Z",
+  passwordVault:
+    "M12 3.5 19.5 6v6c0 4.5-3.2 7.6-7.5 8.5C7.7 19.6 4.5 16.5 4.5 12V6L12 3.5Zm0 5a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4ZM12 12v3",
+  reminders:
+    "M12 3.5v2M6 6.5l1.4 1.4M18 6.5l-1.4 1.4M12 20a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm0-11v4l2.6 1.6",
+  ttsReader:
+    "M4.5 9.5h3.2L12 6v12l-4.3-3.5H4.5v-5Zm11-1.8a5.5 5.5 0 0 1 0 8.6M17.7 5.5a9.5 9.5 0 0 1 0 13",
+  mindMap:
+    "M12 4.5a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4ZM6 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm12 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM12 8.9v5M12 13.9 7 17M12 13.9l5 3.1",
+  solitaire:
+    "M5 5.5h6v9H5v-9Zm8 4h6v9h-6v-9ZM8 7.8h.01M16.5 12.3h.01",
+  chess:
+    "M9 20.5h6M8 20.5c0-3 .8-4.5 1.6-6M16 20.5c0-3-.8-4.5-1.6-6M9.6 14.5c-.8-1.5-1-2.7-.3-4C10 9 12 9 12 7c0-1-1-1.3-1-2.2 0-.9.9-1.3 1-1.3s1 .4 1 1.3c0 .9-1 1.2-1 2.2 0 2 2 2 2.7 3.5.7 1.3.5 2.5-.3 4Z",
 };
 
 export function Icon({

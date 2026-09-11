@@ -36,7 +36,13 @@ export type AppId =
   | "textDiff"
   | "habitTracker"
   | "currencyConverter"
-  | "weather";
+  | "weather"
+  | "passwordVault"
+  | "reminders"
+  | "ttsReader"
+  | "mindMap"
+  | "solitaire"
+  | "chess";
 
 export type AppCategory = "System" | "Productivity" | "Utilities" | "Internet" | "Games";
 

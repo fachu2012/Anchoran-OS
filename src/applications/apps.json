@@ -328,5 +328,59 @@
     "description": "Current conditions and a short forecast for any city.",
     "defaultSize": { "width": 400, "height": 480 },
     "minSize": { "width": 340, "height": 420 }
+  },
+  {
+    "id": "passwordVault",
+    "title": "Password Vault",
+    "icon": "passwordVault",
+    "category": "Utilities",
+    "description": "A real, encrypted vault for your passwords, locked by a master password.",
+    "defaultSize": { "width": 400, "height": 560 },
+    "minSize": { "width": 340, "height": 420 }
+  },
+  {
+    "id": "reminders",
+    "title": "Reminders",
+    "icon": "reminders",
+    "category": "Productivity",
+    "description": "Set reminders for specific times of day.",
+    "defaultSize": { "width": 420, "height": 480 },
+    "minSize": { "width": 340, "height": 380 }
+  },
+  {
+    "id": "ttsReader",
+    "title": "Text to Speech",
+    "icon": "ttsReader",
+    "category": "Utilities",
+    "description": "Have any text read aloud, with adjustable voice and speed.",
+    "defaultSize": { "width": 480, "height": 440 },
+    "minSize": { "width": 380, "height": 360 }
+  },
+  {
+    "id": "mindMap",
+    "title": "Mind Map",
+    "icon": "mindMap",
+    "category": "Productivity",
+    "description": "Sketch out ideas as a draggable node map.",
+    "defaultSize": { "width": 700, "height": 520 },
+    "minSize": { "width": 480, "height": 380 }
+  },
+  {
+    "id": "solitaire",
+    "title": "Solitaire",
+    "icon": "solitaire",
+    "category": "Games",
+    "description": "Classic Klondike solitaire.",
+    "defaultSize": { "width": 520, "height": 520 },
+    "minSize": { "width": 460, "height": 460 }
+  },
+  {
+    "id": "chess",
+    "title": "Chess",
+    "icon": "chess",
+    "category": "Games",
+    "description": "Two-player chess with full legal move and check detection.",
+    "defaultSize": { "width": 460, "height": 560 },
+    "minSize": { "width": 380, "height": 480 }
   }
 ]
