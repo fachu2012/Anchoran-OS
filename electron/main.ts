@@ -346,7 +346,13 @@ ipcMain.handle("anchoran:check-for-updates", () => {
 
 ipcMain.on("anchoran:quit-and-install-update", () => {
   isQuittingConfirmed = true;
-  autoUpdater.quitAndInstall();
+  // quitAndInstall() with no arguments defaults to isSilent=false, which
+  // re-shows the full NSIS wizard instead of the seamless "Restart &
+  // Update" experience Anchoran's UI promises — isSilent=true runs the
+  // installer with /S, isForceRunAfter=true makes sure AnchoranOS
+  // relaunches afterward even though this app isn't built with NSIS's
+  // own "run after finish" option checked.
+  autoUpdater.quitAndInstall(true, true);
 });
 
 app.whenReady().then(() => {

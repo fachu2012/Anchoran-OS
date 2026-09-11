@@ -5,6 +5,18 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.2.3] - 2026-09-11
+
+### Fixed
+
+- `quitAndInstall()` was called with no arguments, which defaults to a
+  **non-silent** install — the full NSIS wizard reappeared instead of
+  installing seamlessly behind the "Restart & Update" screen. Now calls
+  `quitAndInstall(true, true)` (silent, force-relaunch after). Note:
+  this only takes effect starting from *this* version onward — the
+  currently-running version always decides how its own update installs,
+  so updating from an older build still shows its old behavior.
+
 ## [1.2.2] - 2026-09-11
 
 ### Fixed
