@@ -1,7 +1,7 @@
 {
   "name": "anchoran-os",
   "productName": "Anchoran OS",
-  "version": "1.0.0",
+  "version": "1.2.1",
   "description": "Anchoran OS - an immersive desktop environment shell for Windows.",
   "author": "Anchoran",
   "private": true,

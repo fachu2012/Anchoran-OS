@@ -4,6 +4,7 @@ import { useNotificationStore } from "@/notifications/notificationStore";
 import { ANCHORAN_VERSION } from "@/core/version";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { playNotificationSound } from "@/core/sound";
+import { useUpdateHistoryStore } from "@/core/updateHistory";
 import "@/applications/apps.css";
 
 const ANCHORAN_LOGO = new URL("../../../assets/logo/anchoran-logo.svg", import.meta.url).href;
@@ -487,6 +488,26 @@ function AboutSection() {
       {updateStatus && (
         <p style={{ fontSize: 12, color: "var(--anchoran-text-secondary)", marginTop: 8 }}>{updateStatus}</p>
       )}
+      <UpdateHistoryList />
+    </div>
+  );
+}
+
+function UpdateHistoryList() {
+  const history = useUpdateHistoryStore((s) => s.history);
+
+  if (history.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 20 }}>
+      <div style={{ fontSize: 12.5, fontWeight: 500, marginBottom: 8 }}>Update history</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {history.map((entry, i) => (
+          <div key={i} style={{ fontSize: 12, color: "var(--anchoran-text-secondary)" }}>
+            {entry.fromVersion} → {entry.toVersion} · {new Date(entry.installedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

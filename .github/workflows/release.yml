@@ -41,12 +41,29 @@ jobs:
       # publish straight to GitHub itself, which fails without a
       # GH_TOKEN env var here. `--publish never` disables that: this
       # step only builds the files, and the dedicated "Attach to GitHub
-      # Release" step below does the actual uploading.
-      - name: Build installer
+      # Release" step below does the actual uploading. This produces
+      # AnchoranOS's own NSIS installer — not what end users should
+      # run directly (see the next step), but it's what electron-updater
+      # silently downloads later for in-place updates, and it's the
+      # payload AnchoranSetup bundles for a first install.
+      - name: Build AnchoranOS installer
         run: |
           npm run sync-version
           npm run build:renderer
           npm run build:electron
+          npx electron-builder --publish never
+
+      # AnchoranSetup: the fullscreen, Anchoran-branded installer end
+      # users actually download and run (see installer/README context
+      # in the repo root README's "Custom fullscreen installer"
+      # section). It bundles the NSIS installer built above and drives
+      # it silently behind its own UI.
+      - name: Build AnchoranSetup (fullscreen installer)
+        run: |
+          npm run prepare-installer-source
+          cd installer
+          npm ci
+          npm run build
           npx electron-builder --publish never
 
       - name: Upload artifact
@@ -54,19 +71,23 @@ jobs:
         with:
           name: anchoran-os-installer
           path: |
+            release-setup/*.exe
             release/*.exe
             release/*.blockmap
             release/latest.yml
 
       # electron-updater (the auto-update client, see electron/main.ts)
       # reads latest.yml from the release assets to know the current
-      # version and download URL — without it, "anchoran update" and
-      # Settings → About → Check for updates will never find anything,
-      # even with the .exe attached. All three MUST be on the release.
+      # version and download URL for AnchoranOS's own installer — that,
+      # its .exe and its .blockmap all need to stay on the release for
+      # "anchoran update" / Settings → About to work, even though end
+      # users should download AnchoranSetup.exe instead of that one.
       - name: Attach to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          body: "Full Changelog on https://github.com/fachu2012/Anchoran-OS/blob/main/CHANGELOG.md"
           files: |
+            release-setup/*.exe
             release/*.exe
             release/*.blockmap
             release/latest.yml

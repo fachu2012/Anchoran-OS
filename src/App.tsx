@@ -5,9 +5,11 @@ import { Desktop } from "@/desktop/Desktop";
 import { LockScreen } from "@/lock/LockScreen";
 import { ExitConfirmDialog } from "@/power/ExitConfirmDialog";
 import { ShutdownScreen, type ExitMode } from "@/power/ShutdownScreen";
+import { UpdateReadyScreen } from "@/power/UpdateReadyScreen";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { persistGet, persistSet } from "@/core/persist";
 import { playLoginSound } from "@/core/sound";
+import { recordUpdateIfVersionChanged } from "@/core/updateHistory";
 
 const WELCOMED_KEY = "welcomed";
 
@@ -17,6 +19,7 @@ export default function App() {
   const [exitDialogOpen, setExitDialogOpen] = useState(false);
   const [exitMode, setExitMode] = useState<ExitMode | null>(null);
   const [launcherOpen, setLauncherOpen] = useState(false);
+  const [updateReadyVersion, setUpdateReadyVersion] = useState<string | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
 
   useEffect(() => {
@@ -27,6 +30,18 @@ export default function App() {
     // instructions §11/§16 for the security scope of this behavior.
     // Ctrl+Space is the reliable fallback, registered alongside it.
     window.anchoran?.onToggleLauncher(() => setLauncherOpen((v) => !v));
+
+    // Detects an update landed (any mechanism) by comparing this boot's
+    // version to the last one recorded — see core/updateHistory.ts.
+    recordUpdateIfVersionChanged();
+
+    // A background update check (startup or triggered from the
+    // Terminal/Settings) finishes downloading — offer the same
+    // fullscreen "ready to install" moment regardless of where the
+    // check was started from.
+    window.anchoran?.onUpdateStatus((status) => {
+      if (status.state === "downloaded") setUpdateReadyVersion(status.version);
+    });
   }, []);
 
   async function enterDesktop() {
@@ -46,6 +61,7 @@ export default function App() {
     // long-running internal app processes beyond its own React windows.
     if (exitMode === "shutdown") window.anchoran?.confirmExit();
     else if (exitMode === "restart") window.anchoran?.restart();
+    else if (exitMode === "update") window.anchoran?.quitAndInstallUpdate();
     else if (exitMode === "sleep") {
       setLocked(true);
       setExitMode(null);
@@ -66,6 +82,16 @@ export default function App() {
 
         {!booted && <BootScreen onDone={enterDesktop} />}
         {locked && <LockScreen onUnlock={() => setLocked(false)} />}
+        {updateReadyVersion && !exitMode && (
+          <UpdateReadyScreen
+            version={updateReadyVersion}
+            onLater={() => setUpdateReadyVersion(null)}
+            onInstallNow={() => {
+              setUpdateReadyVersion(null);
+              setExitMode("update");
+            }}
+          />
+        )}
         {exitMode && <ShutdownScreen mode={exitMode} onComplete={handleExitComplete} />}
         {exitDialogOpen && (
           <ExitConfirmDialog

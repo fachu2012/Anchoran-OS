@@ -5,6 +5,68 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.2.1] - 2026-09-11
+
+### Changed
+
+- Boot screen is now a properly staged, slower sequence (~6.5s):
+  black screen first, then the icon alone, then the wordmark, then a
+  thick macOS-style loading bar (8px, rounded) that fills over ~3.6s
+  with cycling status text — instead of everything appearing at once.
+
+## [1.2.0] - 2026-09-11
+
+### Added
+
+- **Fullscreen "update ready" screen**, same visual language as boot/
+  shutdown: when a background update check (startup, `anchoran update`,
+  or Settings → About) finishes downloading, Anchoran shows "Anchoran OS
+  vX.Y.Z is ready to install" with Restart & Update / Later, instead of
+  only a line of text in Settings. Choosing to update plays the same
+  staged shutdown-style animation before restarting.
+- **Update history**: Anchoran now remembers every version it's been
+  updated from/to and when, shown in Settings → About. This is detected
+  by comparing the running version to the last one recorded on every
+  boot, independent of *how* the update happened.
+- GitHub Releases now include a link to `CHANGELOG.md` in their
+  description.
+
+### Changed
+
+- This update screen is implemented natively inside Anchoran OS itself
+  (reusing the same boot/shutdown components), not by relaunching the
+  separate `AnchoranSetup.exe` — that keeps updates from re-downloading
+  the ~150MB fullscreen installer app on every version bump, at the cost
+  of the update screen and the first-install screen being two separate
+  (matching-style) implementations rather than one.
+
+## [1.1.0] - 2026-09-11
+
+### Added
+
+- **Cinematic boot screen**: staged, determinate progress (not a generic
+  shimmer) with cycling status lines ("Starting Anchoran OS…" → "Loading
+  desktop environment…" → "Preparing your workspace…" → "Almost there…")
+  over ~3.5s instead of an instant flash of the logo.
+- **Cinematic shutdown/restart/sleep screen**: same treatment — staged
+  status lines and a filling progress bar during the hold before the
+  screen fades to black.
+- **CI now also builds and publishes `AnchoranSetup.exe`** (the
+  fullscreen branded installer), not just AnchoranOS's own NSIS wizard —
+  that's the one end users should actually download from Releases.
+
+### Fixed
+
+- The GitHub Release workflow failed in two different ways while getting
+  this working, both now fixed: `electron-builder` was trying to
+  self-publish during the build step without a token present (`--publish
+  never` added), and the workflow's default `GITHUB_TOKEN` lacked write
+  permission to create/attach to a Release (`permissions: contents:
+  write` added).
+- `latest.yml` (what `electron-updater` reads to find updates) referenced
+  a filename that didn't match the actual built `.exe` — pinned
+  `artifactName` in `electron-builder.yml` so they always match.
+
 ## [1.0.0] - 2026-09-11
 
 Promoted out of the `alpha.N` pre-release track and onto the strict
