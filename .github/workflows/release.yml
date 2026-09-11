@@ -9,6 +9,13 @@ on:
     tags:
       - "v*"
 
+# The default GITHUB_TOKEN is read-only unless a workflow explicitly
+# asks for more — without this, creating/attaching to a Release fails
+# with "Resource not accessible by integration" even though the build
+# itself succeeds.
+permissions:
+  contents: write
+
 jobs:
   build-windows-installer:
     runs-on: windows-latest
