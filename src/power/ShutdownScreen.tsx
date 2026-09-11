@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 
 const ANCHORAN_LOGO = new URL("../../assets/logo/anchoran-logo.svg", import.meta.url).href;
 
-export type ExitMode = "shutdown" | "restart" | "sleep" | "update";
+// "update" used to be a mode here too, but the update flow now has its
+// own, much more elaborate pre-install sequence — see UpdateTheater.
+export type ExitMode = "shutdown" | "restart" | "sleep";
 
 const STAGE_LABELS: Record<ExitMode, string[]> = {
   shutdown: ["Saving your session…", "Closing applications…", "Shutting down Anchoran…"],
   restart: ["Saving your session…", "Closing applications…", "Restarting Anchoran…"],
   sleep: ["Anchoran is sleeping…"],
-  update: ["Saving your session…", "Installing update…", "Restarting Anchoran…"],
 };
 
 const DIM_MS = 380;

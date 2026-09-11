@@ -24,7 +24,20 @@ const STATUS_STAGES = [
   { at: BAR_AT + BAR_FILL_MS * 0.92, label: "Almost there…" },
 ];
 
-export function BootScreen({ onDone }: { onDone: () => void }) {
+export function BootScreen({
+  onDone,
+  finishingUpdateVersion = null,
+}: {
+  onDone: () => void;
+  finishingUpdateVersion?: string | null;
+}) {
+  if (finishingUpdateVersion) {
+    return <FinishingUpdateBoot version={finishingUpdateVersion} onDone={onDone} />;
+  }
+  return <StandardBoot onDone={onDone} />;
+}
+
+function StandardBoot({ onDone }: { onDone: () => void }) {
   const [visible, setVisible] = useState(true);
   const [showLogo, setShowLogo] = useState(false);
   const [showWordmark, setShowWordmark] = useState(false);
@@ -150,6 +163,85 @@ export function BootScreen({ onDone }: { onDone: () => void }) {
       >
         v{ANCHORAN_VERSION}
       </div>
+    </div>
+  );
+}
+
+const FINISHING_PHRASES = ["Just a bit more…", "Getting things ready…", "Almost there…", "Setting things up…"];
+const FINISHING_TOTAL_MS = 8000;
+const PHRASE_HOLD_MS = 1900;
+const PHRASE_FADE_MS = 350;
+
+/**
+ * A silent install/update has no UI of its own to show while it runs
+ * (the app has to quit for the installer to overwrite its own files —
+ * see UpdateTheater). This boot is what confirms it actually finished:
+ * no progress bar (there's nothing left to measure, the work already
+ * happened), just a short, calm sequence of rotating reassurances
+ * before the desktop appears.
+ */
+function FinishingUpdateBoot({ version, onDone }: { version: string; onDone: () => void }) {
+  const [phraseIndex, setPhraseIndex] = useState(-1); // -1 = show the version line first
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let elapsed = 900; // brief hold on the "Finishing update to vX" line first
+    timers.push(setTimeout(() => setPhraseIndex(0), elapsed));
+
+    let i = 0;
+    while (elapsed + PHRASE_HOLD_MS < FINISHING_TOTAL_MS) {
+      elapsed += PHRASE_HOLD_MS;
+      i += 1;
+      const index = i % FINISHING_PHRASES.length;
+      timers.push(setTimeout(() => setPhraseIndex(index), elapsed));
+    }
+
+    timers.push(setTimeout(() => setVisible(false), FINISHING_TOTAL_MS));
+    timers.push(setTimeout(onDone, FINISHING_TOTAL_MS + FADE_MS));
+
+    return () => timers.forEach(clearTimeout);
+  }, [onDone]);
+
+  const label = phraseIndex === -1 ? `Finishing update to v${version}…` : FINISHING_PHRASES[phraseIndex];
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: "#000000",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 24,
+        zIndex: 2000,
+        opacity: visible ? 1 : 0,
+        transition: `opacity ${FADE_MS}ms ease`,
+        pointerEvents: visible ? "auto" : "none",
+      }}
+    >
+      <img src={ANCHORAN_LOGO} alt="" width={72} height={72} style={{ opacity: 0.95 }} />
+      <div
+        key={phraseIndex}
+        style={{
+          color: "rgba(243,244,246,0.6)",
+          fontSize: 13,
+          letterSpacing: 0.4,
+          animation: `finishing-phrase ${PHRASE_HOLD_MS}ms ease`,
+        }}
+      >
+        {label}
+      </div>
+      <style>{`
+        @keyframes finishing-phrase {
+          0% { opacity: 0; }
+          ${Math.round((PHRASE_FADE_MS / PHRASE_HOLD_MS) * 100)}% { opacity: 1; }
+          ${100 - Math.round((PHRASE_FADE_MS / PHRASE_HOLD_MS) * 100)}% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -64,4 +64,5 @@ contextBridge.exposeInMainWorld("anchoran", {
   quitAndInstallUpdate: (): void => {
     ipcRenderer.send("anchoran:quit-and-install-update");
   },
+  consumePendingUpdate: (): Promise<string | null> => ipcRenderer.invoke("anchoran:consume-pending-update"),
 });

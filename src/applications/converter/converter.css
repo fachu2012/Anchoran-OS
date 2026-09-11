@@ -1,0 +1,48 @@
+.converter-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 30px;
+}
+
+.converter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.converter-input,
+.converter-result {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-sm);
+  background: var(--anchoran-bg);
+  color: var(--anchoran-text-primary);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.converter-result {
+  color: var(--anchoran-accent);
+  font-weight: 500;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.converter-select {
+  padding: 9px 8px;
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-sm);
+  background: var(--anchoran-surface);
+  color: var(--anchoran-text-primary);
+  font-size: 12.5px;
+  width: 130px;
+}
+
+.converter-equals {
+  font-size: 18px;
+  color: var(--anchoran-text-secondary);
+}

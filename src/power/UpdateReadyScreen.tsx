@@ -1,14 +1,21 @@
+import { useState, type CSSProperties } from "react";
+
 const ANCHORAN_LOGO = new URL("../../assets/logo/anchoran-logo.svg", import.meta.url).href;
+
+const btnBase: CSSProperties = {
+  padding: "9px 18px",
+  borderRadius: 8,
+  border: "1px solid transparent",
+  cursor: "pointer",
+  fontSize: 13,
+};
 
 /**
  * Shown, fullscreen and in the same visual language as boot/shutdown,
  * once electron-updater has finished downloading an update in the
- * background. This is the "update" counterpart to AnchoranSetup's
- * install screen — same style, different content — but implemented as
- * an overlay inside Anchoran itself rather than by relaunching
- * AnchoranSetup, since the update is already downloaded and all that's
- * left is a restart-and-install electron-updater already knows how to
- * do (see ShutdownScreen's "update" mode for the restart animation).
+ * background. Choosing to update asks for confirmation first ("Update
+ * now?"), then hands off to UpdateTheater for the Windows-Update-style
+ * "working on updates" sequence before the real, silent install runs.
  */
 export function UpdateReadyScreen({
   version,
@@ -19,6 +26,8 @@ export function UpdateReadyScreen({
   onInstallNow: () => void;
   onLater: () => void;
 }) {
+  const [confirming, setConfirming] = useState(false);
+
   return (
     <div
       style={{
@@ -38,39 +47,43 @@ export function UpdateReadyScreen({
       <div style={{ color: "#F3F4F6", fontSize: 16, fontWeight: 300, letterSpacing: 0.4 }}>
         Anchoran OS {version} is ready to install
       </div>
-      <div style={{ color: "rgba(243,244,246,0.5)", fontSize: 12.5, maxWidth: 360, textAlign: "center" }}>
-        Anchoran will restart to finish installing this update.
-      </div>
-      <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-        <button
-          onClick={onLater}
-          style={{
-            padding: "9px 18px",
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.16)",
-            background: "transparent",
-            color: "#F3F4F6",
-            cursor: "pointer",
-            fontSize: 13,
-          }}
-        >
-          Later
-        </button>
-        <button
-          onClick={onInstallNow}
-          style={{
-            padding: "9px 18px",
-            borderRadius: 8,
-            border: "1px solid transparent",
-            background: "#5B84E8",
-            color: "#fff",
-            cursor: "pointer",
-            fontSize: 13,
-          }}
-        >
-          Restart & Update
-        </button>
-      </div>
+
+      {!confirming ? (
+        <>
+          <div style={{ color: "rgba(243,244,246,0.5)", fontSize: 12.5, maxWidth: 360, textAlign: "center" }}>
+            Anchoran will restart to finish installing this update.
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+            <button
+              onClick={onLater}
+              style={{ ...btnBase, border: "1px solid rgba(255,255,255,0.16)", background: "transparent", color: "#F3F4F6" }}
+            >
+              Later
+            </button>
+            <button
+              onClick={() => setConfirming(true)}
+              style={{ ...btnBase, background: "#5B84E8", color: "#fff" }}
+            >
+              Restart & Update
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{ color: "rgba(243,244,246,0.5)", fontSize: 12.5 }}>Update now?</div>
+          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+            <button
+              onClick={() => setConfirming(false)}
+              style={{ ...btnBase, border: "1px solid rgba(255,255,255,0.16)", background: "transparent", color: "#F3F4F6" }}
+            >
+              Cancel
+            </button>
+            <button onClick={onInstallNow} style={{ ...btnBase, background: "#5B84E8", color: "#fff" }}>
+              Yes, update
+            </button>
+          </div>
+        </>
+      )}
       <style>{`
         @keyframes update-ready-in {
           from { opacity: 0; transform: scale(0.98); }

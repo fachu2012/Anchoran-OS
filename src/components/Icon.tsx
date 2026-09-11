@@ -35,7 +35,12 @@ export type IconName =
   | "chevronRight"
   | "folder"
   | "file"
-  | "check";
+  | "check"
+  | "clock"
+  | "converter"
+  | "colorPicker"
+  | "plus"
+  | "copy";
 
 const PATHS: Record<IconName, string> = {
   files:
@@ -69,6 +74,12 @@ const PATHS: Record<IconName, string> = {
   folder: "M3.5 7A1.5 1.5 0 0 1 5 5.5h4l1.6 2H19a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18V7Z",
   file: "M7 3.5h7l4 4v13H7v-17Zm7 0v4h4",
   check: "M5 12.5l4.5 4.5L19 7.5",
+  clock: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-12v4.3l3 2",
+  converter: "M6 8h11l-3-3M18 16H7l3 3",
+  colorPicker:
+    "M14.5 4.5 19 9l-8.3 8.3a2 2 0 0 1-1.3.6l-3.4.3.3-3.4a2 2 0 0 1 .6-1.3L14.5 4.5Zm2 2L20 3M5 21h4",
+  plus: "M12 5.5v13M5.5 12h13",
+  copy: "M8.5 8.5h10v10h-10v-10ZM5.5 5.5h10v3M5.5 5.5v10h3",
 };
 
 export function Icon({

@@ -5,6 +5,60 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.5.0] - 2026-09-11
+
+### Added
+
+- **`UpdateTheater`**: a Windows-Update-style "Working on updates"
+  sequence shown before an update actually installs — a held progress
+  screen with 1-3 simulated restart cycles (randomly 7-12s apart, each
+  with a brief black flash) and copy warning it might take a while and
+  restart itself. Runs entirely inside the still-open Anchoran window;
+  nothing here is the real install (see the "Known limitation" note
+  below).
+- `UpdateReadyScreen` now asks "Update now?" for confirmation before
+  starting, instead of updating immediately on the first click.
+- Boot screen's "finishing an update" mode (added in 1.4.0) is now its
+  own sequence: no progress bar (there's nothing left to measure, the
+  work already happened), just calm rotating reassurances — "Just a
+  bit more…", "Getting things ready…", etc. — fading in and out over a
+  fixed 8 seconds.
+- `AnchoranSetup`'s first-install screen restyled to match: the same
+  "Setting up Anchoran OS" headline/blurb/thin-bar language as the
+  update theater, plus the same cosmetic restart-flash effect layered
+  over its real, IPC-driven install progress (which — unlike an
+  update — Anchoran can actually observe, so it isn't faked, just
+  visually unified).
+
+### Known limitation (unchanged, worth restating here)
+
+The pre-install theater above runs entirely before Anchoran actually
+quits — the real silent install still requires the running app to
+fully exit first (it has to, to overwrite its own files), which is a
+genuine several-seconds gap with nothing on screen, however elaborate
+the theater beforehand. `1.4.0`'s "Finishing update…" boot message
+covers that moment on the other side of the gap; nothing can cover the
+gap itself.
+
+## [1.4.0] - 2026-09-11
+
+### Added
+
+- **Anchoran Webstore** (formerly App Center): search, category filters
+  (System/Productivity/Utilities/Internet), and a per-app detail view —
+  and installed apps now persist across restarts instead of resetting
+  every session.
+- **Three new built-in apps**, available to install from the Webstore:
+  **Clock** (world clocks, stopwatch, countdown timer), **Converter**
+  (length, weight, temperature, data size), and **Color Picker** (HEX/
+  RGB/HSL with one-click copy).
+- Boot screen now says **"Finishing update to vX.Y.Z…"** when this boot
+  follows a silent update install, instead of the generic startup
+  sequence — a silent NSIS install has nothing to show on screen while
+  it runs (the app has to quit for the installer to overwrite its own
+  files), so this turns that unavoidable gap into a legible "the update
+  is finishing" moment once Anchoran reopens.
+
 ## [1.3.2] - 2026-09-11
 
 ### Changed

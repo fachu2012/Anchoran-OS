@@ -8,13 +8,20 @@ export type AppId =
   | "calculator"
   | "browser"
   | "systemMonitor"
-  | "appCenter";
+  | "appCenter"
+  | "clock"
+  | "converter"
+  | "colorPicker";
+
+export type AppCategory = "System" | "Productivity" | "Utilities" | "Internet";
 
 export interface AppDefinition {
   id: AppId;
   title: string;
   /** Icon key resolved against src/assets/icons registry. */
   icon: string;
+  category: AppCategory;
+  description: string;
   /** Whether this app can have more than one open window at once. */
   allowMultipleInstances?: boolean;
   defaultSize: { width: number; height: number };

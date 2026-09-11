@@ -342,11 +342,32 @@ function sendUpdateStatus(status: UpdateStatus) {
   mainWindow?.webContents.send("anchoran:update-status", status);
 }
 
+/**
+ * A silent NSIS install (see quitAndInstall below) genuinely has
+ * nothing Anchoran-side can show on screen — the process has to quit
+ * for the installer to overwrite its own files, so there's an
+ * unavoidable gap with no UI while it runs. This flag survives that
+ * gap (written to disk right before quitting) so the *next* boot knows
+ * to say "Finishing update…" instead of the generic startup sequence —
+ * turning the silent gap into a legible "this was an update completing"
+ * story instead of an unexplained pause.
+ */
+let pendingUpdateVersion: string | null = null;
+
+ipcMain.handle("anchoran:consume-pending-update", () => {
+  const version = configStore.get("pendingUpdateVersion") as string | undefined;
+  if (version) configStore.delete("pendingUpdateVersion");
+  return version ?? null;
+});
+
 autoUpdater.on("checking-for-update", () => sendUpdateStatus({ state: "checking" }));
 autoUpdater.on("update-available", (info) => sendUpdateStatus({ state: "available", version: info.version }));
 autoUpdater.on("update-not-available", () => sendUpdateStatus({ state: "not-available" }));
 autoUpdater.on("download-progress", (p) => sendUpdateStatus({ state: "downloading", percent: Math.round(p.percent) }));
-autoUpdater.on("update-downloaded", (info) => sendUpdateStatus({ state: "downloaded", version: info.version }));
+autoUpdater.on("update-downloaded", (info) => {
+  pendingUpdateVersion = info.version;
+  sendUpdateStatus({ state: "downloaded", version: info.version });
+});
 autoUpdater.on("error", (err) => sendUpdateStatus({ state: "error", message: err.message }));
 
 ipcMain.handle("anchoran:check-for-updates", () => {
@@ -361,6 +382,7 @@ ipcMain.handle("anchoran:check-for-updates", () => {
 
 ipcMain.on("anchoran:quit-and-install-update", () => {
   isQuittingConfirmed = true;
+  if (pendingUpdateVersion) configStore.set("pendingUpdateVersion", pendingUpdateVersion);
   // quitAndInstall() with no arguments defaults to isSilent=false, which
   // re-shows the full NSIS wizard instead of the seamless "Restart &
   // Update" experience Anchoran's UI promises — isSilent=true runs the

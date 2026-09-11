@@ -17,6 +17,11 @@ const APP_COMPONENTS: Record<AppId, React.LazyExoticComponent<() => JSX.Element>
     import("@/applications/systemmonitor/SystemMonitor").then((m) => ({ default: m.SystemMonitorApp }))
   ),
   appCenter: lazy(() => import("@/applications/appcenter/AppCenter").then((m) => ({ default: m.AppCenterApp }))),
+  clock: lazy(() => import("@/applications/clock/Clock").then((m) => ({ default: m.ClockApp }))),
+  converter: lazy(() => import("@/applications/converter/Converter").then((m) => ({ default: m.ConverterApp }))),
+  colorPicker: lazy(() =>
+    import("@/applications/colorpicker/ColorPicker").then((m) => ({ default: m.ColorPickerApp }))
+  ),
 };
 
 function AppLoadingFallback() {

@@ -38,6 +38,7 @@ declare global {
     checkForUpdates: () => void;
     onUpdateStatus: (callback: (status: AnchoranUpdateStatus) => void) => void;
     quitAndInstallUpdate: () => void;
+    consumePendingUpdate: () => Promise<string | null>;
   }
 
   type AnchoranUpdateStatus =

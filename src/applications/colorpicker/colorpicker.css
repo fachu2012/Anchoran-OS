@@ -1,0 +1,87 @@
+.colorpicker-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding-top: 20px;
+}
+
+.colorpicker-preview {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  border: 1px solid var(--anchoran-border);
+  box-shadow: var(--anchoran-shadow-soft);
+  overflow: hidden;
+}
+
+.colorpicker-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+}
+
+.colorpicker-values {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.colorpicker-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-sm);
+  background: var(--anchoran-surface);
+  color: var(--anchoran-text-primary);
+  cursor: pointer;
+  font-size: 12.5px;
+}
+
+.colorpicker-copy-row:hover {
+  background: var(--anchoran-border);
+}
+
+.colorpicker-copy-label {
+  color: var(--anchoran-text-secondary);
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.colorpicker-copy-value {
+  flex: 1;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.colorpicker-swatches {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.colorpicker-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--anchoran-border);
+  cursor: pointer;
+}
+
+.colorpicker-swatch-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--anchoran-border);
+  color: var(--anchoran-text-secondary);
+}

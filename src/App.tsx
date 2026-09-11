@@ -6,6 +6,7 @@ import { LockScreen } from "@/lock/LockScreen";
 import { ExitConfirmDialog } from "@/power/ExitConfirmDialog";
 import { ShutdownScreen, type ExitMode } from "@/power/ShutdownScreen";
 import { UpdateReadyScreen } from "@/power/UpdateReadyScreen";
+import { UpdateTheater } from "@/power/UpdateTheater";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { persistGet, persistSet } from "@/core/persist";
 import { playLoginSound } from "@/core/sound";
@@ -20,9 +21,16 @@ export default function App() {
   const [exitMode, setExitMode] = useState<ExitMode | null>(null);
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [updateReadyVersion, setUpdateReadyVersion] = useState<string | null>(null);
+  const [updateTheaterVersion, setUpdateTheaterVersion] = useState<string | null>(null);
+  // undefined = still checking; null = this boot is not finishing an
+  // update. Gates BootScreen's first mount so it never briefly renders
+  // with the wrong (generic) status stages before this resolves.
+  const [finishingUpdateVersion, setFinishingUpdateVersion] = useState<string | null | undefined>(undefined);
   const pushNotification = useNotificationStore((s) => s.push);
 
   useEffect(() => {
+    window.anchoran?.consumePendingUpdate().then(setFinishingUpdateVersion) ?? setFinishingUpdateVersion(null);
+
     window.anchoran?.onRequestExitConfirmation(() => setExitDialogOpen(true));
     // The Windows key is intercepted (where Windows allows it) by the
     // main process as a global shortcut and forwarded here to toggle
@@ -78,7 +86,6 @@ export default function App() {
     // long-running internal app processes beyond its own React windows.
     if (exitMode === "shutdown") window.anchoran?.confirmExit();
     else if (exitMode === "restart") window.anchoran?.restart();
-    else if (exitMode === "update") window.anchoran?.quitAndInstallUpdate();
     else if (exitMode === "sleep") {
       setLocked(true);
       setExitMode(null);
@@ -97,16 +104,31 @@ export default function App() {
           setLauncherOpen={setLauncherOpen}
         />
 
-        {!booted && <BootScreen onDone={enterDesktop} />}
+        {!booted &&
+          (finishingUpdateVersion !== undefined ? (
+            <BootScreen onDone={enterDesktop} finishingUpdateVersion={finishingUpdateVersion} />
+          ) : (
+            // Briefly shown while checking whether this boot is
+            // finishing an update — avoids a flash of the desktop
+            // underneath before BootScreen itself takes over.
+            <div style={{ position: "absolute", inset: 0, background: "#000000", zIndex: 2000 }} />
+          ))}
         {locked && <LockScreen onUnlock={() => setLocked(false)} />}
-        {updateReadyVersion && !exitMode && (
+        {updateReadyVersion && !exitMode && !updateTheaterVersion && (
           <UpdateReadyScreen
             version={updateReadyVersion}
             onLater={() => setUpdateReadyVersion(null)}
             onInstallNow={() => {
+              setUpdateTheaterVersion(updateReadyVersion);
               setUpdateReadyVersion(null);
-              setExitMode("update");
             }}
+          />
+        )}
+        {updateTheaterVersion && (
+          <UpdateTheater
+            mode="update"
+            targetVersion={updateTheaterVersion}
+            onComplete={() => window.anchoran?.quitAndInstallUpdate()}
           />
         )}
         {exitMode && <ShutdownScreen mode={exitMode} onComplete={handleExitComplete} />}
