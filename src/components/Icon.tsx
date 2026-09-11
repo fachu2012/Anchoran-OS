@@ -72,7 +72,11 @@ export type IconName =
   | "ttsReader"
   | "mindMap"
   | "solitaire"
-  | "chess";
+  | "chess"
+  | "paint"
+  | "pixelArt"
+  | "wallpaperMaker"
+  | "photoViewer";
 
 const PATHS: Record<IconName, string> = {
   files:
@@ -163,6 +167,12 @@ const PATHS: Record<IconName, string> = {
     "M5 5.5h6v9H5v-9Zm8 4h6v9h-6v-9ZM8 7.8h.01M16.5 12.3h.01",
   chess:
     "M9 20.5h6M8 20.5c0-3 .8-4.5 1.6-6M16 20.5c0-3-.8-4.5-1.6-6M9.6 14.5c-.8-1.5-1-2.7-.3-4C10 9 12 9 12 7c0-1-1-1.3-1-2.2 0-.9.9-1.3 1-1.3s1 .4 1 1.3c0 .9-1 1.2-1 2.2 0 2 2 2 2.7 3.5.7 1.3.5 2.5-.3 4Z",
+  paint:
+    "M12 4.5C7.3 4.5 3.5 8 3.5 12.3c0 3.5 2.8 6.2 6.2 6.2h1c.7 0 1.3-.6 1.3-1.3 0-.3-.1-.6-.3-.9-.2-.2-.3-.5-.3-.8 0-.7.6-1.3 1.3-1.3h2.3c2.4 0 4.5-2 4.5-4.5 0-3-3-5.2-6.5-5.2Zm-5 6.3a1.1 1.1 0 1 1 0-2.2 1.1 1.1 0 0 1 0 2.2Zm3-3.3a1.1 1.1 0 1 1 0-2.2 1.1 1.1 0 0 1 0 2.2Zm4 0a1.1 1.1 0 1 1 0-2.2 1.1 1.1 0 0 1 0 2.2Zm3 3.3a1.1 1.1 0 1 1 0-2.2 1.1 1.1 0 0 1 0 2.2Z",
+  pixelArt: "M4.5 4.5h5v5h-5v-5Zm10 0h5v5h-5v-5ZM4.5 14.5h5v5h-5v-5Zm5 -5h5v5h-5v-5Zm5 5h5v5h-5v-5Z",
+  wallpaperMaker: "M4 5.5h16v13H4v-13Zm0 9 5-5 4 4 3-3 4 4",
+  photoViewer:
+    "M4.5 5.5h15v13h-15v-13Zm2.3 2.7a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8ZM6 16.5l4-4.5 3 3 2.5-3L18 16.5Z",
 };
 
 export function Icon({

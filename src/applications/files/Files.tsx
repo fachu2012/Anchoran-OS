@@ -215,32 +215,40 @@ export function FilesApp() {
               flex: 1,
             }}
           />
-          <button
-            className="app-toolbar-btn"
-            onClick={() => printTextAsPdf(openFile.name.replace(/\.[^.]+$/, ""), openFile.content ?? "")}
-          >
-            Print
-          </button>
+          {!openFile.content?.startsWith("data:image") && (
+            <button
+              className="app-toolbar-btn"
+              onClick={() => printTextAsPdf(openFile.name.replace(/\.[^.]+$/, ""), openFile.content ?? "")}
+            >
+              Print
+            </button>
+          )}
         </div>
         <div className="app-content" style={{ padding: 0 }}>
-          <textarea
-            value={openFile.content ?? ""}
-            onChange={(e) => updateContent(openFile.id, e.target.value)}
-            style={{
-              width: "100%",
-              height: "100%",
-              padding: 16,
-              border: "none",
-              outline: "none",
-              resize: "none",
-              background: "transparent",
-              color: "var(--anchoran-text-primary)",
-              fontFamily: "inherit",
-              fontSize: 14,
-              lineHeight: 1.6,
-            }}
-            autoFocus
-          />
+          {openFile.content?.startsWith("data:image") ? (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#111" }}>
+              <img src={openFile.content} alt={openFile.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+            </div>
+          ) : (
+            <textarea
+              value={openFile.content ?? ""}
+              onChange={(e) => updateContent(openFile.id, e.target.value)}
+              style={{
+                width: "100%",
+                height: "100%",
+                padding: 16,
+                border: "none",
+                outline: "none",
+                resize: "none",
+                background: "transparent",
+                color: "var(--anchoran-text-primary)",
+                fontFamily: "inherit",
+                fontSize: 14,
+                lineHeight: 1.6,
+              }}
+              autoFocus
+            />
+          )}
         </div>
       </div>
     );
@@ -357,7 +365,11 @@ export function FilesApp() {
                   setMenu({ x: e.clientX, y: e.clientY, item });
                 }}
               >
-                <Icon name={item.type === "folder" ? "folder" : "file"} size={30} />
+                {item.type === "file" && item.content?.startsWith("data:image") ? (
+                  <img src={item.content} alt="" className="files-item-thumb" />
+                ) : (
+                  <Icon name={item.type === "folder" ? "folder" : "file"} size={30} />
+                )}
                 {renamingId === item.id ? (
                   <input
                     autoFocus

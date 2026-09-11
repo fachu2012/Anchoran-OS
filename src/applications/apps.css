@@ -83,6 +83,14 @@
   opacity: 0.5;
 }
 
+.files-item-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--anchoran-border);
+}
+
 .files-item span {
   font-size: 12px;
   text-align: center;

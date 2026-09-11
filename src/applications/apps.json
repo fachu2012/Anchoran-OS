@@ -382,5 +382,41 @@
     "description": "Two-player chess with full legal move and check detection.",
     "defaultSize": { "width": 460, "height": 560 },
     "minSize": { "width": 380, "height": 480 }
+  },
+  {
+    "id": "paint",
+    "title": "Paint",
+    "icon": "paint",
+    "category": "Utilities",
+    "description": "A simple freehand drawing canvas.",
+    "defaultSize": { "width": 860, "height": 580 },
+    "minSize": { "width": 560, "height": 420 }
+  },
+  {
+    "id": "pixelArt",
+    "title": "Pixel Art",
+    "icon": "pixelArt",
+    "category": "Utilities",
+    "description": "Draw pixel art on a 16x16 grid.",
+    "defaultSize": { "width": 480, "height": 520 },
+    "minSize": { "width": 400, "height": 460 }
+  },
+  {
+    "id": "wallpaperMaker",
+    "title": "Wallpaper Maker",
+    "icon": "wallpaperMaker",
+    "category": "Utilities",
+    "description": "Generate gradients and patterns, and set them as your wallpaper.",
+    "defaultSize": { "width": 560, "height": 520 },
+    "minSize": { "width": 440, "height": 440 }
+  },
+  {
+    "id": "photoViewer",
+    "title": "Photo Viewer",
+    "icon": "photoViewer",
+    "category": "Utilities",
+    "description": "Browse and view images saved in your files.",
+    "defaultSize": { "width": 680, "height": 520 },
+    "minSize": { "width": 440, "height": 380 }
   }
 ]

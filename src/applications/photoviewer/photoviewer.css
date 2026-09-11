@@ -1,0 +1,43 @@
+.photoviewer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 12px;
+}
+
+.photoviewer-thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.photoviewer-thumb img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: var(--anchoran-radius-sm);
+  border: 1px solid var(--anchoran-border);
+}
+
+.photoviewer-thumb span {
+  font-size: 11px;
+  color: var(--anchoran-text-secondary);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photoviewer-full {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #111;
+  padding: 0;
+}
+
+.photoviewer-full img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}

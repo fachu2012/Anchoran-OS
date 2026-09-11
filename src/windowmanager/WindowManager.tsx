@@ -73,6 +73,14 @@ const APP_COMPONENTS: Record<AppId, React.LazyExoticComponent<() => JSX.Element>
   mindMap: lazy(() => import("@/applications/mindmap/MindMap").then((m) => ({ default: m.MindMapApp }))),
   solitaire: lazy(() => import("@/applications/solitaire/Solitaire").then((m) => ({ default: m.SolitaireApp }))),
   chess: lazy(() => import("@/applications/chess/Chess").then((m) => ({ default: m.ChessApp }))),
+  paint: lazy(() => import("@/applications/paint/Paint").then((m) => ({ default: m.PaintApp }))),
+  pixelArt: lazy(() => import("@/applications/pixelart/PixelArt").then((m) => ({ default: m.PixelArtApp }))),
+  wallpaperMaker: lazy(() =>
+    import("@/applications/wallpapermaker/WallpaperMaker").then((m) => ({ default: m.WallpaperMakerApp }))
+  ),
+  photoViewer: lazy(() =>
+    import("@/applications/photoviewer/PhotoViewer").then((m) => ({ default: m.PhotoViewerApp }))
+  ),
 };
 
 function AppLoadingFallback() {

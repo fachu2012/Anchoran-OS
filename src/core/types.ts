@@ -42,7 +42,11 @@ export type AppId =
   | "ttsReader"
   | "mindMap"
   | "solitaire"
-  | "chess";
+  | "chess"
+  | "paint"
+  | "pixelArt"
+  | "wallpaperMaker"
+  | "photoViewer";
 
 export type AppCategory = "System" | "Productivity" | "Utilities" | "Internet" | "Games";
 

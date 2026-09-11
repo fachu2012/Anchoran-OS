@@ -5,6 +5,19 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.16.0] - 2026-09-11
+
+### Added
+
+- **4 more apps** ("Wave 7"): Paint (freehand canvas drawing), Pixel
+  Art (a 16x16 grid editor), Wallpaper Maker (gradients/patterns you
+  can set as your desktop wallpaper or save), and Photo Viewer (browses
+  every image saved anywhere in Files).
+- **Files now shows real image thumbnails** for any file whose content
+  is an image (from Paint, Pixel Art, Wallpaper Maker, or an imported
+  photo) — both in the grid and when you open the file — instead of
+  the generic file icon.
+
 ## [1.15.0] - 2026-09-11
 
 ### Added
