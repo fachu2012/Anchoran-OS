@@ -18,8 +18,9 @@ export function TerminalApp() {
   const [input, setInput] = useState("");
   const [cwd, setCwd] = useState(ROOT_ID);
   const inputRef = useRef<HTMLInputElement>(null);
+  const commandHistory = useRef<string[]>([]);
+  const [historyCursor, setHistoryCursor] = useState<number | null>(null);
 
-  const nodes = useFsStore((s) => s.nodes);
   const childrenOf = useFsStore((s) => s.childrenOf);
   const getPath = useFsStore((s) => s.getPath);
   const createFolder = useFsStore((s) => s.createFolder);
@@ -140,8 +141,34 @@ export function TerminalApp() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
+              if (input.trim()) commandHistory.current.push(input);
+              setHistoryCursor(null);
               run(input);
               setInput("");
+              return;
+            }
+            if (e.key === "ArrowUp") {
+              e.preventDefault();
+              if (commandHistory.current.length === 0) return;
+              const nextCursor =
+                historyCursor === null
+                  ? commandHistory.current.length - 1
+                  : Math.max(0, historyCursor - 1);
+              setHistoryCursor(nextCursor);
+              setInput(commandHistory.current[nextCursor]);
+              return;
+            }
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              if (historyCursor === null) return;
+              const nextCursor = historyCursor + 1;
+              if (nextCursor >= commandHistory.current.length) {
+                setHistoryCursor(null);
+                setInput("");
+              } else {
+                setHistoryCursor(nextCursor);
+                setInput(commandHistory.current[nextCursor]);
+              }
             }
           }}
         />

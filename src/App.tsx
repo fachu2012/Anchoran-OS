@@ -4,15 +4,18 @@ import { BootScreen } from "@/boot/BootScreen";
 import { Desktop } from "@/desktop/Desktop";
 import { LockScreen } from "@/lock/LockScreen";
 import { ExitConfirmDialog } from "@/power/ExitConfirmDialog";
+import { ShutdownScreen, type ExitMode } from "@/power/ShutdownScreen";
 import { useNotificationStore } from "@/notifications/notificationStore";
+import { persistGet, persistSet } from "@/core/persist";
+import { playLoginSound } from "@/core/sound";
 
-type SessionState = "booting" | "active" | "locked";
-
-const WELCOMED_KEY = "anchoran.welcomed.v1";
+const WELCOMED_KEY = "welcomed";
 
 export default function App() {
-  const [session, setSession] = useState<SessionState>("booting");
+  const [booted, setBooted] = useState(false);
+  const [locked, setLocked] = useState(false);
   const [exitDialogOpen, setExitDialogOpen] = useState(false);
+  const [exitMode, setExitMode] = useState<ExitMode | null>(null);
   const [launcherOpen, setLauncherOpen] = useState(false);
   const pushNotification = useNotificationStore((s) => s.push);
 
@@ -22,56 +25,56 @@ export default function App() {
     // main process as a global shortcut and forwarded here to toggle
     // Anchoran's own Launcher — see electron/main.ts and project
     // instructions §11/§16 for the security scope of this behavior.
+    // Ctrl+Space is the reliable fallback, registered alongside it.
     window.anchoran?.onToggleLauncher(() => setLauncherOpen((v) => !v));
   }, []);
 
-  function shutDown() {
-    // 1. Preferences and the virtual filesystem are already persisted
-    //    continuously (see preferencesStore / fs.ts), so there is no
-    //    separate "save" step needed here.
-    // 2-4. Anchoran has no long-running internal app processes beyond
-    //    its own React windows, which unmount as the app quits.
-    window.anchoran?.confirmExit();
-  }
-
-  function restart() {
-    window.anchoran?.restart();
-  }
-
-  function enterDesktop() {
-    setSession("active");
-    try {
-      if (!localStorage.getItem(WELCOMED_KEY)) {
-        localStorage.setItem(WELCOMED_KEY, "1");
-        pushNotification("Welcome", "This is Anchoran OS. Press the Windows key or use the dock to open the Launcher.");
-      }
-    } catch {
-      // best-effort only — a missing welcome toast isn't worth failing over
+  async function enterDesktop() {
+    setBooted(true);
+    playLoginSound();
+    const alreadyWelcomed = await persistGet("config", WELCOMED_KEY, false);
+    if (!alreadyWelcomed) {
+      persistSet("config", WELCOMED_KEY, true);
+      pushNotification("Welcome", "This is Anchoran OS. Press Ctrl+Space or use the dock to open the Launcher.");
     }
   }
 
-  if (session === "booting") {
-    return (
-      <ThemeProvider>
-        <BootScreen onDone={enterDesktop} />
-      </ThemeProvider>
-    );
+  function handleExitComplete() {
+    // Preferences and the virtual filesystem are already persisted
+    // continuously (see preferencesStore / fs.ts), so there is no
+    // separate "save" step needed before any of these. Anchoran has no
+    // long-running internal app processes beyond its own React windows.
+    if (exitMode === "shutdown") window.anchoran?.confirmExit();
+    else if (exitMode === "restart") window.anchoran?.restart();
+    else if (exitMode === "sleep") {
+      setLocked(true);
+      setExitMode(null);
+    }
   }
 
   return (
     <ThemeProvider>
       <div style={{ position: "relative", height: "100%", width: "100%" }}>
         <Desktop
-          onLock={() => setSession("locked")}
-          onSleep={() => setSession("locked")}
-          onShutDown={shutDown}
-          onRestart={restart}
+          onLock={() => setLocked(true)}
+          onSleep={() => setExitMode("sleep")}
+          onShutDown={() => setExitMode("shutdown")}
+          onRestart={() => setExitMode("restart")}
           launcherOpen={launcherOpen}
           setLauncherOpen={setLauncherOpen}
         />
-        {session === "locked" && <LockScreen onUnlock={() => setSession("active")} />}
+
+        {!booted && <BootScreen onDone={enterDesktop} />}
+        {locked && <LockScreen onUnlock={() => setLocked(false)} />}
+        {exitMode && <ShutdownScreen mode={exitMode} onComplete={handleExitComplete} />}
         {exitDialogOpen && (
-          <ExitConfirmDialog onCancel={() => setExitDialogOpen(false)} onExit={shutDown} />
+          <ExitConfirmDialog
+            onCancel={() => setExitDialogOpen(false)}
+            onExit={() => {
+              setExitDialogOpen(false);
+              setExitMode("shutdown");
+            }}
+          />
         )}
       </div>
     </ThemeProvider>

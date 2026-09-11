@@ -1,37 +1,45 @@
+import { useEffect, useState } from "react";
 import { useNotificationStore } from "./notificationStore";
 import { Icon } from "@/components/Icon";
+import "./notifications.css";
 
+const AUTO_HIDE_MS = 6000;
+
+/**
+ * Toasts are a transient *view* over the notification history: they
+ * fade out on their own after a few seconds, but dismissing one only
+ * hides it here — the notification itself stays in the persistent
+ * history shown by NotificationPanel until the user clears it there.
+ */
 export function NotificationToasts() {
   const notifications = useNotificationStore((s) => s.notifications);
-  const dismiss = useNotificationStore((s) => s.dismiss);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
+
+  const visible = notifications.filter((n) => !hiddenIds.has(n.id) && !n.silent).slice(0, 4);
+
+  useEffect(() => {
+    const timers = visible.map((n) =>
+      setTimeout(() => {
+        setLeavingIds((prev) => new Set(prev).add(n.id));
+        setTimeout(() => {
+          setHiddenIds((prev) => new Set(prev).add(n.id));
+        }, 170);
+      }, AUTO_HIDE_MS)
+    );
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifications.length]);
+
+  function dismiss(id: string) {
+    setLeavingIds((prev) => new Set(prev).add(id));
+    setTimeout(() => setHiddenIds((prev) => new Set(prev).add(id)), 170);
+  }
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        top: 50,
-        right: 14,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        zIndex: 800,
-        width: 280,
-      }}
-    >
-      {notifications.slice(0, 4).map((n) => (
-        <div
-          key={n.id}
-          style={{
-            background: "var(--anchoran-surface)",
-            border: "1px solid var(--anchoran-border)",
-            borderRadius: "var(--anchoran-radius-md)",
-            boxShadow: "var(--anchoran-shadow-soft)",
-            padding: "10px 12px",
-            display: "flex",
-            gap: 10,
-            alignItems: "flex-start",
-          }}
-        >
+    <div className="toast-stack">
+      {visible.map((n) => (
+        <div key={n.id} className="toast" data-leaving={leavingIds.has(n.id)}>
           <Icon name="notification" size={16} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12.5, fontWeight: 500 }}>{n.title}</div>

@@ -1,0 +1,22 @@
+{
+  "name": "anchoran-setup",
+  "productName": "Anchoran Setup",
+  "version": "1.0.0-alpha.4",
+  "description": "Fullscreen branded installer for Anchoran OS.",
+  "author": "Anchoran",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dist": "npm run build && electron-builder"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.5.4"
+  },
+  "allowScripts": {
+    "electron@31.7.7": true
+  }
+}

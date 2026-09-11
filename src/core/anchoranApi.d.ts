@@ -1,5 +1,16 @@
 export {};
 
+interface AnchoranSystemInfo {
+  platform: string;
+  arch: string;
+  cpuModel: string;
+  cpuCores: number;
+  cpuUsagePercent: number;
+  totalMemMB: number;
+  freeMemMB: number;
+  systemUptimeSec: number;
+}
+
 /**
  * The narrow bridge exposed by electron/preload.ts. This is the only
  * way the renderer (React UI) is allowed to talk to the host process.
@@ -11,6 +22,17 @@ declare global {
     restart: () => void;
     onRequestExitConfirmation: (callback: () => void) => void;
     onToggleLauncher: (callback: () => void) => void;
+    getSystemInfo: () => Promise<AnchoranSystemInfo>;
+    configGet: (key: string) => Promise<unknown>;
+    configSet: (key: string, value: unknown) => Promise<boolean>;
+    dataGet: (key: string) => Promise<unknown>;
+    dataSet: (key: string, value: unknown) => Promise<boolean>;
+    logError: (scope: string, message: string) => void;
+    getDisplays: () => Promise<{ id: number; label: string; isPrimary: boolean }[]>;
+    moveToDisplay: (displayId: number) => void;
+    exportData: () => Promise<{ success: boolean; path?: string }>;
+    importData: () => Promise<{ success: boolean; error?: string }>;
+    resetData: () => Promise<boolean>;
   }
 
   interface Window {

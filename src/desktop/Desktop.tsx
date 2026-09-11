@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useWindowStore } from "@/windowmanager/windowStore";
 import { Wallpaper } from "./Wallpaper";
-import { SystemBar } from "./SystemBar";
-import { Dock } from "./Dock";
+import { Taskbar } from "./Taskbar";
 import { DesktopIcons } from "./DesktopIcons";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { WindowManager } from "@/windowmanager/WindowManager";
@@ -31,6 +31,23 @@ export function Desktop({
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
+  const cycleFocus = useWindowStore((s) => s.cycleFocus);
+
+  useEffect(() => {
+    // Ctrl+Tab / Ctrl+Shift+Tab: Anchoran's own window switcher. Not
+    // bound to literal Alt+Tab — Windows owns that combination at the
+    // shell level the same way it owns the bare Windows key, so a
+    // normal Electron app can't reliably intercept it (see the
+    // Windows-key note in electron/main.ts).
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.ctrlKey && e.key === "Tab") {
+        e.preventDefault();
+        cycleFocus(e.shiftKey ? -1 : 1);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [cycleFocus]);
 
   const desktopContextItems: ContextMenuItem[] = [
     { label: "Change Wallpaper…", onSelect: () => pushNotification("Settings", "Open Settings → Personalization to change your wallpaper.") },
@@ -48,12 +65,11 @@ export function Desktop({
       <Wallpaper />
       <DesktopIcons />
       <WindowManager />
-      <SystemBar
-        onToggleLauncher={() => setLauncherOpen((v) => !v)}
+      <Taskbar
+        onLauncher={() => setLauncherOpen((v) => !v)}
         onToggleNotifications={() => setNotificationsOpen((v) => !v)}
         onTogglePower={() => setPowerOpen((v) => !v)}
       />
-      <Dock onLauncher={() => setLauncherOpen(true)} />
       <NotificationToasts />
       {notificationsOpen && <NotificationPanel onClose={() => setNotificationsOpen(false)} />}
 

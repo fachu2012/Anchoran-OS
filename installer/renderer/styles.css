@@ -1,0 +1,96 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #08090d;
+  color: #f3f4f6;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+.screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.logo {
+  opacity: 0.95;
+  animation: fade-in 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.title {
+  font-size: 19px;
+  font-weight: 300;
+  letter-spacing: 3px;
+  animation: fade-in 600ms cubic-bezier(0.16, 1, 0.3, 1) 100ms backwards;
+}
+
+.stage {
+  font-size: 13px;
+  color: rgba(243, 244, 246, 0.65);
+  min-height: 18px;
+}
+
+.track {
+  width: 260px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(243, 244, 246, 0.12);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  width: 4%;
+  background: #5b84e8;
+  border-radius: 2px;
+  transition: width 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.steps {
+  list-style: none;
+  display: flex;
+  gap: 18px;
+  padding: 0;
+  margin: 4px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  color: rgba(243, 244, 246, 0.32);
+}
+
+.steps li[data-active="true"] {
+  color: #5b84e8;
+}
+
+.steps li[data-done="true"] {
+  color: rgba(243, 244, 246, 0.65);
+}
+
+.error {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: #e0847d;
+  max-width: 420px;
+  text-align: center;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

@@ -1,24 +1,67 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Wallpaper } from "@/desktop/Wallpaper";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 
+const UNLOCK_ANIMATION_MS = 220;
+
 export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const username = usePreferencesStore((s) => s.username);
+  const lockPin = usePreferencesStore((s) => s.lockPin);
   const [now] = useState(new Date());
+  const [unlocking, setUnlocking] = useState(false);
+  const [pinPromptOpen, setPinPromptOpen] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState(false);
+  const pinInputRef = useRef<HTMLInputElement>(null);
+
+  function requestUnlock() {
+    if (unlocking) return;
+    setUnlocking(true);
+    setTimeout(onUnlock, UNLOCK_ANIMATION_MS);
+  }
+
+  function wake() {
+    if (unlocking) return;
+    if (lockPin) {
+      setPinPromptOpen(true);
+      setTimeout(() => pinInputRef.current?.focus(), 0);
+    } else {
+      requestUnlock();
+    }
+  }
 
   useEffect(() => {
-    window.addEventListener("keydown", onUnlock, { once: true });
-    return () => window.removeEventListener("keydown", onUnlock);
-  }, [onUnlock]);
+    if (lockPin) return; // a PIN is required — don't unlock on an arbitrary keypress
+    window.addEventListener("keydown", wake, { once: true });
+    return () => window.removeEventListener("keydown", wake);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lockPin]);
+
+  useEffect(() => {
+    if (!lockPin || pinInput.length !== lockPin.length) return;
+    if (pinInput === lockPin) {
+      requestUnlock();
+    } else {
+      setPinError(true);
+      setTimeout(() => {
+        setPinInput("");
+        setPinError(false);
+      }, 500);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pinInput, lockPin]);
 
   return (
     <div
-      style={{ position: "absolute", inset: 0, zIndex: 1000 }}
-      onClick={onUnlock}
-      onKeyDown={onUnlock}
-      tabIndex={0}
-      role="button"
-      aria-label="Unlock Anchoran"
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 1000,
+        animation: unlocking
+          ? `lock-out ${UNLOCK_ANIMATION_MS}ms cubic-bezier(0.4,0,1,1) forwards`
+          : "lock-in 320ms cubic-bezier(0.16,1,0.3,1)",
+      }}
+      onClick={wake}
     >
       <Wallpaper />
       <div
@@ -57,8 +100,69 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
           {username.slice(0, 1).toUpperCase()}
         </div>
         <div style={{ fontSize: 14, marginTop: 6 }}>{username}</div>
-        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 40 }}>Click or press any key to unlock</div>
+
+        {!pinPromptOpen ? (
+          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 40 }}>
+            {lockPin ? "Click to enter your PIN" : "Click or press any key to unlock"}
+          </div>
+        ) : (
+          <div
+            style={{ marginTop: 32, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                animation: pinError ? "pin-shake 300ms ease" : undefined,
+              }}
+            >
+              {Array.from({ length: Math.max(lockPin?.length ?? 4, pinInput.length) }).map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    border: "1px solid rgba(255,255,255,0.6)",
+                    background: i < pinInput.length ? (pinError ? "#E0847D" : "#fff") : "transparent",
+                  }}
+                />
+              ))}
+            </div>
+            <input
+              ref={pinInputRef}
+              type="password"
+              inputMode="numeric"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, "").slice(0, 8))}
+              style={{
+                opacity: 0,
+                position: "absolute",
+                width: 1,
+                height: 1,
+              }}
+              autoFocus
+            />
+            <div style={{ fontSize: 11, opacity: 0.6 }}>Enter PIN</div>
+          </div>
+        )}
       </div>
+      <style>{`
+        @keyframes lock-in {
+          from { opacity: 0; transform: scale(1.02); }
+          to { opacity: 1; transform: none; }
+        }
+        @keyframes lock-out {
+          from { opacity: 1; transform: none; }
+          to { opacity: 0; transform: scale(1.02); }
+        }
+        @keyframes pin-shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-6px); }
+          75% { transform: translateX(6px); }
+        }
+      `}</style>
     </div>
   );
 }

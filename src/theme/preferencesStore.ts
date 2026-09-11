@@ -1,47 +1,41 @@
 import { create } from "zustand";
 import type { AnchoranPreferences } from "@/core/types";
+import { persistGet, persistSet } from "@/core/persist";
 
-const STORAGE_KEY = "anchoran.preferences.v1";
+const STORAGE_KEY = "preferences";
 
 const DEFAULT_PREFERENCES: AnchoranPreferences = {
-  themeMode: "light",
-  accentColor: "#1E3A8A",
+  themeMode: "dark",
+  accentColor: "#6E9BF7",
   wallpaperId: "default",
   uiScale: 1,
   animationsEnabled: true,
   username: "user",
+  soundEnabled: true,
+  soundVolume: 0.6,
+  lockPin: null,
 };
 
-function loadPreferences(): AnchoranPreferences {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PREFERENCES;
-    return { ...DEFAULT_PREFERENCES, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT_PREFERENCES;
-  }
-}
-
-function persist(prefs: AnchoranPreferences) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-  } catch {
-    // Storage unavailable (e.g. restrictive environment) — Anchoran
-    // degrades gracefully to in-memory-only preferences for the session.
-  }
-}
-
 interface PreferencesState extends AnchoranPreferences {
+  hydrated: boolean;
   setThemeMode: (mode: AnchoranPreferences["themeMode"]) => void;
   setAccentColor: (color: string) => void;
   setWallpaper: (wallpaperId: string) => void;
   setUiScale: (scale: number) => void;
   setAnimationsEnabled: (enabled: boolean) => void;
   setUsername: (name: string) => void;
+  setSoundEnabled: (enabled: boolean) => void;
+  setSoundVolume: (volume: number) => void;
+  setLockPin: (pin: string | null) => void;
+}
+
+function persist(prefs: AnchoranPreferences) {
+  persistSet("config", STORAGE_KEY, prefs);
 }
 
 export const usePreferencesStore = create<PreferencesState>((set, get) => ({
-  ...loadPreferences(),
+  ...DEFAULT_PREFERENCES,
+  hydrated: false,
 
   setThemeMode: (themeMode) => {
     set({ themeMode });
@@ -67,4 +61,20 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
     set({ username });
     persist({ ...get(), username });
   },
+  setSoundEnabled: (soundEnabled) => {
+    set({ soundEnabled });
+    persist({ ...get(), soundEnabled });
+  },
+  setSoundVolume: (soundVolume) => {
+    set({ soundVolume });
+    persist({ ...get(), soundVolume });
+  },
+  setLockPin: (lockPin) => {
+    set({ lockPin });
+    persist({ ...get(), lockPin });
+  },
 }));
+
+persistGet<AnchoranPreferences>("config", STORAGE_KEY, DEFAULT_PREFERENCES).then((loaded) => {
+  usePreferencesStore.setState({ ...DEFAULT_PREFERENCES, ...loaded, hydrated: true });
+});

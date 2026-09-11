@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Anchoran Setup</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="screen">
+      <img class="logo" src="logo.svg" alt="" width="64" height="64" />
+      <div class="title">ANCHORAN OS</div>
+      <div class="stage" id="stage-label">Preparing installation…</div>
+
+      <div class="track">
+        <div class="fill" id="progress-fill"></div>
+      </div>
+
+      <ul class="steps" id="steps">
+        <li data-stage="preparing">Preparing installation</li>
+        <li data-stage="copying">Copying files</li>
+        <li data-stage="configuring">Configuring</li>
+        <li data-stage="done">Done</li>
+      </ul>
+
+      <div class="error" id="error" hidden></div>
+    </div>
+    <script src="renderer.js"></script>
+  </body>
+</html>

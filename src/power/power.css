@@ -1,22 +1,46 @@
 .power-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(11, 14, 20, 0.5);
-  backdrop-filter: blur(4px);
+  background: rgba(4, 5, 8, 0.45);
+  backdrop-filter: blur(6px);
   z-index: 750;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: launcher-fade var(--anchoran-duration-base) var(--anchoran-ease);
+  animation: power-fade var(--anchoran-duration-base) var(--anchoran-ease);
+}
+
+@keyframes power-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .power-panel {
   width: 320px;
-  background: var(--anchoran-surface);
+  background: var(--anchoran-surface-overlay);
+  backdrop-filter: blur(24px) saturate(1.5);
   border: 1px solid var(--anchoran-border);
   border-radius: var(--anchoran-radius-lg);
   box-shadow: var(--anchoran-shadow-window);
   padding: 10px;
+  animation: power-in var(--anchoran-duration-slow) var(--anchoran-ease-out);
+}
+
+@keyframes power-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-animations="off"] .power-backdrop,
+[data-animations="off"] .power-panel,
+[data-animations="off"] .confirm-panel {
+  animation: none !important;
 }
 
 .power-item {
@@ -40,12 +64,14 @@
 
 .confirm-panel {
   width: 340px;
-  background: var(--anchoran-surface);
+  background: var(--anchoran-surface-overlay);
+  backdrop-filter: blur(24px) saturate(1.5);
   border: 1px solid var(--anchoran-border);
   border-radius: var(--anchoran-radius-lg);
   box-shadow: var(--anchoran-shadow-window);
   padding: 22px;
   text-align: center;
+  animation: power-in var(--anchoran-duration-slow) var(--anchoran-ease-out);
 }
 
 .confirm-title {
@@ -66,6 +92,16 @@
   border-radius: var(--anchoran-radius-sm);
   font-size: 13px;
   cursor: pointer;
+  transition: transform var(--anchoran-duration-fast) var(--anchoran-ease),
+    filter var(--anchoran-duration-fast) var(--anchoran-ease);
+}
+
+.confirm-btn:hover {
+  filter: brightness(1.08);
+}
+
+.confirm-btn:active {
+  transform: scale(0.97);
 }
 
 .confirm-btn.cancel {

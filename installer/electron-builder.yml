@@ -1,0 +1,35 @@
+appId: com.anchoran.setup
+productName: Anchoran
+copyright: Anchoran
+
+directories:
+  output: ../release-setup
+  buildResources: ../build
+
+files:
+  - dist/**/*
+  - renderer/**/*
+  - package.json
+
+# The real AnchoranOS NSIS installer (from `npm run dist` at the repo
+# root) is bundled as a plain resource under a fixed name, so main.ts
+# can find and silently drive it regardless of the version number in
+# its filename. Build AnchoranOS's own installer FIRST, then this one.
+extraResources:
+  - from: ../release/AnchoranOS-Setup-source.exe
+    to: AnchoranOS-Setup.exe
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: ../build/anchoran-icon.ico
+
+nsis:
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: false
+  createStartMenuShortcut: false
+  shortcutName: Anchoran Setup

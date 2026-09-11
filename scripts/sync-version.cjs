@@ -11,7 +11,6 @@ const path = require("path");
 
 const root = path.resolve(__dirname, "..");
 const versionFile = path.join(root, "version.json");
-const packageFile = path.join(root, "package.json");
 
 const { version } = JSON.parse(fs.readFileSync(versionFile, "utf-8"));
 
@@ -20,11 +19,19 @@ if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
   process.exit(1);
 }
 
-const pkg = JSON.parse(fs.readFileSync(packageFile, "utf-8"));
-if (pkg.version !== version) {
-  pkg.version = version;
-  fs.writeFileSync(packageFile, JSON.stringify(pkg, null, 2) + "\n");
-  console.log(`[sync-version] package.json synced to ${version}`);
-} else {
-  console.log(`[sync-version] already at ${version}`);
+// Both AnchoranOS itself and the AnchoranSetup installer app share the
+// one version.json source of truth, so a release always ships with
+// matching numbers on both executables.
+const packageFiles = [path.join(root, "package.json"), path.join(root, "installer", "package.json")];
+
+for (const packageFile of packageFiles) {
+  if (!fs.existsSync(packageFile)) continue;
+  const pkg = JSON.parse(fs.readFileSync(packageFile, "utf-8"));
+  if (pkg.version !== version) {
+    pkg.version = version;
+    fs.writeFileSync(packageFile, JSON.stringify(pkg, null, 2) + "\n");
+    console.log(`[sync-version] ${path.relative(root, packageFile)} synced to ${version}`);
+  } else {
+    console.log(`[sync-version] ${path.relative(root, packageFile)} already at ${version}`);
+  }
 }

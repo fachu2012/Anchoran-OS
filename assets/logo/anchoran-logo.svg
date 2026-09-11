@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!--
+    Anchoran mark. Geometric, not literal: a ring, a stem, a crossbar
+    and a single continuous curve — the anchor is present only as an
+    underlying proportion, not as a decorative nautical illustration.
+    Single stroke, single color, so it scales cleanly from a taskbar
+    icon down to a favicon.
+  -->
+  <circle cx="256" cy="132" r="46" fill="none" stroke="#5B84E8" stroke-width="26"/>
+  <path
+    d="M256 178 V 300 M 180 224 H 332 M 152 300 C 152 372 200 404 256 404 C 312 404 360 372 360 300"
+    fill="none"
+    stroke="#5B84E8"
+    stroke-width="26"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

@@ -1,0 +1,45 @@
+name: Release
+
+# Builds AnchoranOS.exe and attaches it to a GitHub Release whenever a
+# version tag (v1.0.0, v1.0.0-alpha.1, …) is pushed. Tag the same
+# version that is in /version.json — see the versioning rules in
+# README.md.
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build installer
+        run: npm run dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: anchoran-os-installer
+          path: release/*.exe
+
+      - name: Attach to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

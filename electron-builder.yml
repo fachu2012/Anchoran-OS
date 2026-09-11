@@ -21,7 +21,7 @@ win:
     - target: nsis
       arch:
         - x64
-  icon: build/anchoran-icon-placeholder.ico
+  icon: build/anchoran-icon.ico
   # Anchoran ships as a normal signed-eligible Windows app; it is not
   # a driver/kernel component, so no special privileges are required.
 
@@ -35,3 +35,14 @@ nsis:
 # electron-builder reads the app version from package.json, which is
 # kept in sync with the single source of truth (version.json) by
 # `npm run sync-version` before every build.
+
+# Auto-update (electron-updater, wired in electron/main.ts) needs a
+# publish target to check against. Uncomment and fill in your GitHub
+# repo to make it live — .github/workflows/release.yml already
+# publishes a GitHub Release with the built .exe on every `vTAG` push,
+# which is what this feed reads from.
+#
+# publish:
+#   provider: github
+#   owner: <your-github-username-or-org>
+#   repo: <your-repo-name>

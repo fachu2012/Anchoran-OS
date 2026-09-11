@@ -2,84 +2,105 @@ import { useEffect, useState } from "react";
 import { ANCHORAN_VERSION } from "@/core/version";
 import "@/applications/apps.css";
 
-interface MemoryInfo {
-  usedMB: number;
-  limitMB: number;
+interface SystemInfo {
+  platform: string;
+  arch: string;
+  cpuModel: string;
+  cpuCores: number;
+  cpuUsagePercent: number;
+  totalMemMB: number;
+  freeMemMB: number;
+  systemUptimeSec: number;
 }
 
-function readMemory(): MemoryInfo | null {
-  const perf = performance as Performance & {
-    memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
-  };
-  if (!perf.memory) return null;
-  return {
-    usedMB: Math.round(perf.memory.usedJSHeapSize / 1048576),
-    limitMB: Math.round(perf.memory.jsHeapSizeLimit / 1048576),
-  };
+function formatUptime(totalSeconds: number) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return `${hours}h ${minutes}m`;
 }
 
 export function SystemMonitorApp() {
-  const [memory, setMemory] = useState<MemoryInfo | null>(readMemory());
-  const [uptime, setUptime] = useState(0);
-  const [online, setOnline] = useState(navigator.onLine);
+  const [info, setInfo] = useState<SystemInfo | null>(null);
+  const [renderMemMB, setRenderMemMB] = useState<number | null>(null);
 
   useEffect(() => {
-    const start = Date.now();
-    const timer = setInterval(() => {
-      setMemory(readMemory());
-      setUptime(Math.floor((Date.now() - start) / 1000));
-    }, 1000);
-    const onOnline = () => setOnline(true);
-    const onOffline = () => setOnline(false);
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
+    let cancelled = false;
+
+    async function poll() {
+      if (window.anchoran) {
+        const data = await window.anchoran.getSystemInfo();
+        if (!cancelled) setInfo(data);
+      }
+      const perf = performance as Performance & { memory?: { usedJSHeapSize: number } };
+      if (perf.memory) setRenderMemMB(Math.round(perf.memory.usedJSHeapSize / 1048576));
+    }
+
+    poll();
+    const timer = setInterval(poll, 1500);
     return () => {
+      cancelled = true;
       clearInterval(timer);
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
     };
   }, []);
 
-  const minutes = Math.floor(uptime / 60);
-  const seconds = uptime % 60;
+  const usedMemMB = info ? info.totalMemMB - info.freeMemMB : null;
+  const memPercent = info ? Math.round((usedMemMB! / info.totalMemMB) * 100) : null;
 
   return (
     <div className="app-root">
       <div className="app-content">
-        <div className="sysmon-grid">
-          <div className="sysmon-card">
-            <div className="sysmon-card-label">Anchoran Version</div>
-            <div className="sysmon-card-value">{ANCHORAN_VERSION}</div>
-          </div>
-          <div className="sysmon-card">
-            <div className="sysmon-card-label">Platform</div>
-            <div className="sysmon-card-value">{navigator.platform || "Unknown"}</div>
-          </div>
-          <div className="sysmon-card">
-            <div className="sysmon-card-label">Session Uptime</div>
-            <div className="sysmon-card-value">
-              {minutes}m {seconds}s
-            </div>
-          </div>
-          <div className="sysmon-card">
-            <div className="sysmon-card-label">Network</div>
-            <div className="sysmon-card-value">{online ? "Online" : "Offline"}</div>
-          </div>
-          <div className="sysmon-card">
-            <div className="sysmon-card-label">Screen Resolution</div>
-            <div className="sysmon-card-value">
-              {window.screen.width} × {window.screen.height}
-            </div>
-          </div>
-          {memory && (
+        {!info ? (
+          <p style={{ color: "var(--anchoran-text-secondary)", fontSize: 13 }}>
+            System information is only available inside the Anchoran desktop app.
+          </p>
+        ) : (
+          <div className="sysmon-grid">
             <div className="sysmon-card">
-              <div className="sysmon-card-label">Renderer Memory</div>
-              <div className="sysmon-card-value">
-                {memory.usedMB} / {memory.limitMB} MB
+              <div className="sysmon-card-label">Anchoran Version</div>
+              <div className="sysmon-card-value">{ANCHORAN_VERSION}</div>
+            </div>
+            <div className="sysmon-card">
+              <div className="sysmon-card-label">Processor</div>
+              <div className="sysmon-card-value" style={{ fontSize: 13 }}>
+                {info.cpuModel}
+              </div>
+              <div className="appcenter-status">{info.cpuCores} cores</div>
+            </div>
+            <div className="sysmon-card">
+              <div className="sysmon-card-label">CPU Usage</div>
+              <div className="sysmon-card-value">{info.cpuUsagePercent}%</div>
+              <div className="sysmon-meter">
+                <div className="sysmon-meter-fill" style={{ width: `${info.cpuUsagePercent}%` }} />
               </div>
             </div>
-          )}
-        </div>
+            <div className="sysmon-card">
+              <div className="sysmon-card-label">Memory</div>
+              <div className="sysmon-card-value">
+                {usedMemMB} / {info.totalMemMB} MB
+              </div>
+              <div className="sysmon-meter">
+                <div className="sysmon-meter-fill" style={{ width: `${memPercent}%` }} />
+              </div>
+            </div>
+            <div className="sysmon-card">
+              <div className="sysmon-card-label">System Uptime</div>
+              <div className="sysmon-card-value">{formatUptime(info.systemUptimeSec)}</div>
+            </div>
+            <div className="sysmon-card">
+              <div className="sysmon-card-label">Platform</div>
+              <div className="sysmon-card-value" style={{ fontSize: 13 }}>
+                {info.platform}
+              </div>
+              <div className="appcenter-status">{info.arch}</div>
+            </div>
+            {renderMemMB !== null && (
+              <div className="sysmon-card">
+                <div className="sysmon-card-label">Anchoran Renderer Memory</div>
+                <div className="sysmon-card-value">{renderMemMB} MB</div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

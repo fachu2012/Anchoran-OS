@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import type { AppId } from "@/core/types";
 import { APP_REGISTRY } from "@/applications/registry";
+import { persistGet, persistSet } from "@/core/persist";
+
+export interface Bounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export interface AnchoranWindow {
   windowId: string;
@@ -13,14 +21,21 @@ export interface AnchoranWindow {
   isMinimized: boolean;
   isMaximized: boolean;
   /** Bounds remembered from before maximizing, to restore into. */
-  restoreBounds: { x: number; y: number; width: number; height: number } | null;
+  restoreBounds: Bounds | null;
   zIndex: number;
 }
+
+type RememberedBoundsMap = Partial<Record<AppId, Bounds>>;
+
+const REMEMBERED_BOUNDS_KEY = "windowBounds";
 
 interface WindowManagerState {
   windows: AnchoranWindow[];
   focusedWindowId: string | null;
   nextZIndex: number;
+  rememberedBounds: RememberedBoundsMap;
+  /** Live preview rect shown while dragging a window near a screen edge. */
+  snapPreview: Bounds | null;
 
   openApp: (appId: AppId) => string;
   closeWindow: (windowId: string) => void;
@@ -30,6 +45,9 @@ interface WindowManagerState {
   toggleMaximize: (windowId: string) => void;
   moveWindow: (windowId: string, x: number, y: number) => void;
   resizeWindow: (windowId: string, width: number, height: number) => void;
+  setBounds: (windowId: string, bounds: Bounds) => void;
+  setSnapPreview: (bounds: Bounds | null) => void;
+  cycleFocus: (direction: 1 | -1) => void;
 }
 
 let windowCounter = 0;
@@ -46,10 +64,18 @@ function cascadeOffset(existingCount: number) {
   return { x: 120 + n * step, y: 90 + n * step };
 }
 
+function rememberBounds(appId: AppId, bounds: Bounds, current: RememberedBoundsMap) {
+  const next = { ...current, [appId]: bounds };
+  persistSet("config", REMEMBERED_BOUNDS_KEY, next);
+  return next;
+}
+
 export const useWindowStore = create<WindowManagerState>((set, get) => ({
   windows: [],
   focusedWindowId: null,
   nextZIndex: 1,
+  rememberedBounds: {},
+  snapPreview: null,
 
   openApp: (appId) => {
     const def = APP_REGISTRY[appId];
@@ -73,6 +99,7 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
     }
 
     const windowId = createWindowId(appId);
+    const remembered = state.rememberedBounds[appId];
     const offset = cascadeOffset(state.windows.length);
     const zIndex = state.nextZIndex + 1;
 
@@ -80,10 +107,10 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
       windowId,
       appId,
       title: def.title,
-      x: offset.x,
-      y: offset.y,
-      width: def.defaultSize.width,
-      height: def.defaultSize.height,
+      x: remembered?.x ?? offset.x,
+      y: remembered?.y ?? offset.y,
+      width: remembered?.width ?? def.defaultSize.width,
+      height: remembered?.height ?? def.defaultSize.height,
       isMinimized: false,
       isMaximized: false,
       restoreBounds: null,
@@ -101,12 +128,21 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
 
   closeWindow: (windowId) => {
     set((s) => {
+      const closing = s.windows.find((w) => w.windowId === windowId);
       const windows = s.windows.filter((w) => w.windowId !== windowId);
       const focusedWindowId =
         s.focusedWindowId === windowId
           ? windows[windows.length - 1]?.windowId ?? null
           : s.focusedWindowId;
-      return { windows, focusedWindowId };
+      const rememberedBounds =
+        closing && !closing.isMaximized
+          ? rememberBounds(
+              closing.appId,
+              { x: closing.x, y: closing.y, width: closing.width, height: closing.height },
+              s.rememberedBounds
+            )
+          : s.rememberedBounds;
+      return { windows, focusedWindowId, rememberedBounds };
     });
   },
 
@@ -169,4 +205,35 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
       windows: s.windows.map((w) => (w.windowId === windowId ? { ...w, width, height } : w)),
     }));
   },
+
+  setBounds: (windowId, bounds) => {
+    set((s) => ({
+      windows: s.windows.map((w) =>
+        w.windowId === windowId ? { ...w, ...bounds, isMaximized: false, restoreBounds: null } : w
+      ),
+    }));
+  },
+
+  setSnapPreview: (bounds) => set({ snapPreview: bounds }),
+
+  /**
+   * Cycles focus between open, non-minimized windows — Anchoran's
+   * window switcher, bound to Ctrl+Tab / Ctrl+Shift+Tab (see
+   * Desktop.tsx). This is deliberately not literal Alt+Tab: Windows
+   * itself owns that combination at the shell level the same way it
+   * owns the bare Windows key, so a normal Electron app can't reliably
+   * intercept it — see the Windows-key note in electron/main.ts.
+   */
+  cycleFocus: (direction) => {
+    const s = get();
+    const candidates = s.windows.filter((w) => !w.isMinimized);
+    if (candidates.length < 2) return;
+    const currentIndex = candidates.findIndex((w) => w.windowId === s.focusedWindowId);
+    const nextIndex = (currentIndex + direction + candidates.length) % candidates.length;
+    get().focusWindow(candidates[nextIndex].windowId);
+  },
 }));
+
+persistGet<RememberedBoundsMap>("config", REMEMBERED_BOUNDS_KEY, {}).then((loaded) => {
+  useWindowStore.setState({ rememberedBounds: loaded });
+});

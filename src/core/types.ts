@@ -32,4 +32,13 @@ export interface AnchoranPreferences {
   uiScale: number;
   animationsEnabled: boolean;
   username: string;
+  soundEnabled: boolean;
+  soundVolume: number; // 0..1
+  /**
+   * A simple numeric PIN for the lock screen. This is a UX affordance
+   * for the simulated OS experience, not a cryptographic security
+   * boundary — it's stored as plain text in Anchoran's own local
+   * config store, the same way a screensaver password would be.
+   */
+  lockPin: string | null;
 }
