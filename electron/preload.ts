@@ -28,6 +28,9 @@ contextBridge.exposeInMainWorld("anchoran", {
   onToggleLauncher: (callback: () => void): void => {
     ipcRenderer.on("anchoran:toggle-launcher", callback);
   },
+  onShortcutStatus: (callback: (status: { superRegistered: boolean; fallbackRegistered: boolean }) => void): void => {
+    ipcRenderer.on("anchoran:shortcut-status", (_e, status) => callback(status));
+  },
 
   getSystemInfo: (): Promise<AnchoranSystemInfo> => ipcRenderer.invoke("anchoran:get-system-info"),
 

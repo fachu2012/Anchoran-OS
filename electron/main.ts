@@ -128,9 +128,16 @@ function createMainWindow() {
  * outside what Electron exposes) — a heavier, more invasive technique
  * that this project intentionally has not added yet.
  *
- * Ctrl+Space is registered as a reliable, always-available fallback for
- * opening the Launcher, and the Launcher is always one click away from
- * the dock and system bar regardless of either shortcut. Anchoran never
+ * Ctrl+Win is registered as a reliable, always-available fallback for
+ * opening the Launcher. Windows' Start Menu trigger only fires on a
+ * "clean" press/release of the bare Windows key — holding Ctrl at the
+ * same time takes it out of Explorer's reserved territory, so this
+ * combination registers and fires normally where the bare key alone
+ * cannot. (Ctrl+Space was tried before that and dropped — it frequently
+ * collides with Windows' own input-method/keyboard-layout switch
+ * hotkey; Ctrl+Alt+L was tried after that as a safer but less
+ * discoverable combo.) The Launcher is always one click away from the
+ * dock and system bar regardless of any shortcut. Anchoran never
  * disables or intercepts Windows' own critical shortcuts (Ctrl+Alt+Del,
  * Task Manager, sign-out, etc.) and never modifies system security
  * policy.
@@ -140,7 +147,7 @@ function registerGlobalShortcuts() {
     mainWindow?.webContents.send("anchoran:toggle-launcher");
   });
 
-  const fallbackRegistered = globalShortcut.register("CommandOrControl+Space", () => {
+  const fallbackRegistered = globalShortcut.register("Control+Super", () => {
     mainWindow?.webContents.send("anchoran:toggle-launcher");
   });
 
@@ -151,8 +158,16 @@ function registerGlobalShortcuts() {
     );
   }
   if (!fallbackRegistered) {
-    logToDisk("main:shortcuts", "Could not register the Ctrl+Space fallback shortcut either.");
+    logToDisk("main:shortcuts", "Could not register the Ctrl+Win fallback shortcut either.");
   }
+
+  // Surface this to the user instead of only logging it silently — if
+  // the Windows key AND the fallback both failed to register, the only
+  // way left to open the Launcher is the dock/taskbar, which the user
+  // should know.
+  mainWindow?.webContents.once("did-finish-load", () => {
+    mainWindow?.webContents.send("anchoran:shortcut-status", { superRegistered, fallbackRegistered });
+  });
 }
 
 /**

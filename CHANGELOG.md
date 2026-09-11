@@ -5,6 +5,25 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.3.2] - 2026-09-11
+
+### Changed
+
+- Launcher fallback shortcut changed from `Ctrl+Alt+L` to **`Ctrl+Win`**
+  — more discoverable, and reliably registers since Windows' Start Menu
+  only claims a *clean* press of the bare Windows key, not one held with
+  Ctrl.
+
+## [1.3.1] - 2026-09-11
+
+### Fixed
+
+- The `Ctrl+Space` fallback Launcher shortcut didn't work — it commonly
+  collides with Windows' own input-method/keyboard-layout switch hotkey.
+  Changed to `Ctrl+Alt+L`. Anchoran now also tells you (a notification)
+  if neither the Windows key nor the fallback could be registered at
+  all, instead of failing silently.
+
 ## [1.3.0] - 2026-09-11
 
 ### Fixed

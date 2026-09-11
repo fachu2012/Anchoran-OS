@@ -22,6 +22,7 @@ declare global {
     restart: () => void;
     onRequestExitConfirmation: (callback: () => void) => void;
     onToggleLauncher: (callback: () => void) => void;
+    onShortcutStatus: (callback: (status: { superRegistered: boolean; fallbackRegistered: boolean }) => void) => void;
     getSystemInfo: () => Promise<AnchoranSystemInfo>;
     configGet: (key: string) => Promise<unknown>;
     configSet: (key: string, value: unknown) => Promise<boolean>;

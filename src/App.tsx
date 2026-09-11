@@ -28,8 +28,20 @@ export default function App() {
     // main process as a global shortcut and forwarded here to toggle
     // Anchoran's own Launcher — see electron/main.ts and project
     // instructions §11/§16 for the security scope of this behavior.
-    // Ctrl+Space is the reliable fallback, registered alongside it.
+    // Ctrl+Win is the reliable fallback, registered alongside it.
     window.anchoran?.onToggleLauncher(() => setLauncherOpen((v) => !v));
+
+    // Tells the user when neither shortcut could be registered at all
+    // (some other app already owns both) instead of them silently not
+    // working — the dock/taskbar Launcher button always still works.
+    window.anchoran?.onShortcutStatus(({ fallbackRegistered }) => {
+      if (!fallbackRegistered) {
+        pushNotification(
+          "Launcher shortcut",
+          "Ctrl+Win is already used by another app on this PC. Open the Launcher from the dock instead."
+        );
+      }
+    });
 
     // Detects an update landed (any mechanism) by comparing this boot's
     // version to the last one recorded — see core/updateHistory.ts.
@@ -55,7 +67,7 @@ export default function App() {
     const alreadyWelcomed = await persistGet("config", WELCOMED_KEY, false);
     if (!alreadyWelcomed) {
       persistSet("config", WELCOMED_KEY, true);
-      pushNotification("Welcome", "This is Anchoran OS. Press Ctrl+Space or use the dock to open the Launcher.");
+      pushNotification("Welcome", "This is Anchoran OS. Press Ctrl+Win or use the dock to open the Launcher.");
     }
   }
 
