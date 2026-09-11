@@ -5,6 +5,31 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [1.0.0] - 2026-09-11
+
+Promoted out of the `alpha.N` pre-release track and onto the strict
+`MAJOR.MINOR.PATCH` versioning the project rules call for from here on.
+This is the same build as `1.0.0-alpha.6` below — nothing functional
+changed, only the version number — kept as the baseline going forward.
+See the `alpha.1`–`alpha.6` entries for the full history of what shipped
+to get here.
+
+## [1.0.0-alpha.6] - 2026-09-11
+
+### Fixed
+
+- **Auto-update would have silently never found anything**: `latest.yml`
+  (the file electron-updater reads from a GitHub Release to know the
+  current version/download URL) referenced a sanitized, space-free
+  filename that didn't match the actual `.exe` electron-builder produced
+  locally ("Anchoran OS Setup …" vs. "Anchoran-OS-Setup-…"). Pinned
+  `artifactName` in `electron-builder.yml` so the built file's name always
+  matches what's inside `latest.yml`.
+- `.github/workflows/release.yml` now also attaches `latest.yml` and the
+  `.blockmap` file to the GitHub Release, not just the `.exe` — without
+  `latest.yml` specifically, the update check has nothing to read
+  regardless of what's attached.
+
 ## [1.0.0-alpha.5] - 2026-09-11
 
 ### Added

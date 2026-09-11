@@ -31,6 +31,14 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Anchoran OS
+  # Fixed, space-free filename. electron-builder writes this exact name
+  # into latest.yml's download URL (the file electron-updater reads to
+  # check for updates) regardless of what artifactName says — since our
+  # release workflow uploads to GitHub itself (not electron-builder's
+  # own --publish), the actual uploaded asset name has to match that
+  # computed name exactly, and GitHub's own upload API mangles spaces
+  # unpredictably. Pinning this removes the mismatch entirely.
+  artifactName: Anchoran-OS-Setup-${version}.${ext}
 
 # electron-builder reads the app version from package.json, which is
 # kept in sync with the single source of truth (version.json) by

@@ -35,11 +35,22 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: anchoran-os-installer
-          path: release/*.exe
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
 
+      # electron-updater (the auto-update client, see electron/main.ts)
+      # reads latest.yml from the release assets to know the current
+      # version and download URL — without it, "anchoran update" and
+      # Settings → About → Check for updates will never find anything,
+      # even with the .exe attached. All three MUST be on the release.
       - name: Attach to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: release/*.exe
+          files: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
