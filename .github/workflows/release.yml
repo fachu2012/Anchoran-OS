@@ -28,8 +28,19 @@ jobs:
       - name: Test
         run: npm run test
 
+      # `npm run dist` runs plain `electron-builder`, which auto-detects
+      # CI (GitHub Actions sets that env var) and — because
+      # electron-builder.yml now has a `publish` block — tries to
+      # publish straight to GitHub itself, which fails without a
+      # GH_TOKEN env var here. `--publish never` disables that: this
+      # step only builds the files, and the dedicated "Attach to GitHub
+      # Release" step below does the actual uploading.
       - name: Build installer
-        run: npm run dist
+        run: |
+          npm run sync-version
+          npm run build:renderer
+          npm run build:electron
+          npx electron-builder --publish never
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
