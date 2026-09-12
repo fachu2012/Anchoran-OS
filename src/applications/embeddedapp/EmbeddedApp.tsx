@@ -48,13 +48,15 @@ export function EmbeddedApp({ windowId, embedPath }: { windowId?: string; embedP
     // generous timeout, stop sitting on "Starting…" forever — the app
     // still opened as a normal separate window either way, this just
     // stops pretending Anchoran is still doing something about it.
+    // Kept a little longer than the native helper's own 60s window-
+    // wait timeout so its real "no window appeared" error always wins.
     const timeout = setTimeout(() => {
       setStatus((s) => {
         if (s !== "launching") return s;
         setErrorMessage("Timed out waiting to embed this app — it may have opened as a normal window instead.");
         return "error";
       });
-    }, 20000);
+    }, 65000);
     return () => {
       cancelled = true;
       clearTimeout(timeout);

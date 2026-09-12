@@ -67,7 +67,11 @@ internal static class Program
     private const int SW_HIDE = 0;
     private const int SW_SHOWNOACTIVATE = 4;
 
-    private const int WindowWaitTimeoutMs = 15000;
+    // Generous on purpose: plenty of real games take well over 15s to
+    // get past shader compilation / asset loading / a launcher screen
+    // before their actual window shows up, and there was no cost to
+    // waiting longer beyond the user seeing "Starting…" a bit longer.
+    private const int WindowWaitTimeoutMs = 60000;
     private const int WindowPollIntervalMs = 150;
 
     private static nint _childHwnd;
@@ -125,20 +129,18 @@ internal static class Program
             // Not a GUI app with a message loop yet, or already idle —
             // the polling loop below is the real wait regardless.
         }
+        // Not just this one process id: plenty of real apps — games
+        // especially, behind a launcher/bootstrapper/DRM wrapper — spawn
+        // a separate child process that owns the actual window, often
+        // after the original process has already exited. Re-walking the
+        // process tree each tick (via CreateToolhelp32Snapshot) picks up
+        // children that appear partway through the wait, and the loop
+        // deliberately never bails early just because the original
+        // process exited — its children keep running independently of it.
         while (Environment.TickCount64 < deadline)
         {
-            try
-            {
-                if (process.HasExited)
-                {
-                    Console.WriteLine($"ERROR {Path.GetFileName(exePath)} exited before showing a window.");
-                    return 1;
-                }
-            }
-            catch (InvalidOperationException)
-            {
-                break;
-            }
+            var candidatePids = new HashSet<uint> { (uint)process.Id };
+            foreach (var pid in GetDescendantPids((uint)process.Id)) candidatePids.Add(pid);
             // Deliberately NOT Process.MainWindowHandle: it uses a
             // narrow heuristic (first visible top-level window with a
             // non-empty title, picked at a specific moment) that many
@@ -146,9 +148,9 @@ internal static class Program
             // window, a borderless/undecorated main window, or a title
             // set after the window is first shown — simply never
             // satisfy, even though a perfectly real window is on
-            // screen. A direct EnumWindows scan filtered by this
-            // process's id finds it regardless of title or timing.
-            mainHandle = FindWindowForProcess(process.Id);
+            // screen. A direct EnumWindows scan finds it regardless of
+            // title or timing.
+            mainHandle = FindWindowForProcesses(candidatePids);
             if (mainHandle != 0) break;
             Thread.Sleep(WindowPollIntervalMs);
         }
@@ -160,6 +162,21 @@ internal static class Program
         }
 
         _childHwnd = mainHandle;
+        // The window's own process is the one to actually watch for
+        // exit below — not necessarily the one Process.Start() returned,
+        // since a launcher/bootstrapper process (see above) can have
+        // already exited well before this point while its child (the
+        // real, still-running app) owns the embedded window.
+        NativeMethods.GetWindowThreadProcessId(_childHwnd, out var ownerPid);
+        Process ownerProcess;
+        try
+        {
+            ownerProcess = Process.GetProcessById((int)ownerPid);
+        }
+        catch (ArgumentException)
+        {
+            ownerProcess = process;
+        }
 
         // Strip the title bar/frame and any "this is a real top-level
         // window" chrome, then reparent — Anchoran's own window frame
@@ -184,7 +201,7 @@ internal static class Program
 
         var watchdog = new Thread(() =>
         {
-            process.WaitForExit();
+            ownerProcess.WaitForExit();
             if (!exiting) Console.WriteLine("CLOSED");
             Environment.Exit(0);
         })
@@ -234,12 +251,12 @@ internal static class Program
         return 0;
     }
 
-    // Scans every top-level window on the desktop for one owned by the
-    // given process id, visible, and preferring one with an actual
-    // title over an untitled one — but accepting any visible window
-    // for that process rather than requiring a title at all, since
-    // plenty of real apps (games especially) never set one.
-    private static nint FindWindowForProcess(int pid)
+    // Scans every top-level window on the desktop for one owned by any
+    // of the given process ids, visible, and preferring one with an
+    // actual title over an untitled one — but accepting any visible
+    // window rather than requiring a title at all, since plenty of
+    // real apps (games especially) never set one.
+    private static nint FindWindowForProcesses(HashSet<uint> pids)
     {
         nint found = 0;
         var foundTitleLength = -1;
@@ -247,7 +264,7 @@ internal static class Program
             (hWnd, _) =>
             {
                 NativeMethods.GetWindowThreadProcessId(hWnd, out var windowPid);
-                if (windowPid != (uint)pid || !NativeMethods.IsWindowVisible(hWnd))
+                if (!pids.Contains(windowPid) || !NativeMethods.IsWindowVisible(hWnd))
                 {
                     return true; // keep enumerating
                 }
@@ -261,6 +278,55 @@ internal static class Program
             },
             0);
         return found;
+    }
+
+    // Walks the whole system's process tree (CreateToolhelp32Snapshot —
+    // .NET has no built-in "get child processes" API) to find every
+    // descendant of the given pid, direct or not. A launcher/
+    // bootstrapper/DRM-wrapped game's real window very often belongs to
+    // a child process it spawned and not to the process Anchoran itself
+    // launched, sometimes after that original process has already exited.
+    private static List<uint> GetDescendantPids(uint rootPid)
+    {
+        var childrenByParent = new Dictionary<uint, List<uint>>();
+        var snapshot = NativeMethods.CreateToolhelp32Snapshot(NativeMethods.TH32CS_SNAPPROCESS, 0);
+        if (snapshot == nint.Zero || snapshot == new nint(-1)) return [];
+        try
+        {
+            var entry = new NativeMethods.PROCESSENTRY32 { dwSize = (uint)Marshal.SizeOf<NativeMethods.PROCESSENTRY32>() };
+            if (NativeMethods.Process32FirstW(snapshot, ref entry))
+            {
+                do
+                {
+                    if (!childrenByParent.TryGetValue(entry.th32ParentProcessID, out var list))
+                    {
+                        list = [];
+                        childrenByParent[entry.th32ParentProcessID] = list;
+                    }
+                    list.Add(entry.th32ProcessID);
+                } while (NativeMethods.Process32NextW(snapshot, ref entry));
+            }
+        }
+        finally
+        {
+            NativeMethods.CloseHandle(snapshot);
+        }
+
+        var result = new List<uint>();
+        var queue = new Queue<uint>();
+        queue.Enqueue(rootPid);
+        var visited = new HashSet<uint> { rootPid };
+        while (queue.Count > 0)
+        {
+            if (!childrenByParent.TryGetValue(queue.Dequeue(), out var children)) continue;
+            foreach (var child in children)
+            {
+                if (!visited.Add(child)) continue;
+                result.Add(child);
+                queue.Enqueue(child);
+            }
+        }
+        return result;
     }
 
     private static void Detach()
@@ -322,4 +388,41 @@ internal static partial class NativeMethods
 
     [LibraryImport("user32.dll", EntryPoint = "GetWindowTextLengthW")]
     public static partial int GetWindowTextLengthW(nint hWnd);
+
+    public const uint TH32CS_SNAPPROCESS = 0x00000002;
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct PROCESSENTRY32
+    {
+        public uint dwSize;
+        public uint cntUsage;
+        public uint th32ProcessID;
+        public nint th32DefaultHeapID;
+        public uint th32ModuleID;
+        public uint cntThreads;
+        public uint th32ParentProcessID;
+        public int pcPriClassBase;
+        public uint dwFlags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+        public string szExeFile;
+    }
+
+    // PROCESSENTRY32's fixed-size string field isn't something
+    // LibraryImport's source-generated marshaling supports directly —
+    // plain DllImport (the classic, fully general P/Invoke marshaler)
+    // handles it the same way it always has.
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern nint CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessID);
+
+    [DllImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool Process32FirstW(nint hSnapshot, ref PROCESSENTRY32 lppe);
+
+    [DllImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool Process32NextW(nint hSnapshot, ref PROCESSENTRY32 lppe);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool CloseHandle(nint hObject);
 }

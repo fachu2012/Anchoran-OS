@@ -5,6 +5,22 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.17] - 2026-09-12
+
+### Fixed
+
+- Window embedding could still fail to find a real, visible window
+  after the previous EnumWindows fix, for two further reasons now
+  addressed: many launcher-wrapped or DRM-protected apps spawn a
+  separate child process that actually owns the window (sometimes
+  after the original process already exited) — the helper now walks
+  the whole process tree (CreateToolhelp32Snapshot) for every
+  descendant, not just the one process it launched directly, and
+  watches whichever process actually owns the found window for exit,
+  not necessarily the original one. Also raised the window-wait
+  timeout from 15s to 60s — plenty of real games take longer than 15s
+  to get through loading/shader compilation before showing anything.
+
 ## [2.6.16] - 2026-09-12
 
 ### Fixed
