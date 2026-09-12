@@ -110,7 +110,9 @@ export function AnchoranFilePicker({
       const ext = e.name.slice(e.name.lastIndexOf(".")).toLowerCase();
       return extensions.includes(ext);
     })
-    .sort((a, b) => (a.isDirectory === b.isDirectory ? a.name.localeCompare(b.name) : a.isDirectory ? -1 : 1));
+    // Newest first by default, matching Files' own default sort —
+    // folders still group ahead of files either way.
+    .sort((a, b) => (a.isDirectory === b.isDirectory ? b.modifiedAt - a.modifiedAt : a.isDirectory ? -1 : 1));
 
   function openEntry(entry: FsEntry) {
     if (entry.isDirectory) {

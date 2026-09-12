@@ -65,6 +65,26 @@ process.on("unhandledRejection", (reason) => {
 let mainWindow: BrowserWindow | null = null;
 let isQuittingConfirmed = false;
 
+// Anchoran is a single-instance app: launching it again (double-
+// clicking its shortcut repeatedly, running it while it's already
+// open, …) used to just stack a brand new fullscreen window on top of
+// the running one instead of doing anything useful. requestSingleInstanceLock()
+// makes every launch after the first one immediately quit instead —
+// second-instance below still runs in the *first* instance so it can
+// bring the one real window to the front, matching what a real OS
+// does when you try to open it again.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
+
 /**
  * Anchoran runs as a true fullscreen, frameless, immersive shell.
  * This is a kiosk-style *application window*, not a real OS session:

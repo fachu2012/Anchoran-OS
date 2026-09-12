@@ -83,7 +83,7 @@ export function FilesApp() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
-  const [sortMode, setSortMode] = useState<SortMode>("name-asc");
+  const [sortMode, setSortMode] = useState<SortMode>("date-desc");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [clipboard, setClipboard] = useState<Clipboard>(null);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);

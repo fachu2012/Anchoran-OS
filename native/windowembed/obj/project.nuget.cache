@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "vzmOYYZu10M=",
+  "success": true,
+  "projectFilePath": "c:\\Users\\facun\\Downloads\\Proyectos de Visual Code\\Anchoran OS\\native\\windowembed\\WindowEmbed.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\facun\\.nuget\\packages\\microsoft.net.illink.tasks\\8.0.29\\microsoft.net.illink.tasks.8.0.29.nupkg.sha512",
+    "C:\\Users\\facun\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\8.0.29\\microsoft.netcore.app.runtime.win-x64.8.0.29.nupkg.sha512",
+    "C:\\Users\\facun\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\8.0.29\\microsoft.windowsdesktop.app.runtime.win-x64.8.0.29.nupkg.sha512",
+    "C:\\Users\\facun\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\8.0.29\\microsoft.aspnetcore.app.runtime.win-x64.8.0.29.nupkg.sha512"
+  ],
+  "logs": []
+}

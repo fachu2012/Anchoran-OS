@@ -5,6 +5,22 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.10] - 2026-09-12
+
+### Changed
+
+- Files, and the Import/Export/Save picker, now default to "Newest
+  first" instead of alphabetical — matches what you're usually looking
+  for right after saving or downloading something.
+
+### Fixed
+
+- Anchoran OS now enforces a single running instance — launching it
+  again (double-clicking its shortcut repeatedly, opening it while
+  it's already running, …) used to stack a brand new fullscreen window
+  on top of the existing one; now it just brings the one real window
+  to the front instead.
+
 ## [2.6.9] - 2026-09-12
 
 ### Fixed
