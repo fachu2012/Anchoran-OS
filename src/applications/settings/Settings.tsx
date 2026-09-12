@@ -8,9 +8,11 @@ import { useUpdateHistoryStore } from "@/core/updateHistory";
 import { useSystemModeStore } from "@/desktop/systemModeStore";
 import { useProfilesStore } from "@/core/profilesStore";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
+import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 import "@/applications/apps.css";
 
 const DEFAULT_AVATAR = new URL("../../../assets/avatar/default-avatar.png", import.meta.url).href;
+const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"];
 
 
 const SECTIONS = [
@@ -42,6 +44,14 @@ const inputStyle: CSSProperties = {
 export function SettingsApp() {
   const [section, setSection] = useState<(typeof SECTIONS)[number]>("Appearance");
   const prefs = usePreferencesStore();
+  const [wallpaperPicker, setWallpaperPicker] = useState(false);
+
+  async function onPickWallpaper(result: { path: string } | { dir: string; name: string }) {
+    setWallpaperPicker(false);
+    if (!("path" in result) || !window.anchoran) return;
+    const image = await window.anchoran.fsReadImageFile(result.path);
+    if ("dataUrl" in image) prefs.setCustomWallpaper(image.dataUrl);
+  }
 
   return (
     <div className="settings-root">
@@ -156,14 +166,8 @@ export function SettingsApp() {
                 />
               )}
             </div>
-            <button
-              className="app-toolbar-btn"
-              onClick={async () => {
-                const result = await window.anchoran?.importImage();
-                if (result && "dataUrl" in result) prefs.setCustomWallpaper(result.dataUrl);
-              }}
-            >
-              Import from Windows…
+            <button className="app-toolbar-btn" onClick={() => setWallpaperPicker(true)}>
+              Import…
             </button>
           </div>
         )}
@@ -283,6 +287,15 @@ export function SettingsApp() {
 
         {section === "Updater" && <AboutSection />}
       </div>
+      {wallpaperPicker && (
+        <AnchoranFilePicker
+          mode="open"
+          title="Import a wallpaper"
+          extensions={IMAGE_EXTENSIONS}
+          onConfirm={onPickWallpaper}
+          onCancel={() => setWallpaperPicker(false)}
+        />
+      )}
     </div>
   );
 }
@@ -385,6 +398,14 @@ function UsersSection() {
   const deleteProfile = useProfilesStore((s) => s.deleteProfile);
   const switchProfile = useProfilesStore((s) => s.switchProfile);
   const [newProfileName, setNewProfileName] = useState("");
+  const [avatarPicker, setAvatarPicker] = useState(false);
+
+  async function onPickAvatar(result: { path: string } | { dir: string; name: string }) {
+    setAvatarPicker(false);
+    if (!("path" in result) || !window.anchoran) return;
+    const image = await window.anchoran.fsReadImageFile(result.path);
+    if ("dataUrl" in image) prefs.setAvatar(image.dataUrl);
+  }
 
   return (
     <>
@@ -464,19 +485,22 @@ function UsersSection() {
               background: `url(${prefs.avatarDataUrl || DEFAULT_AVATAR}) center/cover`,
             }}
           />
-          <button
-            className="app-toolbar-btn"
-            onClick={async () => {
-              const result = await window.anchoran?.importImage();
-              if (result && "dataUrl" in result) prefs.setAvatar(result.dataUrl);
-            }}
-          >
-            Import from Windows…
+          <button className="app-toolbar-btn" onClick={() => setAvatarPicker(true)}>
+            Import…
           </button>
           {prefs.avatarDataUrl && (
             <button className="app-toolbar-btn" onClick={() => prefs.setAvatar(null)}>
               Remove
             </button>
+          )}
+          {avatarPicker && (
+            <AnchoranFilePicker
+              mode="open"
+              title="Import a profile picture"
+              extensions={IMAGE_EXTENSIONS}
+              onConfirm={onPickAvatar}
+              onCancel={() => setAvatarPicker(false)}
+            />
           )}
         </div>
       </div>

@@ -2,7 +2,10 @@ import { useState } from "react";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
+import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 import "./onboarding.css";
+
+const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"];
 
 const DEFAULT_AVATAR = new URL("../../assets/avatar/default-avatar.png", import.meta.url).href;
 
@@ -37,13 +40,15 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
     onComplete();
   }
 
-  async function importAvatar() {
-    const result = await window.anchoran?.importImage();
-    if (result && "dataUrl" in result) prefs.setAvatar(result.dataUrl);
-  }
-  async function importWallpaper() {
-    const result = await window.anchoran?.importImage();
-    if (result && "dataUrl" in result) prefs.setCustomWallpaper(result.dataUrl);
+  const [picker, setPicker] = useState<"avatar" | "wallpaper" | null>(null);
+
+  async function onPickImage(result: { path: string } | { dir: string; name: string }) {
+    setPicker(null);
+    if (!("path" in result) || !window.anchoran) return;
+    const image = await window.anchoran.fsReadImageFile(result.path);
+    if (!("dataUrl" in image)) return;
+    if (picker === "avatar") prefs.setAvatar(image.dataUrl);
+    else if (picker === "wallpaper") prefs.setCustomWallpaper(image.dataUrl);
   }
 
   return (
@@ -156,8 +161,8 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
               className="onboarding-avatar"
               style={{ backgroundImage: `url(${prefs.avatarDataUrl || DEFAULT_AVATAR})` }}
             />
-            <button className="onboarding-btn" onClick={importAvatar}>
-              Import from Windows…
+            <button className="onboarding-btn" onClick={() => setPicker("avatar")}>
+              Import…
             </button>
             <div className="onboarding-actions">
               <button className="onboarding-btn" onClick={skip}>
@@ -194,8 +199,8 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
                 />
               )}
             </div>
-            <button className="onboarding-btn" onClick={importWallpaper}>
-              Import from Windows…
+            <button className="onboarding-btn" onClick={() => setPicker("wallpaper")}>
+              Import…
             </button>
             <div className="onboarding-actions">
               <button className="onboarding-btn onboarding-btn-primary" onClick={next}>
@@ -223,6 +228,15 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
           ))}
         </div>
       </div>
+      {picker && (
+        <AnchoranFilePicker
+          mode="open"
+          title={picker === "avatar" ? "Import a profile picture" : "Import a wallpaper"}
+          extensions={IMAGE_EXTENSIONS}
+          onConfirm={onPickImage}
+          onCancel={() => setPicker(null)}
+        />
+      )}
     </div>
   );
 }

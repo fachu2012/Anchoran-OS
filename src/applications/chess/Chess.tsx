@@ -2,13 +2,18 @@ import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import {
   initialBoard,
+  initialCastlingRights,
   legalMoves,
   makeMove,
+  nextCastlingRights,
+  nextEnPassantTarget,
   isInCheck,
   hasAnyLegalMove,
   PIECE_UNICODE,
   type Board,
+  type CastlingRights,
   type Color,
+  type EnPassantTarget,
 } from "./chessLogic";
 import "@/applications/apps.css";
 import "./chess.css";
@@ -18,17 +23,21 @@ export function ChessApp() {
   const [turn, setTurn] = useState<Color>("w");
   const [selected, setSelected] = useState<[number, number] | null>(null);
   const [captured, setCaptured] = useState<{ w: string[]; b: string[] }>({ w: [], b: [] });
+  const [castling, setCastling] = useState<CastlingRights>(initialCastlingRights);
+  const [enPassant, setEnPassant] = useState<EnPassantTarget>(null);
 
   const inCheck = isInCheck(board, turn);
-  const hasMoves = hasAnyLegalMove(board, turn);
+  const hasMoves = hasAnyLegalMove(board, turn, castling, enPassant);
   const gameOver = !hasMoves;
-  const moves = selected ? legalMoves(board, selected[0], selected[1]) : [];
+  const moves = selected ? legalMoves(board, selected[0], selected[1], castling, enPassant) : [];
 
   function reset() {
     setBoard(initialBoard());
     setTurn("w");
     setSelected(null);
     setCaptured({ w: [], b: [] });
+    setCastling(initialCastlingRights());
+    setEnPassant(null);
   }
 
   function onSquareClick(r: number, c: number) {
@@ -39,7 +48,9 @@ export function ChessApp() {
       if (isLegal) {
         const target = board[r][c];
         if (target) setCaptured((cap) => ({ ...cap, [turn]: [...cap[turn], PIECE_UNICODE[target.color][target.type]] }));
-        setBoard(makeMove(board, selected, [r, c]));
+        setCastling((rights) => nextCastlingRights(rights, board, selected, [r, c]));
+        setEnPassant(nextEnPassantTarget(board, selected, [r, c]));
+        setBoard(makeMove(board, selected, [r, c], enPassant));
         setSelected(null);
         setTurn((t) => (t === "w" ? "b" : "w"));
         return;

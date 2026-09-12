@@ -14,8 +14,11 @@ interface Habit {
 const STORAGE_KEY = "habits";
 const DAYS_SHOWN = 14;
 
+// Local calendar date, not UTC — using toISOString() here would shift
+// the "day" near midnight in any timezone ahead or behind UTC (e.g.
+// Argentina, UTC-3), marking or unmarking the wrong day.
 function dateKey(d: Date) {
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function lastNDays(n: number) {

@@ -32,17 +32,11 @@ declare global {
     logError: (scope: string, message: string) => void;
     getDisplays: () => Promise<{ id: number; label: string; isPrimary: boolean }[]>;
     moveToDisplay: (displayId: number) => void;
-    importImage: () => Promise<{ dataUrl: string; fileName: string } | { error: string } | null>;
-    importMedia: () => Promise<{ dataUrl: string; fileName: string } | { error: string } | null>;
-
     exportData: () => Promise<{ success: boolean; path?: string }>;
     importData: () => Promise<{ success: boolean; error?: string }>;
     resetData: () => Promise<boolean>;
     saveAndOpenFile: (fileName: string, base64: string) => Promise<{ success: boolean; error?: string }>;
     getCaptureSources: () => Promise<{ id: string; name: string; thumbnailDataUrl: string }[]>;
-    pickZipFile: () => Promise<{ base64: string; fileName: string } | { error: string } | null>;
-    pickFolder: (title: string) => Promise<string | null>;
-
     openRecycleBin: () => void;
     openOsk: () => void;
     openNarrator: () => void;
@@ -93,9 +87,6 @@ declare global {
     fsOpenPath: (filePath: string) => Promise<{ success: boolean; error?: string }>;
     fsOpenWith: (filePath: string) => Promise<{ success: boolean; error?: string }>;
     fsShowInExplorer: (filePath: string) => void;
-
-    pickOpenTextFile: () => Promise<{ path: string; content: string } | { error: string } | null>;
-    pickSaveTextFile: (defaultName: string, content: string) => Promise<{ path: string } | { error: string } | null>;
   }
 
   interface FsEntry {

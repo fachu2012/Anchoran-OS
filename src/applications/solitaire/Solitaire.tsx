@@ -129,6 +129,14 @@ export function SolitaireApp() {
       return;
     }
     if (selection) {
+      // Clicking the already-selected card again cancels the
+      // selection instead of trying (and silently failing) to move it
+      // onto itself, which used to leave you stuck with no way to
+      // deselect except starting a different, unrelated move.
+      if (selection.source === "tableau" && selection.columnIndex === colIndex && selection.cardIndex === cardIndex) {
+        setSelection(null);
+        return;
+      }
       moveToTableau(colIndex);
       return;
     }

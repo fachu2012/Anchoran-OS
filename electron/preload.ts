@@ -54,11 +54,6 @@ contextBridge.exposeInMainWorld("anchoran", {
     ipcRenderer.send("anchoran:move-to-display", displayId);
   },
 
-  importImage: (): Promise<{ dataUrl: string; fileName: string } | { error: string } | null> =>
-    ipcRenderer.invoke("anchoran:import-image"),
-  importMedia: (): Promise<{ dataUrl: string; fileName: string } | { error: string } | null> =>
-    ipcRenderer.invoke("anchoran:import-media"),
-
   exportData: (): Promise<{ success: boolean; path?: string }> => ipcRenderer.invoke("anchoran:export-data"),
   importData: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke("anchoran:import-data"),
   resetData: (): Promise<boolean> => ipcRenderer.invoke("anchoran:reset-data"),
@@ -69,10 +64,6 @@ contextBridge.exposeInMainWorld("anchoran", {
   getCaptureSources: (): Promise<{ id: string; name: string; thumbnailDataUrl: string }[]> =>
     ipcRenderer.invoke("anchoran:get-capture-sources"),
 
-
-  pickZipFile: (): Promise<{ base64: string; fileName: string } | { error: string } | null> =>
-    ipcRenderer.invoke("anchoran:pick-zip-file"),
-  pickFolder: (title: string): Promise<string | null> => ipcRenderer.invoke("anchoran:pick-folder", title),
 
   openRecycleBin: (): void => {
     ipcRenderer.send("anchoran:open-recycle-bin");
@@ -170,9 +161,4 @@ contextBridge.exposeInMainWorld("anchoran", {
   fsShowInExplorer: (filePath: string): void => {
     ipcRenderer.send("anchoran:fs-show-in-explorer", filePath);
   },
-
-  pickOpenTextFile: (): Promise<{ path: string; content: string } | { error: string } | null> =>
-    ipcRenderer.invoke("anchoran:pick-open-text-file"),
-  pickSaveTextFile: (defaultName: string, content: string): Promise<{ path: string } | { error: string } | null> =>
-    ipcRenderer.invoke("anchoran:pick-save-text-file", defaultName, content),
 });

@@ -472,6 +472,15 @@ ipcMain.handle("anchoran:fs-read-text-file", (_event, filePath: string) => {
   }
 });
 
+const IMAGE_MIME_BY_EXT: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".bmp": "image/bmp",
+};
+
 ipcMain.handle("anchoran:fs-read-image-file", (_event, filePath: string) => {
   try {
     const ext = path.extname(filePath).toLowerCase();
@@ -631,111 +640,6 @@ ipcMain.on("anchoran:fs-show-in-explorer", (_event, filePath: string) => {
   shell.showItemInFolder(filePath);
 });
 
-/** Notes' Notepad-style Open/Save As — the native Windows file pickers, same as any real text editor. */
-ipcMain.handle("anchoran:pick-open-text-file", async () => {
-  if (!mainWindow) return null;
-  const result = await dialog.showOpenDialog(mainWindow, {
-    title: "Open",
-    filters: [{ name: "Text files", extensions: ["txt", "md", "json", "log", "csv"] }, { name: "All files", extensions: ["*"] }],
-    properties: ["openFile"],
-  });
-  if (result.canceled || result.filePaths.length === 0) return null;
-  const filePath = result.filePaths[0];
-  try {
-    return { path: filePath, content: fs.readFileSync(filePath, "utf-8") };
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
-  }
-});
-
-ipcMain.handle("anchoran:pick-save-text-file", async (_event, defaultName: string, content: string) => {
-  if (!mainWindow) return null;
-  const result = await dialog.showSaveDialog(mainWindow, {
-    title: "Save As",
-    defaultPath: defaultName,
-    filters: [{ name: "Text files", extensions: ["txt"] }, { name: "All files", extensions: ["*"] }],
-  });
-  if (result.canceled || !result.filePath) return null;
-  try {
-    fs.writeFileSync(result.filePath, content, "utf-8");
-    return { path: result.filePath };
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
-  }
-});
-
-const IMAGE_MIME_BY_EXT: Record<string, string> = {
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".webp": "image/webp",
-  ".gif": "image/gif",
-  ".bmp": "image/bmp",
-};
-
-/**
- * Shared "import an image from Windows" dialog — used wherever
- * Anchoran needs a real photo from the user's own files (wallpapers,
- * the account avatar during onboarding, etc.) rather than one of its
- * own code-generated assets. Returns a data URL so the renderer can
- * use/persist it directly with no further IPC round-trip.
- */
-ipcMain.handle("anchoran:import-image", async () => {
-  if (!mainWindow) return null;
-  const result = await dialog.showOpenDialog(mainWindow, {
-    title: "Import Image",
-    filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif", "bmp"] }],
-    properties: ["openFile"],
-  });
-  if (result.canceled || result.filePaths.length === 0) return null;
-
-  const filePath = result.filePaths[0];
-  const ext = path.extname(filePath).toLowerCase();
-  const mime = IMAGE_MIME_BY_EXT[ext];
-  if (!mime) return null;
-
-  const buffer = fs.readFileSync(filePath);
-  // A generous but bounded cap — this ends up base64-encoded inside a
-  // JSON preferences file, so an unbounded photo would bloat it badly.
-  if (buffer.byteLength > 8 * 1024 * 1024) {
-    return { error: "Image is too large (max 8MB)." };
-  }
-  const dataUrl = `data:${mime};base64,${buffer.toString("base64")}`;
-  return { dataUrl, fileName: path.basename(filePath) };
-});
-
-const MEDIA_MIME_BY_EXT: Record<string, string> = {
-  ".mp3": "audio/mpeg",
-  ".wav": "audio/wav",
-  ".ogg": "audio/ogg",
-  ".m4a": "audio/mp4",
-  ".mp4": "video/mp4",
-  ".webm": "video/webm",
-};
-
-/** Same idea as import-image, for the Media Player app — audio/video instead of a photo. */
-ipcMain.handle("anchoran:import-media", async () => {
-  if (!mainWindow) return null;
-  const result = await dialog.showOpenDialog(mainWindow, {
-    title: "Import Media",
-    filters: [{ name: "Audio & Video", extensions: ["mp3", "wav", "ogg", "m4a", "mp4", "webm"] }],
-    properties: ["openFile"],
-  });
-  if (result.canceled || result.filePaths.length === 0) return null;
-
-  const filePath = result.filePaths[0];
-  const ext = path.extname(filePath).toLowerCase();
-  const mime = MEDIA_MIME_BY_EXT[ext];
-  if (!mime) return null;
-
-  const buffer = fs.readFileSync(filePath);
-  if (buffer.byteLength > 30 * 1024 * 1024) {
-    return { error: "File is too large (max 30MB)." };
-  }
-  const dataUrl = `data:${mime};base64,${buffer.toString("base64")}`;
-  return { dataUrl, fileName: path.basename(filePath) };
-});
-
 /**
  * `<webview>` guest pages (Chat, and formerly Browser) don't get a
  * native right-click menu for free the way a normal browser tab does
@@ -785,31 +689,6 @@ ipcMain.on(
     Menu.buildFromTemplate(items).popup();
   }
 );
-
-/** Zip Tool: pick a real folder to export, or a destination to extract into. */
-ipcMain.handle("anchoran:pick-folder", async (_event, title: string) => {
-  if (!mainWindow) return null;
-  const result = await dialog.showOpenDialog(mainWindow, { title, properties: ["openDirectory"] });
-  if (result.canceled || result.filePaths.length === 0) return null;
-  return result.filePaths[0];
-});
-
-/** Zip Tool: lets the user pick a real .zip from Windows to import — unzipping itself happens in the renderer via JSZip. */
-ipcMain.handle("anchoran:pick-zip-file", async () => {
-  if (!mainWindow) return null;
-  const result = await dialog.showOpenDialog(mainWindow, {
-    title: "Import Zip",
-    filters: [{ name: "Zip archives", extensions: ["zip"] }],
-    properties: ["openFile"],
-  });
-  if (result.canceled || result.filePaths.length === 0) return null;
-  const filePath = result.filePaths[0];
-  const buffer = fs.readFileSync(filePath);
-  if (buffer.byteLength > 50 * 1024 * 1024) {
-    return { error: "Zip file is too large (max 50MB)." };
-  }
-  return { base64: buffer.toString("base64"), fileName: path.basename(filePath) };
-});
 
 /**
  * Recycle Bin: rather than reimplementing Windows' own undocumented

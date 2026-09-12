@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import { printTextAsPdf } from "@/core/print";
 import { useNotificationStore } from "@/notifications/notificationStore";
+import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 import "@/applications/apps.css";
 import "./notes.css";
 
@@ -19,26 +20,41 @@ export function NotesApp() {
   const [title, setTitle] = useState("Untitled");
   const [content, setContent] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [openPicker, setOpenPicker] = useState(false);
+  const [savePicker, setSavePicker] = useState(false);
   const pushNotification = useNotificationStore((s) => s.push);
 
+  // Unsaved edits are real, user-typed text — losing them silently to
+  // an accidental "New" or "Open…" click would be a real data-loss bug,
+  // the same way it would be in any real text editor.
+  function confirmDiscard() {
+    return !dirty || window.confirm("You have unsaved changes. Discard them?");
+  }
+
   function newDocument() {
+    if (!confirmDiscard()) return;
     setPath(null);
     setTitle("Untitled");
     setContent("");
     setDirty(false);
   }
 
-  async function openFile() {
-    if (!window.anchoran) return;
-    const result = await window.anchoran.pickOpenTextFile();
-    if (!result) return;
-    if ("error" in result) {
-      pushNotification("Notes", result.error);
+  function openFile() {
+    if (!confirmDiscard()) return;
+    setOpenPicker(true);
+  }
+
+  async function onPickOpen(result: { path: string } | { dir: string; name: string }) {
+    setOpenPicker(false);
+    if (!("path" in result) || !window.anchoran) return;
+    const read = await window.anchoran.fsReadTextFile(result.path);
+    if ("error" in read) {
+      pushNotification("Notes", read.error);
       return;
     }
     setPath(result.path);
     setTitle(result.path.slice(result.path.lastIndexOf("\\") + 1));
-    setContent(result.content);
+    setContent(read.content);
     setDirty(false);
   }
 
@@ -50,19 +66,25 @@ export function NotesApp() {
       else setDirty(false);
       return;
     }
-    await saveAs();
+    saveAs();
   }
 
-  async function saveAs() {
-    if (!window.anchoran) return;
-    const result = await window.anchoran.pickSaveTextFile(`${title}.txt`, content);
-    if (!result) return;
-    if ("error" in result) {
-      pushNotification("Notes", result.error);
+  function saveAs() {
+    setSavePicker(true);
+  }
+
+  async function onPickSave(result: { path: string } | { dir: string; name: string }) {
+    setSavePicker(false);
+    if (!("dir" in result) || !window.anchoran) return;
+    const name = /\.[^.\\/]+$/.test(result.name) ? result.name : `${result.name}.txt`;
+    const fullPath = `${result.dir}\\${name}`;
+    const write = await window.anchoran.fsWriteTextFile(fullPath, content);
+    if (!write.success) {
+      pushNotification("Notes", write.error ?? "Couldn't save.");
       return;
     }
-    setPath(result.path);
-    setTitle(result.path.slice(result.path.lastIndexOf("\\") + 1));
+    setPath(fullPath);
+    setTitle(name);
     setDirty(false);
   }
 
@@ -98,6 +120,23 @@ export function NotesApp() {
           autoFocus
         />
       </div>
+      {openPicker && (
+        <AnchoranFilePicker
+          mode="open"
+          title="Open a text file"
+          onConfirm={onPickOpen}
+          onCancel={() => setOpenPicker(false)}
+        />
+      )}
+      {savePicker && (
+        <AnchoranFilePicker
+          mode="save"
+          title="Save As"
+          defaultName={/\.[^.\\/]+$/.test(title) ? title : `${title}.txt`}
+          onConfirm={onPickSave}
+          onCancel={() => setSavePicker(false)}
+        />
+      )}
     </div>
   );
 }

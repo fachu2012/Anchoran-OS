@@ -10,6 +10,17 @@ interface HistoryEntry {
 
 let entryId = 0;
 
+// "C:\Users" -> "C:\" (kept with its trailing backslash — a bare
+// "C:" means "current directory on C:" to Windows, not the drive
+// root, so dropping it here used to silently list the wrong folder).
+function parentPath(p: string): string {
+  const trimmed = p.replace(/\\+$/, "");
+  const idx = trimmed.lastIndexOf("\\");
+  if (idx < 0) return p;
+  const parent = trimmed.slice(0, idx);
+  return parent.length <= 2 ? `${parent}\\` : parent;
+}
+
 export function TerminalApp() {
   const [history, setHistory] = useState<HistoryEntry[]>([
     { id: entryId++, text: "Anchoran OS Terminal. Type \"help\" to get started." },
@@ -104,7 +115,7 @@ export function TerminalApp() {
           if (folders) setCwd(folders.home);
           break;
         }
-        const target = args[0] === ".." ? cwd.slice(0, Math.max(cwd.lastIndexOf("\\"), 2)) : `${cwd}\\${args[0]}`;
+        const target = args[0] === ".." ? parentPath(cwd) : `${cwd}\\${args[0]}`;
         const result = await window.anchoran?.fsListDir(target);
         if (result && !("error" in result)) setCwd(target);
         else print(`cd: no such directory: ${args[0]}`);

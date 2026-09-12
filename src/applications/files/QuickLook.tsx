@@ -55,9 +55,19 @@ export function QuickLook({ entry, onClose }: { entry: Entry; onClose: () => voi
         }
         try {
           const zip = await JSZip.loadAsync(result.base64, { base64: true });
-          const entries = Object.values(zip.files)
-            .map((f) => ({ name: f.name, size: (f as unknown as { _data?: { uncompressedSize: number } })._data?.uncompressedSize ?? 0, dir: f.dir }))
-            .sort((a, b) => a.name.localeCompare(b.name));
+          // JSZip doesn't expose a file's uncompressed size as public
+          // API — reading the real bytes via .async() is the
+          // documented way to get it, unlike relying on its private
+          // internal _data field (which could silently break or read
+          // as 0 on a future JSZip version).
+          const entries = await Promise.all(
+            Object.values(zip.files).map(async (f) => {
+              if (f.dir) return { name: f.name, size: 0, dir: true };
+              const bytes = await f.async("uint8array");
+              return { name: f.name, size: bytes.byteLength, dir: false };
+            })
+          );
+          entries.sort((a, b) => a.name.localeCompare(b.name));
           if (!cancelled) setArchiveEntries(entries);
         } catch {
           if (!cancelled) setError("Couldn't read this archive.");

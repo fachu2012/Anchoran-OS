@@ -1,0 +1,181 @@
+.filepicker-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filepicker-panel {
+  width: min(92%, 720px);
+  height: min(85%, 520px);
+  background: var(--anchoran-surface);
+  border-radius: var(--anchoran-radius-lg);
+  box-shadow: var(--anchoran-shadow-window);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.filepicker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--anchoran-border);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.filepicker-close {
+  border: none;
+  background: transparent;
+  color: var(--anchoran-text-secondary);
+  cursor: pointer;
+  display: flex;
+}
+
+.filepicker-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.filepicker-sidebar {
+  width: 150px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--anchoran-border);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.filepicker-side-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: var(--anchoran-text-primary);
+  font-size: 12.5px;
+  padding: 7px 8px;
+  border-radius: var(--anchoran-radius-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.filepicker-side-item:hover {
+  background: var(--anchoran-surface-hover);
+}
+
+.filepicker-side-item[data-active="true"] {
+  background: var(--anchoran-accent-soft);
+  color: var(--anchoran-accent);
+}
+
+.filepicker-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.filepicker-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--anchoran-border);
+}
+
+.filepicker-up {
+  border: 1px solid var(--anchoran-border);
+  background: var(--anchoran-bg);
+  color: var(--anchoran-text-primary);
+  border-radius: var(--anchoran-radius-sm);
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.filepicker-up:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.filepicker-path {
+  font-size: 12px;
+  color: var(--anchoran-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filepicker-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.filepicker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--anchoran-radius-sm);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.filepicker-row:hover {
+  background: var(--anchoran-surface-hover);
+}
+
+.filepicker-row[data-selected="true"] {
+  background: var(--anchoran-accent-soft);
+  color: var(--anchoran-accent);
+}
+
+.filepicker-empty,
+.filepicker-error {
+  padding: 20px;
+  font-size: 12.5px;
+  color: var(--anchoran-text-secondary);
+  text-align: center;
+}
+
+.filepicker-error {
+  color: #e5484d;
+}
+
+.filepicker-savebar {
+  padding: 8px 10px;
+  border-top: 1px solid var(--anchoran-border);
+}
+
+.filepicker-savebar input {
+  width: 100%;
+  border: 1px solid var(--anchoran-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: var(--anchoran-bg);
+  color: var(--anchoran-text-primary);
+  font-size: 12.5px;
+}
+
+.filepicker-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--anchoran-border);
+}

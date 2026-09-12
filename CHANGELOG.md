@@ -5,6 +5,39 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.2.0] - 2026-09-12
+
+### Changed
+
+- **Importing, opening and saving files anywhere in Anchoran now uses
+  Anchoran's own Files-style picker instead of Windows' native dialogs**
+  — profile picture and wallpaper import (onboarding and Settings),
+  Media Player's import, Notes' Open/Save As, and Zip Tool's
+  import/export folder pickers. "Import from Windows…" is now just
+  "Import…" everywhere it appears.
+
+### Fixed
+
+- **Chess was missing castling and en passant** — both are real legal
+  moves in chess; without them the game could (rarely) declare
+  checkmate or stalemate when a real player still had a way out.
+- **Habit Tracker and Reminders used UTC instead of your local date**
+  to decide what "today" is, which could mark/unmark the wrong day or
+  mis-fire a reminder near midnight in timezones offset from UTC.
+- **Terminal's `cd ..` from a top-level folder** (e.g. `C:\Users`)
+  produced `C:` instead of `C:\`, which Windows can treat as "current
+  directory on C:" rather than the actual drive root.
+- **Notes' "New" and "Open…" discarded unsaved changes with no
+  warning** — now asks for confirmation first.
+- **QR Code showed a blank box with no explanation** if the QR image
+  failed to load (e.g. offline) — now shows an actual error.
+- **Quick Look's .zip file sizes relied on an undocumented internal
+  JSZip field** that could silently break or read as 0 KB — now reads
+  the real bytes through JSZip's public API.
+- **Solitaire had no way to deselect a selected card** short of
+  starting an unrelated move — clicking it again now cancels the
+  selection.
+
 ## [2.1.13] - 2026-09-12
 
 ### Added

@@ -16,8 +16,14 @@ interface Reminder {
 
 const STORAGE_KEY = "reminders";
 
+// Local calendar date, not UTC — the reminder time itself is compared
+// in local hours/minutes below, so using toISOString() (UTC) here
+// would desync "today" from local near midnight in timezones offset
+// from UTC (e.g. Argentina, UTC-3), causing a reminder to fire twice
+// or skip a day.
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function RemindersApp() {

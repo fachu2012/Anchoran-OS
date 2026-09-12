@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { useVolumeMixerStore } from "@/desktop/volumeMixerStore";
+import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
+import { mimeForPath } from "@/core/mediaMime";
 import "@/applications/apps.css";
 import "./mediaplayer.css";
 
 const AUDIO_EXT = new Set([".mp3", ".wav", ".ogg", ".m4a"]);
 const VIDEO_EXT = new Set([".mp4", ".webm"]);
+const MEDIA_EXTENSIONS = [...AUDIO_EXT, ...VIDEO_EXT];
 
 interface MediaItem {
   name: string;
@@ -21,6 +24,7 @@ function toFileUrl(filePath: string) {
 export function MediaPlayerApp() {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [activePath, setActivePath] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   const pushNotification = useNotificationStore((s) => s.push);
   const mixerLevel = useVolumeMixerStore((s) => s.getLevel("mediaPlayer"));
   const mediaRef = useRef<HTMLMediaElement>(null);
@@ -62,30 +66,35 @@ export function MediaPlayerApp() {
 
   const active = items.find((i) => i.path === activePath) ?? items[0];
 
-  async function importMedia() {
-    if (!window.anchoran) return;
-    const result = await window.anchoran.importMedia();
-    if (result && "dataUrl" in result) {
-      const isVideo = result.dataUrl.startsWith("data:video");
-      const folders = await window.anchoran.fsSpecialFolders();
-      const targetDir = isVideo ? folders.videos : folders.music;
-      const write = await window.anchoran.fsWriteDataUrl(targetDir, result.fileName, result.dataUrl);
-      if ("error" in write) {
-        pushNotification("Media Player", write.error);
-        return;
-      }
-      await refresh();
-      setActivePath(write.path);
-    } else if (result && "error" in result) {
-      pushNotification("Media Player", result.error);
+  async function onPickMedia(result: { path: string } | { dir: string; name: string }) {
+    setPicking(false);
+    if (!("path" in result) || !window.anchoran) return;
+    const mime = mimeForPath(result.path);
+    if (!mime) return;
+    const binary = await window.anchoran.fsReadBinary(result.path);
+    if ("error" in binary) {
+      pushNotification("Media Player", binary.error);
+      return;
     }
+    const dataUrl = `data:${mime};base64,${binary.base64}`;
+    const isVideo = mime.startsWith("video");
+    const folders = await window.anchoran.fsSpecialFolders();
+    const targetDir = isVideo ? folders.videos : folders.music;
+    const fileName = result.path.slice(result.path.lastIndexOf("\\") + 1);
+    const write = await window.anchoran.fsWriteDataUrl(targetDir, fileName, dataUrl);
+    if ("error" in write) {
+      pushNotification("Media Player", write.error);
+      return;
+    }
+    await refresh();
+    setActivePath(write.path);
   }
 
   return (
     <div className="app-root">
       <div className="app-toolbar">
-        <button className="app-toolbar-btn" onClick={importMedia}>
-          <Icon name="mediaPlayer" size={14} /> Import from Windows…
+        <button className="app-toolbar-btn" onClick={() => setPicking(true)}>
+          <Icon name="mediaPlayer" size={14} /> Import…
         </button>
       </div>
       <div className="app-content mediaplayer-content">
@@ -118,6 +127,15 @@ export function MediaPlayerApp() {
           )}
         </div>
       </div>
+      {picking && (
+        <AnchoranFilePicker
+          mode="open"
+          title="Import a media file"
+          extensions={MEDIA_EXTENSIONS}
+          onConfirm={onPickMedia}
+          onCancel={() => setPicking(false)}
+        />
+      )}
     </div>
   );
 }
