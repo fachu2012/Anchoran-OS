@@ -5,6 +5,28 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.0] - 2026-09-12
+
+### Added
+
+Every command from both pending Terminal wishlists is now real:
+
+- **Normal Terminal**: `anchoran changelog [vX.Y.Z]`, `anchoran uptime`
+  (this session), `anchoran restart`, `anchoran lock`, `anchoran apps`,
+  `anchoran install/uninstall <app>`, `anchoran open <app>`,
+  `anchoran kill <app>`, and `history`.
+- **Administrator Terminal**: `shutdown`, `restart`, `sleep`,
+  `resetpin --confirm`, `listprofiles`, `delprofile <id>`,
+  `regquery <key>` (read-only), `du <folder>`, `netcheck`,
+  `ping <host>`, `myip`, `exportlogs`, `listwindows`,
+  `closewindow <id>`, `resetlayout`, and `restartexplorer` (the same
+  real recovery step as Task Manager's own "Restart" on
+  explorer.exe). `killexplorer`, `format`, and `deleteallfiles` exist
+  as commands but refuse on purpose — the risk of leaving the real
+  desktop broken, or destroying real files with no way back, isn't
+  worth it for a command typed into a terminal with no second
+  confirmation surface.
+
 ## [2.5.2] - 2026-09-12
 
 ### Fixed

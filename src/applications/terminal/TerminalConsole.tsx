@@ -3,8 +3,12 @@ import { useWindowStore } from "@/windowmanager/windowStore";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { useProfilesStore } from "@/core/profilesStore";
 import { useSystemModeStore } from "@/desktop/systemModeStore";
+import { useInstalledAppsStore } from "@/applications/installedAppsStore";
+import { APP_LIST } from "@/applications/registry";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { ANCHORAN_VERSION } from "@/core/version";
+import { getAppUptimeSeconds } from "@/core/appUptime";
+import type { AppId } from "@/core/types";
 import "@/applications/apps.css";
 
 interface HistoryEntry {
@@ -40,6 +44,12 @@ function formatUptime(totalSeconds: number) {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   return `${h}h ${m}m`;
+}
+
+/** Matches an app by its internal id or its display title (case-insensitive) — what a user actually types is the title, most of the time. */
+function findApp(query: string) {
+  const q = query.toLowerCase();
+  return APP_LIST.find((a) => a.id.toLowerCase() === q || a.title.toLowerCase() === q);
 }
 
 /**
@@ -80,6 +90,10 @@ export function TerminalConsole({
   const activeProfileId = useProfilesStore((s) => s.activeProfileId);
   const systemModeStart = useSystemModeStore((s) => s.start);
   const systemModeStop = useSystemModeStore((s) => s.stop);
+  const installedApps = useInstalledAppsStore((s) => s.installed);
+  const installApp = useInstalledAppsStore((s) => s.install);
+  const uninstallApp = useInstalledAppsStore((s) => s.uninstall);
+  const deleteProfile = useProfilesStore((s) => s.deleteProfile);
   const awaitingUpdate = useRef(false);
 
   useEffect(() => {
@@ -158,8 +172,9 @@ export function TerminalConsole({
           [
             "Available commands:",
             "  help, clear, about, system, date, echo, pwd, ls, cd, mkdir, touch, cat",
-            "  del/rm, move/mv, copy/cp, find",
-            "  anchoran system | anchoran version | anchoran settings | anchoran update",
+            "  del/rm, move/mv, copy/cp, find, history",
+            "  anchoran system | version | settings | update | changelog [vX.Y.Z] | uptime",
+            "  anchoran restart | lock | apps | open <app> | install <app> | uninstall <app> | kill <app>",
             "Tab completes file and folder names.",
             ...(isAdmin
               ? [
@@ -167,9 +182,13 @@ export function TerminalConsole({
                   "Administrator commands:",
                   "  whoami, uptime, sysinfo, ps, taskkill <pid>, forcequit <app>, killall",
                   "  startup, startup remove <name>, systemmode on|off",
-                  "  df, emptyrecyclebin, clearcache, backup, restore, wipe --confirm",
+                  "  df, du <path>, emptyrecyclebin, clearcache, backup, restore, wipe --confirm",
                   "  theme light|dark, wallpaper <name>, accent <hex>, scale <value>",
-                  "  logs, logs --errors, changeto",
+                  "  logs, logs --errors, exportlogs, changeto [vX.Y.Z]",
+                  "  shutdown, restart, sleep, resetpin --confirm",
+                  "  listprofiles, delprofile <id>, regquery <key>",
+                  "  netcheck, ping <host>, myip",
+                  "  listwindows, closewindow <id>, resetlayout, restartexplorer",
                   ...(canExitAdmin ? ["  exit — drop back to a normal Terminal"] : []),
                 ]
               : []),
@@ -302,6 +321,8 @@ export function TerminalConsole({
       }
       case "anchoran": {
         const sub = args[0];
+        const subArgs = args.slice(1);
+        const subRest = subArgs.join(" ");
         if (sub === "system") print(`Anchoran OS ${ANCHORAN_VERSION}`);
         else if (sub === "version") print(ANCHORAN_VERSION);
         else if (sub === "settings") {
@@ -314,11 +335,67 @@ export function TerminalConsole({
           } else {
             print("anchoran update: not available outside the Anchoran desktop app.");
           }
+        } else if (sub === "uptime") {
+          print(formatUptime(getAppUptimeSeconds()) + " (this Anchoran session)");
+        } else if (sub === "changelog") {
+          print("Fetching the changelog…");
+          try {
+            const res = await fetch("https://raw.githubusercontent.com/fachu2012/Anchoran-OS/main/CHANGELOG.md");
+            const text = await res.text();
+            const wantedVersion = (subArgs[0] ?? ANCHORAN_VERSION).replace(/^v/i, "");
+            const lines = text.split(/\r?\n/);
+            const startIndex = lines.findIndex((l) => l.startsWith(`## [${wantedVersion}]`));
+            if (startIndex < 0) {
+              print(`anchoran changelog: no entry for v${wantedVersion}.`);
+            } else {
+              const endIndex = lines.findIndex((l, i) => i > startIndex && l.startsWith("## ["));
+              print(lines.slice(startIndex, endIndex < 0 ? undefined : endIndex).join("\n").trim());
+            }
+          } catch {
+            print("anchoran changelog: couldn't reach GitHub.");
+          }
+        } else if (sub === "restart") {
+          window.dispatchEvent(new Event("anchoran-request-restart"));
+        } else if (sub === "lock") {
+          window.dispatchEvent(new Event("anchoran-request-lock"));
+        } else if (sub === "apps") {
+          const list = APP_LIST.filter((a) => installedApps.has(a.id)).map((a) => a.title);
+          print(list.join("\n"));
+        } else if (sub === "install" || sub === "uninstall") {
+          const app = findApp(subRest);
+          if (!app) {
+            print(`anchoran ${sub}: no app named "${subRest}".`);
+          } else if (sub === "install") {
+            installApp(app.id);
+            print(`Installed ${app.title}.`);
+          } else {
+            uninstallApp(app.id);
+            print(`Uninstalled ${app.title}.`);
+          }
+        } else if (sub === "open") {
+          const app = findApp(subRest);
+          if (!app) print(`anchoran open: no app named "${subRest}".`);
+          else {
+            openApp(app.id);
+            print(`Opening ${app.title}…`);
+          }
+        } else if (sub === "kill") {
+          const app = findApp(subRest);
+          if (!app) {
+            print(`anchoran kill: no app named "${subRest}".`);
+          } else {
+            const matches = windows.filter((w) => w.appId === app.id);
+            matches.forEach((w) => closeWindow(w.windowId));
+            print(matches.length > 0 ? `Closed ${matches.length} window(s) for ${app.title}.` : `${app.title} isn't open.`);
+          }
         } else {
-          print("anchoran: unknown subcommand. Try: system, version, settings, update");
+          print("anchoran: unknown subcommand. Try: system, version, settings, update, uptime, changelog, restart, lock, apps, install, uninstall, open, kill");
         }
         break;
       }
+      case "history":
+        print(commandHistory.current.map((h, i) => `${i + 1}  ${h}`).join("\n") || "No commands yet.");
+        break;
 
       // ---- Administrator-only commands ----
       case "whoami": {
@@ -554,6 +631,157 @@ export function TerminalConsole({
         } catch {
           print("changeto: couldn't reach GitHub.");
         }
+        break;
+      }
+      case "exportlogs": {
+        if (!isAdmin) break;
+        if (!window.anchoran) {
+          print("exportlogs: not available outside the Anchoran desktop app.");
+          break;
+        }
+        const lines = await window.anchoran.readLog();
+        const folders = await window.anchoran.fsSpecialFolders();
+        const name = `anchoran-log-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`;
+        const write = await window.anchoran.fsWriteTextFile(`${folders.desktop}\\${name}`, lines.join("\n"));
+        print(write.success ? `Exported to Desktop\\${name}.` : `exportlogs: ${write.error}`);
+        break;
+      }
+      case "shutdown": {
+        if (!isAdmin) break;
+        window.dispatchEvent(new Event("anchoran-request-shutdown"));
+        break;
+      }
+      case "restart": {
+        if (!isAdmin) break;
+        window.dispatchEvent(new Event("anchoran-request-restart"));
+        break;
+      }
+      case "sleep": {
+        if (!isAdmin) break;
+        window.dispatchEvent(new Event("anchoran-request-sleep"));
+        break;
+      }
+      case "resetpin": {
+        if (!isAdmin) break;
+        if (args[0] !== "--confirm") {
+          print('resetpin: this removes the lock PIN without asking for the current one. Run "resetpin --confirm" to actually do it.');
+          break;
+        }
+        prefs.setLockPin(null);
+        print("PIN removed.");
+        break;
+      }
+      case "listprofiles": {
+        if (!isAdmin) break;
+        print(profiles.map((p) => `${p.id === activeProfileId ? "*" : " "} ${p.name} (${p.id})`).join("\n") || "No profiles.");
+        break;
+      }
+      case "delprofile": {
+        if (!isAdmin) break;
+        if (!args[0]) {
+          print("delprofile: usage: delprofile <id>");
+          break;
+        }
+        if (!profiles.some((p) => p.id === args[0])) {
+          print(`delprofile: no profile with id "${args[0]}".`);
+          break;
+        }
+        deleteProfile(args[0]);
+        print("Profile deleted.");
+        break;
+      }
+      case "regquery": {
+        if (!isAdmin) break;
+        if (!args[0]) {
+          print("regquery: usage: regquery <registry key>");
+          break;
+        }
+        const result = await window.anchoran?.regQuery(line.slice(line.indexOf(" ") + 1));
+        if (!result) print("regquery: not available outside the Anchoran desktop app.");
+        else print(result.success ? result.output ?? "" : `regquery: ${result.error}`);
+        break;
+      }
+      case "du": {
+        if (!isAdmin) break;
+        if (!args[0]) {
+          print("du: usage: du <folder>");
+          break;
+        }
+        const target = resolvePath(cwd, args[0]);
+        const sizes = await window.anchoran?.getFolderSizes([{ label: args[0], path: target }]);
+        if (!sizes) print("du: not available outside the Anchoran desktop app.");
+        else print(formatBytes(sizes[0].size));
+        break;
+      }
+      case "netcheck": {
+        if (!isAdmin) break;
+        print(navigator.onLine ? "Online." : "Offline.");
+        break;
+      }
+      case "ping": {
+        if (!isAdmin) break;
+        if (!args[0]) {
+          print("ping: usage: ping <host>");
+          break;
+        }
+        print(`Pinging ${args[0]}…`);
+        const result = await window.anchoran?.pingHost(args[0]);
+        if (!result) print("ping: not available outside the Anchoran desktop app.");
+        else print(result.output.trim() || "ping: no response.");
+        break;
+      }
+      case "myip": {
+        if (!isAdmin) break;
+        try {
+          const res = await fetch("https://api.ipify.org?format=json");
+          const data = await res.json();
+          print(data.ip ?? "myip: couldn't determine your IP.");
+        } catch {
+          print("myip: couldn't reach the lookup service.");
+        }
+        break;
+      }
+      case "listwindows": {
+        if (!isAdmin) break;
+        print(windows.map((w) => `${w.windowId}  ${w.title}${w.isMinimized ? " (minimized)" : ""}`).join("\n") || "No windows open.");
+        break;
+      }
+      case "closewindow": {
+        if (!isAdmin) break;
+        if (!args[0]) {
+          print("closewindow: usage: closewindow <window id> — see \"listwindows\"");
+          break;
+        }
+        if (!windows.some((w) => w.windowId === args[0])) {
+          print(`closewindow: no window with id "${args[0]}".`);
+          break;
+        }
+        closeWindow(args[0]);
+        print("Closed.");
+        break;
+      }
+      case "resetlayout": {
+        if (!isAdmin) break;
+        useWindowStore.getState().resetWindowLayout();
+        print("Window layout reset — apps will reopen at their default position.");
+        break;
+      }
+      case "restartexplorer": {
+        if (!isAdmin) break;
+        const result = await window.anchoran?.restartExplorer();
+        if (!result) print("restartexplorer: not available outside the Anchoran desktop app.");
+        else print(result.success ? "Windows Explorer restarted." : `restartexplorer: ${result.error}`);
+        break;
+      }
+      case "killexplorer": {
+        if (!isAdmin) break;
+        print('killexplorer: not implemented on its own — it would leave the real desktop with no taskbar/icons until something restarts it. Use "restartexplorer" instead.');
+        break;
+      }
+      case "format":
+      case "deleteallfiles": {
+        if (!isAdmin) break;
+        print(`${cmd}: refused. This could destroy real files with no way back, and there's no way to verify a confirmation typed here is really you. Not implemented, on purpose.`);
         break;
       }
       case "exit": {

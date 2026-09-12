@@ -54,6 +54,8 @@ interface WindowManagerState {
   setBounds: (windowId: string, bounds: Bounds) => void;
   setSnapPreview: (bounds: Bounds | null) => void;
   cycleFocus: (direction: 1 | -1) => void;
+  /** Forgets every app's remembered window position/size — the next time each one opens, it starts at the default cascade spot again. */
+  resetWindowLayout: () => void;
 }
 
 let windowCounter = 0;
@@ -257,6 +259,11 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
     const currentIndex = candidates.findIndex((w) => w.windowId === s.focusedWindowId);
     const nextIndex = (currentIndex + direction + candidates.length) % candidates.length;
     get().focusWindow(candidates[nextIndex].windowId);
+  },
+
+  resetWindowLayout: () => {
+    set({ rememberedBounds: {} });
+    persistSet("config", REMEMBERED_BOUNDS_KEY, {});
   },
 }));
 

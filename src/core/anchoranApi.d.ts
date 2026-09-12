@@ -75,6 +75,10 @@ declare global {
     setTrackerBlock: (enabled: boolean) => Promise<{ success: boolean }>;
     fetchImageAsDataUrl: (url: string) => Promise<{ dataUrl: string } | { error: string }>;
     clearBrowserData: () => Promise<{ success: boolean; error?: string }>;
+
+    regQuery: (key: string) => Promise<{ success: boolean; output?: string; error?: string }>;
+    pingHost: (host: string) => Promise<{ success: boolean; output: string }>;
+    restartExplorer: () => Promise<{ success: boolean; error?: string }>;
     readLog: () => Promise<string[]>;
 
     checkForUpdates: () => void;

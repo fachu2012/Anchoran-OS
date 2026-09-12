@@ -1091,6 +1091,39 @@ ipcMain.on("anchoran:open-windows-desktop", () => {
   if (process.platform === "win32") spawn("explorer.exe", [], { detached: true }).unref();
 });
 
+/** Administrator Terminal's "regquery" — read-only registry lookups (deliberately never "add"/"delete"; those already exist as their own narrow, purpose-built handlers elsewhere in this file). */
+ipcMain.handle("anchoran:reg-query", async (_event, key: string) => {
+  if (process.platform !== "win32") return { success: false, error: "Only supported on Windows." };
+  const { success, output } = await runReg(["query", key]);
+  return success ? { success: true, output } : { success: false, error: output };
+});
+
+/** Administrator Terminal's "ping" — shells out to Windows' own ping.exe rather than reimplementing ICMP. */
+ipcMain.handle("anchoran:ping-host", (_event, host: string) => {
+  return new Promise((resolve) => {
+    execFile("ping.exe", ["-n", "4", host], { timeout: 12000 }, (err, stdout, stderr) => {
+      resolve({ success: !err, output: err ? stderr || stdout || String(err) : stdout });
+    });
+  });
+});
+
+/**
+ * Administrator Terminal's "restartexplorer" — the exact same real,
+ * recoverable operation Task Manager's own "Restart" on explorer.exe
+ * performs: end the real Windows shell process and relaunch it. Only
+ * meaningful outside System Mode (Anchoran itself is the shell then,
+ * so there's no explorer.exe running to restart in the first place).
+ */
+ipcMain.handle("anchoran:restart-explorer", () => {
+  if (process.platform !== "win32") return { success: false, error: "Only supported on Windows." };
+  return new Promise((resolve) => {
+    execFile("taskkill", ["/IM", "explorer.exe", "/F"], () => {
+      spawn("explorer.exe", [], { detached: true }).unref();
+      resolve({ success: true });
+    });
+  });
+});
+
 /**
  * Multi-monitor support, phase 1: Anchoran is still a single fullscreen
  * window (see architecture notes — it isn't an independent per-display

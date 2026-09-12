@@ -127,6 +127,34 @@ export default function App() {
 
   }, []);
 
+  // The Terminal's "lock"/"restart"/"shutdown"/"sleep" commands — the
+  // exact same effect as their Power menu equivalents, just reachable
+  // without leaving the keyboard.
+  useEffect(() => {
+    function onRequestLock() {
+      if (booted) setLocked(true);
+    }
+    function onRequestRestart() {
+      if (booted) setExitMode("restart");
+    }
+    function onRequestShutdown() {
+      if (booted) setExitMode("shutdown");
+    }
+    function onRequestSleep() {
+      if (booted) setExitMode("sleep");
+    }
+    window.addEventListener("anchoran-request-lock", onRequestLock);
+    window.addEventListener("anchoran-request-restart", onRequestRestart);
+    window.addEventListener("anchoran-request-shutdown", onRequestShutdown);
+    window.addEventListener("anchoran-request-sleep", onRequestSleep);
+    return () => {
+      window.removeEventListener("anchoran-request-lock", onRequestLock);
+      window.removeEventListener("anchoran-request-restart", onRequestRestart);
+      window.removeEventListener("anchoran-request-shutdown", onRequestShutdown);
+      window.removeEventListener("anchoran-request-sleep", onRequestSleep);
+    };
+  }, [booted]);
+
   async function enterDesktop() {
     setBooted(true);
     playLoginSound();

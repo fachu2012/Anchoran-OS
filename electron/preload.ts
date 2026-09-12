@@ -125,6 +125,13 @@ contextBridge.exposeInMainWorld("anchoran", {
   clearBrowserData: (): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("anchoran:clear-browser-data"),
 
+  regQuery: (key: string): Promise<{ success: boolean; output?: string; error?: string }> =>
+    ipcRenderer.invoke("anchoran:reg-query", key),
+  pingHost: (host: string): Promise<{ success: boolean; output: string }> =>
+    ipcRenderer.invoke("anchoran:ping-host", host),
+  restartExplorer: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:restart-explorer"),
+
   readLog: (): Promise<string[]> => ipcRenderer.invoke("anchoran:read-log"),
 
   checkForUpdates: (): void => {
