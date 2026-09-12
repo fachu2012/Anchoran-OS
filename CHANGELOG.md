@@ -5,6 +5,19 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.12] - 2026-09-12
+
+### Fixed
+
+- Found the real cause of an update sometimes installing with no
+  cinematic at all: electron-updater's `autoInstallOnAppQuit` defaults
+  to true, which silently runs the installer on ANY app quit once an
+  update has downloaded — closing Anchoran normally, Alt+F4, anything
+  — completely outside Anchoran's own UI, regardless of the "Later" /
+  "Restart & install" fixes already shipped. Now disabled; the only
+  way an update installs is the explicit path that always shows
+  UpdateTheater first.
+
 ## [2.6.11] - 2026-09-12
 
 ### Security

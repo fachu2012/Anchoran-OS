@@ -1193,6 +1193,15 @@ autoUpdater.logger = {
   debug: () => {},
 };
 
+// electron-updater defaults this to true: once an update has
+// downloaded, quitting the app *at all* (closing it normally, Alt+F4,
+// task manager, anything) silently runs the installer as part of that
+// quit — completely outside Anchoran's own UI, with no fullscreen
+// cinematic, no matter how the quit happened. The only install path
+// Anchoran wants is the explicit one below (anchoran:quit-and-install-
+// update), which always goes through UpdateTheater first.
+autoUpdater.autoInstallOnAppQuit = false;
+
 type UpdateStatus =
   | { state: "checking" }
   | { state: "available"; version: string }
