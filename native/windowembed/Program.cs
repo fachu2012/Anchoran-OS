@@ -134,13 +134,21 @@ internal static class Program
                     Console.WriteLine($"ERROR {Path.GetFileName(exePath)} exited before showing a window.");
                     return 1;
                 }
-                process.Refresh();
-                mainHandle = process.MainWindowHandle;
             }
             catch (InvalidOperationException)
             {
                 break;
             }
+            // Deliberately NOT Process.MainWindowHandle: it uses a
+            // narrow heuristic (first visible top-level window with a
+            // non-empty title, picked at a specific moment) that many
+            // real GUI apps — games especially, with an engine splash
+            // window, a borderless/undecorated main window, or a title
+            // set after the window is first shown — simply never
+            // satisfy, even though a perfectly real window is on
+            // screen. A direct EnumWindows scan filtered by this
+            // process's id finds it regardless of title or timing.
+            mainHandle = FindWindowForProcess(process.Id);
             if (mainHandle != 0) break;
             Thread.Sleep(WindowPollIntervalMs);
         }
@@ -226,6 +234,35 @@ internal static class Program
         return 0;
     }
 
+    // Scans every top-level window on the desktop for one owned by the
+    // given process id, visible, and preferring one with an actual
+    // title over an untitled one — but accepting any visible window
+    // for that process rather than requiring a title at all, since
+    // plenty of real apps (games especially) never set one.
+    private static nint FindWindowForProcess(int pid)
+    {
+        nint found = 0;
+        var foundTitleLength = -1;
+        NativeMethods.EnumWindows(
+            (hWnd, _) =>
+            {
+                NativeMethods.GetWindowThreadProcessId(hWnd, out var windowPid);
+                if (windowPid != (uint)pid || !NativeMethods.IsWindowVisible(hWnd))
+                {
+                    return true; // keep enumerating
+                }
+                var titleLength = NativeMethods.GetWindowTextLengthW(hWnd);
+                if (titleLength > foundTitleLength)
+                {
+                    found = hWnd;
+                    foundTitleLength = titleLength;
+                }
+                return true;
+            },
+            0);
+        return found;
+    }
+
     private static void Detach()
     {
         if (_childHwnd == 0) return;
@@ -269,4 +306,20 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SetForegroundWindow(nint hWnd);
+
+    public delegate bool EnumWindowsProc(nint hWnd, nint lParam);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool EnumWindows(EnumWindowsProc lpEnumFunc, nint lParam);
+
+    [LibraryImport("user32.dll")]
+    public static partial uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool IsWindowVisible(nint hWnd);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextLengthW")]
+    public static partial int GetWindowTextLengthW(nint hWnd);
 }

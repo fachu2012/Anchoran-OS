@@ -5,6 +5,19 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.16] - 2026-09-12
+
+### Fixed
+
+- Window embedding was failing with "No window appeared… within 15s"
+  for real apps that had actually opened a real window — the native
+  helper was using .NET's `Process.MainWindowHandle`, which only finds
+  a window matching a narrow heuristic (first visible top-level window
+  with a non-empty title at that exact moment) that plenty of real
+  apps, games especially, never satisfy. Replaced with a direct
+  EnumWindows scan filtered by the launched process's id, which finds
+  its window regardless of title or exact timing.
+
 ## [2.6.15] - 2026-09-12
 
 ### Fixed
