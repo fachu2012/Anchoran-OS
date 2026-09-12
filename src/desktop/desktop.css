@@ -110,7 +110,7 @@
 .taskbar-divider {
   width: 1px;
   height: 26px;
-  background: var(--anchoran-border);
+  background: var(--anchoran-border-strong);
   margin: 0 4px;
   flex-shrink: 0;
 }
@@ -209,11 +209,16 @@
   bottom: 3px;
   left: 50%;
   transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: currentColor;
-  opacity: 0.7;
+  background: var(--anchoran-accent);
+  transition: width var(--anchoran-duration-fast) var(--anchoran-ease);
+}
+
+.taskbar-btn[data-focused="true"] .taskbar-dot {
+  width: 14px;
+  border-radius: 3px;
 }
 
 .taskbar-badge {
@@ -266,7 +271,9 @@
 }
 
 .context-menu-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   width: 100%;
   text-align: left;
   padding: 8px 10px;
@@ -294,6 +301,12 @@
 
 .context-menu-item[data-danger="true"]:hover {
   background: rgba(229, 72, 77, 0.12);
+}
+
+.context-menu-item-icon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--anchoran-text-secondary);
 }
 
 .context-menu-separator {

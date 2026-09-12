@@ -141,6 +141,7 @@ export function FilesApp() {
   const [quickLookEntry, setQuickLookEntry] = useState<Entry | null>(null);
   const [addressInput, setAddressInput] = useState("This PC");
   const [addressError, setAddressError] = useState<string | null>(null);
+  const [driveSpace, setDriveSpace] = useState<{ caption: string; free: number; total: number } | null>(null);
   const [includeSubfolders, setIncludeSubfolders] = useState(false);
   const [recursiveResults, setRecursiveResults] = useState<Entry[] | null>(null);
   const [propertiesEntry, setPropertiesEntry] = useState<Entry | null>(null);
@@ -189,6 +190,25 @@ export function FilesApp() {
     setAddressError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPath]);
+
+  // A quick "how much room is left on this drive" readout — the same
+  // thing a real file manager shows in its status bar.
+  const currentDriveLetter = /^[A-Za-z]:/.test(currentPath) ? currentPath.slice(0, 2).toUpperCase() : null;
+  useEffect(() => {
+    if (!currentDriveLetter || !window.anchoran) {
+      setDriveSpace(null);
+      return;
+    }
+    let cancelled = false;
+    window.anchoran.getDiskUsage().then((result) => {
+      if (cancelled) return;
+      const match = result.drives.find((d) => d.caption.toUpperCase() === currentDriveLetter);
+      setDriveSpace(match ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentDriveLetter]);
 
   // "Include subfolders" search — a bounded recursive scan under the
   // current folder, debounced since it's real disk I/O rather than an
@@ -527,6 +547,23 @@ export function FilesApp() {
         </div>
         {addressError && (
           <div style={{ padding: "0 14px 6px", fontSize: 11.5, color: "#E5484D" }}>{addressError}</div>
+        )}
+        {driveSpace && driveSpace.total > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 14px 7px" }}>
+            <div style={{ flex: 1, maxWidth: 140, height: 4, borderRadius: 2, background: "var(--anchoran-border)", overflow: "hidden" }}>
+              <div
+                style={{
+                  height: "100%",
+                  width: `${Math.round(((driveSpace.total - driveSpace.free) / driveSpace.total) * 100)}%`,
+                  background: "var(--anchoran-accent)",
+                  borderRadius: 2,
+                }}
+              />
+            </div>
+            <span style={{ fontSize: 11, color: "var(--anchoran-text-secondary)" }}>
+              {formatSize(driveSpace.free, false)} free of {formatSize(driveSpace.total, false)}
+            </span>
+          </div>
         )}
       </div>
       <div

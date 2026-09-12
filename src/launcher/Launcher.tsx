@@ -141,6 +141,7 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
                     <Icon name={app.icon as IconName} size={18} />
                   </span>
                   {app.title}
+                  {i === 0 && <span className="launcher-item-hint">↵</span>}
                 </button>
                 <button
                   className="launcher-item-pin"

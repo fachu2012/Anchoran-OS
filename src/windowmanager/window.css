@@ -44,6 +44,10 @@
   box-shadow: var(--anchoran-shadow-soft);
 }
 
+.wm-window[data-focused="true"] {
+  border-color: var(--anchoran-accent);
+}
+
 .wm-window[data-exiting="closing"] {
   animation: wm-close var(--anchoran-duration-base) var(--anchoran-ease) forwards;
   pointer-events: none;

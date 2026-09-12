@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { EmptyState } from "@/components/EmptyState";
 import { persistGet, persistSet } from "@/core/persist";
 import "@/applications/apps.css";
 import "./todo.css";
@@ -78,9 +79,11 @@ export function TodoApp() {
             </div>
           ))}
           {visible.length === 0 && (
-            <div style={{ color: "var(--anchoran-text-secondary)", fontSize: 13, padding: 12 }}>
-              {items.length === 0 ? "No tasks yet." : "Nothing left to do."}
-            </div>
+            <EmptyState
+              icon="todo"
+              title={items.length === 0 ? "No tasks yet" : "Nothing left to do"}
+              description={items.length === 0 ? "Add one above to get started." : undefined}
+            />
           )}
         </div>
         {items.length > 0 && (

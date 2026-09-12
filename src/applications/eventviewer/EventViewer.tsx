@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { EmptyState } from "@/components/EmptyState";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 import "@/applications/apps.css";
@@ -122,10 +123,11 @@ export function EventViewerApp() {
       <div className="app-content eventviewer-content">
         {lines === null && <div className="eventviewer-empty">Loading…</div>}
         {lines?.length === 0 && (
-          <div className="eventviewer-empty">
-            No events logged yet — Anchoran only writes here when something noteworthy happens (errors, shortcut
-            registration, update checks).
-          </div>
+          <EmptyState
+            icon="eventViewer"
+            title="No events logged yet"
+            description="Anchoran only writes here when something noteworthy happens — errors, shortcut registration, update checks."
+          />
         )}
         {groups.map((group, gi) => (
           <div key={`${group.key}-${gi}`} className="eventviewer-group">

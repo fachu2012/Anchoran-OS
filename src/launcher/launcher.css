@@ -121,6 +121,16 @@
   color: var(--anchoran-accent);
 }
 
+.launcher-item-hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--anchoran-text-disabled);
+  border: 1px solid var(--anchoran-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
 .launcher-item-icon {
   width: 34px;
   height: 34px;

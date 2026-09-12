@@ -914,7 +914,7 @@ function AboutSection() {
 
   return (
     <div>
-      <AnchoranLogo size={40} color="var(--anchoran-accent)" style={{ marginBottom: 10 }} />
+      <AnchoranLogo size={56} color="var(--anchoran-accent)" style={{ marginBottom: 14 }} />
       <h2 style={{ margin: "0 0 4px", fontWeight: 500 }}>Anchoran OS</h2>
       <p style={{ color: "var(--anchoran-text-secondary)", marginTop: 0 }}>Version {ANCHORAN_VERSION}</p>
       <div style={{ display: "flex", gap: 8 }}>

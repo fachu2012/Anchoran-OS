@@ -5,6 +5,30 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.1] - 2026-09-12
+
+### Fixed
+
+- **The Onboarding progress dots ignored your accent color** — hardcoded
+  to a fixed blue instead of reading `--anchoran-accent` like
+  everything else in the OS.
+
+### Added
+
+- A visible accent-colored border on the focused window, a bigger and
+  more visible taskbar "open" indicator (a pill when focused), a
+  stronger taskbar divider, and an Enter-key hint on the Launcher's
+  top result.
+- Context menus can now carry an icon per item (opt-in, existing menus
+  are unaffected).
+- Files shows how much space is left on the current drive next to the
+  address bar.
+- A shared "nothing here yet" empty-state component, used in Event
+  Viewer and Todo.
+- A bigger logo in Onboarding, its card widened, and its progress
+  dots are now a proper pill when active. A bigger logo in Settings'
+  About section too.
+
 ## [2.6.0] - 2026-09-12
 
 ### Added

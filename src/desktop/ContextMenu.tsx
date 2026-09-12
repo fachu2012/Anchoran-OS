@@ -1,10 +1,13 @@
 import { useEffect, useRef } from "react";
+import { Icon, type IconName } from "@/components/Icon";
 
 export interface ContextMenuItem {
   label: string;
   onSelect: () => void;
   disabled?: boolean;
   danger?: boolean;
+  /** Optional — most existing menus don't set one, and that's fine, the label just starts flush left instead. */
+  icon?: IconName;
 }
 
 export interface ContextMenuSeparator {
@@ -62,6 +65,11 @@ export function ContextMenu({
               onClose();
             }}
           >
+            {entry.icon && (
+              <span className="context-menu-item-icon">
+                <Icon name={entry.icon} size={14} />
+              </span>
+            )}
             {entry.label}
           </button>
         )

@@ -54,7 +54,7 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
   return (
     <div className="onboarding-root">
       <div className="onboarding-card">
-        <AnchoranLogo size={44} color={prefs.accentColor} className="onboarding-logo" />
+        <AnchoranLogo size={56} color={prefs.accentColor} className="onboarding-logo" />
 
         {step === "welcome" && (
           <>
