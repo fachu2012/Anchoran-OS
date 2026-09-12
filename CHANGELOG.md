@@ -5,6 +5,20 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.2.1] - 2026-09-12
+
+### Changed
+
+- **Double-clicking (or "Open") a file in Files now opens it with
+  Anchoran's own default app for that type** — images in Photo Viewer,
+  text in Notes, audio/video in Media Player, .zip contents in Quick
+  Look — instead of a limited preview inside Files itself. Anything
+  Anchoran has no app for now opens with its real Windows default app,
+  the same as double-clicking it in Explorer would.
+- The GitHub release description is now generated automatically from
+  each version's own CHANGELOG.md section, so new releases stop
+  showing the old generic installer boilerplate.
+
 ## [2.2.0] - 2026-09-12
 
 ### Changed

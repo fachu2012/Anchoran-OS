@@ -1,8 +1,8 @@
 import { useEffect, useState, type DragEvent } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 import { useNotificationStore } from "@/notifications/notificationStore";
+import { useWindowStore } from "@/windowmanager/windowStore";
 import { ContextMenu, type ContextMenuItem } from "@/desktop/ContextMenu";
-import { printTextAsPdf } from "@/core/print";
 import { QuickLook } from "./QuickLook";
 import JSZip from "jszip";
 import { addPathToZip, extractZipTo } from "@/core/zipHelpers";
@@ -139,8 +139,8 @@ export function FilesApp() {
   const [quickLookEntry, setQuickLookEntry] = useState<Entry | null>(null);
   const [addressInput, setAddressInput] = useState("This PC");
   const [addressError, setAddressError] = useState<string | null>(null);
-  const [openFile, setOpenFile] = useState<{ path: string; name: string; content: string; isImage: boolean; dataUrl?: string } | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
+  const openApp = useWindowStore((s) => s.openApp);
 
   useEffect(() => {
     if (!window.anchoran) return;
@@ -204,6 +204,13 @@ export function FilesApp() {
     load(currentPath);
   }
 
+  // Opening a file hands it to whichever app is Anchoran's own
+  // "default app" for that type — Photo Viewer for images, Notes for
+  // text, Media Player for audio/video, Quick Look's archive view for
+  // zips — the same way double-clicking a file in a real OS opens its
+  // registered default app rather than staying inside the file
+  // manager itself. Anything Anchoran has no app for falls through to
+  // the file's real Windows default app, exactly like Explorer would.
   async function openEntry(entry: Entry) {
     if (entry.isDirectory) {
       setCurrentPath(entry.path);
@@ -211,43 +218,24 @@ export function FilesApp() {
     }
     const ext = entry.name.slice(entry.name.lastIndexOf(".")).toLowerCase();
     if (IMAGE_EXT.has(ext)) {
-      const result = await window.anchoran!.fsReadImageFile(entry.path);
-      if ("dataUrl" in result) {
-        setOpenFile({ path: entry.path, name: entry.name, content: "", isImage: true, dataUrl: result.dataUrl });
-      } else {
-        pushNotification("Files", result.error);
-      }
+      openApp("photoViewer", { openPath: entry.path });
+      return;
+    }
+    if (ext === ".zip") {
+      setQuickLookEntry(entry);
+      return;
+    }
+    if (AUDIO_EXT.has(ext) || VIDEO_EXT.has(ext)) {
+      openApp("mediaPlayer", { openPath: entry.path });
       return;
     }
     const isText = await window.anchoran!.fsIsTextFile(entry.path);
     if (isText) {
-      const result = await window.anchoran!.fsReadTextFile(entry.path);
-      if ("content" in result) {
-        setOpenFile({ path: entry.path, name: entry.name, content: result.content, isImage: false });
-      } else {
-        pushNotification("Files", result.error);
-      }
+      openApp("notes", { openPath: entry.path });
       return;
     }
-    // Anchoran 2.0.0 only natively opens images and text files — any
-    // other extension is "not supported yet" rather than silently
-    // handing it off to whatever Windows happens to use for it.
-    // Right-click → Open with… stays available as the explicit,
-    // deliberate way to launch a real Windows app for it instead.
-    if (AUDIO_EXT.has(ext) || VIDEO_EXT.has(ext)) {
-      pushNotification("Files", `${entry.name} isn't previewed in Files — open it in Media Player, or right-click → Open with…`);
-    } else {
-      pushNotification("Files", `${entry.name} isn't a file type Anchoran supports yet. Right-click → Open with… to open it with a Windows app.`);
-    }
-  }
-
-  async function saveOpenFile(content: string) {
-    if (!openFile) return;
-    setOpenFile({ ...openFile, content });
-    const result = await window.anchoran!.fsWriteTextFile(openFile.path, content);
-    if (!("success" in result) || !result.success) {
-      pushNotification("Files", "error" in result ? result.error! : "Couldn't save.");
-    }
+    const result = await window.anchoran!.fsOpenPath(entry.path);
+    if (!result.success) pushNotification("Files", result.error ?? `Couldn't open ${entry.name}.`);
   }
 
   async function newFolder() {
@@ -354,7 +342,7 @@ export function FilesApp() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (openFile || renamingPath || quickLookEntry) return;
+      if (renamingPath || quickLookEntry) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "c" && selected.size > 0) {
         setClipboard({ paths: Array.from(selected), mode: "copy" });
@@ -373,7 +361,7 @@ export function FilesApp() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, clipboard, openFile, renamingPath, currentPath, quickLookEntry, entries]);
+  }, [selected, clipboard, renamingPath, currentPath, quickLookEntry, entries]);
 
   function entryMenuItems(entry: Entry): ContextMenuItem[] {
     const paths = selected.has(entry.path) && selected.size > 1 ? Array.from(selected) : [entry.path];
@@ -417,41 +405,6 @@ export function FilesApp() {
   const sorted = [...filtered].sort((a, b) =>
     a.isDirectory !== b.isDirectory ? (a.isDirectory ? -1 : 1) : compareEntries(a, b, sortMode)
   );
-
-  if (openFile) {
-    return (
-      <div className="app-root">
-        <div className="app-toolbar">
-          <button className="app-toolbar-btn" onClick={() => setOpenFile(null)}>
-            <Icon name="chevronRight" size={14} style={{ transform: "rotate(180deg)" }} /> Back
-          </button>
-          <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }}>{openFile.name}</span>
-          {!openFile.isImage && (
-            <button className="app-toolbar-btn" onClick={() => printTextAsPdf(openFile.name.replace(/\.[^.]+$/, ""), openFile.content)}>
-              Print
-            </button>
-          )}
-        </div>
-        <div className="app-content" style={{ padding: 0 }}>
-          {openFile.isImage ? (
-            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#111" }}>
-              <img src={openFile.dataUrl} alt={openFile.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
-            </div>
-          ) : (
-            <textarea
-              value={openFile.content}
-              onChange={(e) => saveOpenFile(e.target.value)}
-              style={{
-                width: "100%", height: "100%", padding: 16, border: "none", outline: "none", resize: "none",
-                background: "transparent", color: "var(--anchoran-text-primary)", fontFamily: "inherit", fontSize: 14, lineHeight: 1.6,
-              }}
-              autoFocus
-            />
-          )}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="app-root">

@@ -95,6 +95,34 @@ jobs:
             release/latest.yml
             release/webstore-registry.json
 
+      # Builds the release description from CHANGELOG.md itself, so it
+      # never falls back to old boilerplate — pulls out this version's
+      # own section (everything between its "## [x.y.z]" heading and
+      # the next one) as the "Update summary". A release later found to
+      # be non-installable (a critical bug, or superseded by a required
+      # newer version) still gets its wording adjusted by hand — see
+      # the versioning rules in README.md — this is just the default.
+      - name: Build release description
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          {
+            echo "**Anchoran OS** \`v$VERSION\` is available for installation and update."
+            echo
+            echo "Update summary:"
+            echo
+            awk -v ver="$VERSION" '
+              /^## \[/ {
+                if (found) exit
+                if ($0 ~ ("\\[" ver "\\]")) { found = 1 }
+                next
+              }
+              found { print }
+            ' CHANGELOG.md
+            echo
+            echo "Full Changelog on https://github.com/fachu2012/Anchoran-OS/blob/main/CHANGELOG.md"
+          } > release_body.md
+
       # electron-updater (the auto-update client, see electron/main.ts)
       # reads latest.yml from the release assets to know the current
       # version and download URL for AnchoranOS's own installer — that,
@@ -104,10 +132,7 @@ jobs:
       - name: Attach to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          body: |
-            **Download `AnchoranOS-Setup-<version>.exe` to install or update Anchoran OS.** That's the only file you need — do not run `AnchoranOS-UpdatePackage-<version>.exe`; it's an internal component the app uses for its own auto-updates.
-
-            Full Changelog on https://github.com/fachu2012/Anchoran-OS/blob/main/CHANGELOG.md
+          body_path: release_body.md
           # Explicit, not relying on the action's defaults: publish
           # immediately (not a draft awaiting manual review) and mark
           # it as the repo's Latest release, so it shows up without a

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { printTextAsPdf } from "@/core/print";
 import { useNotificationStore } from "@/notifications/notificationStore";
@@ -15,7 +15,7 @@ import "./notes.css";
  * electron/main.ts); this is the app people would pick when they want
  * something Anchoran-native for a quick edit.
  */
-export function NotesApp() {
+export function NotesApp({ openPath }: { openPath?: string }) {
   const [path, setPath] = useState<string | null>(null);
   const [title, setTitle] = useState("Untitled");
   const [content, setContent] = useState("");
@@ -30,6 +30,28 @@ export function NotesApp() {
   function confirmDiscard() {
     return !dirty || window.confirm("You have unsaved changes. Discard them?");
   }
+
+  async function loadPath(filePath: string) {
+    if (!window.anchoran) return;
+    const read = await window.anchoran.fsReadTextFile(filePath);
+    if ("error" in read) {
+      pushNotification("Notes", read.error);
+      return;
+    }
+    setPath(filePath);
+    setTitle(filePath.slice(filePath.lastIndexOf("\\") + 1));
+    setContent(read.content);
+    setDirty(false);
+  }
+
+  // Opened directly from Files (its "default app" for text files) —
+  // loads that file the same way "Open…" would, including a re-open
+  // if the window was already open and Files pointed it at another
+  // file (single-instance apps get refocused, not re-created).
+  useEffect(() => {
+    if (openPath && confirmDiscard()) loadPath(openPath);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPath]);
 
   function newDocument() {
     if (!confirmDiscard()) return;
@@ -46,16 +68,7 @@ export function NotesApp() {
 
   async function onPickOpen(result: { path: string } | { dir: string; name: string }) {
     setOpenPicker(false);
-    if (!("path" in result) || !window.anchoran) return;
-    const read = await window.anchoran.fsReadTextFile(result.path);
-    if ("error" in read) {
-      pushNotification("Notes", read.error);
-      return;
-    }
-    setPath(result.path);
-    setTitle(result.path.slice(result.path.lastIndexOf("\\") + 1));
-    setContent(read.content);
-    setDirty(false);
+    if ("path" in result) await loadPath(result.path);
   }
 
   async function save() {

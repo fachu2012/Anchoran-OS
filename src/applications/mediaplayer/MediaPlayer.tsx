@@ -21,10 +21,13 @@ function toFileUrl(filePath: string) {
   return "file:///" + encodeURI(filePath.replace(/\\/g, "/"));
 }
 
-export function MediaPlayerApp() {
+export function MediaPlayerApp({ openPath }: { openPath?: string }) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [activePath, setActivePath] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  // A file opened directly from Files that isn't in Music/Videos —
+  // played straight from wherever it actually lives, no copy needed.
+  const [externalItem, setExternalItem] = useState<MediaItem | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
   const mixerLevel = useVolumeMixerStore((s) => s.getLevel("mediaPlayer"));
   const mediaRef = useRef<HTMLMediaElement>(null);
@@ -64,7 +67,21 @@ export function MediaPlayerApp() {
     refresh();
   }, []);
 
-  const active = items.find((i) => i.path === activePath) ?? items[0];
+  useEffect(() => {
+    if (!openPath) return;
+    const existing = items.find((i) => i.path === openPath);
+    if (existing) {
+      setActivePath(existing.path);
+      setExternalItem(null);
+    } else {
+      const ext = openPath.slice(openPath.lastIndexOf(".")).toLowerCase();
+      const name = openPath.slice(openPath.lastIndexOf("\\") + 1);
+      setExternalItem({ name, path: openPath, isVideo: VIDEO_EXT.has(ext) });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPath, items]);
+
+  const active = externalItem ?? items.find((i) => i.path === activePath) ?? items[0];
 
   async function onPickMedia(result: { path: string } | { dir: string; name: string }) {
     setPicking(false);
@@ -105,7 +122,15 @@ export function MediaPlayerApp() {
             </div>
           )}
           {items.map((item) => (
-            <button key={item.path} className="mediaplayer-item" data-active={item.path === active?.path} onClick={() => setActivePath(item.path)}>
+            <button
+              key={item.path}
+              className="mediaplayer-item"
+              data-active={item.path === active?.path}
+              onClick={() => {
+                setActivePath(item.path);
+                setExternalItem(null);
+              }}
+            >
               <Icon name={item.isVideo ? "photoViewer" : "mediaPlayer"} size={15} />
               <span>{item.name}</span>
             </button>

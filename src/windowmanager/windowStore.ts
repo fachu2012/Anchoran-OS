@@ -23,6 +23,12 @@ export interface AnchoranWindow {
   /** Bounds remembered from before maximizing, to restore into. */
   restoreBounds: Bounds | null;
   zIndex: number;
+  /** A real file this window was opened to show — e.g. Files handing a file to its default app (Notes, Photo Viewer, Media Player, …). */
+  openPath?: string;
+}
+
+export interface OpenAppOptions {
+  openPath?: string;
 }
 
 type RememberedBoundsMap = Partial<Record<AppId, Bounds>>;
@@ -37,7 +43,7 @@ interface WindowManagerState {
   /** Live preview rect shown while dragging a window near a screen edge. */
   snapPreview: Bounds | null;
 
-  openApp: (appId: AppId) => string;
+  openApp: (appId: AppId, options?: OpenAppOptions) => string;
   closeWindow: (windowId: string) => void;
   focusWindow: (windowId: string) => void;
   minimizeWindow: (windowId: string) => void;
@@ -77,7 +83,7 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
   rememberedBounds: {},
   snapPreview: null,
 
-  openApp: (appId) => {
+  openApp: (appId, options) => {
     // Some "apps" launch a real external Windows tool instead of
     // opening an Anchoran window — Recycle Bin, On-Screen Keyboard and
     // Narrator are all things Windows already does correctly, so
@@ -97,15 +103,19 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
     const state = get();
 
     // Most apps are single-instance: focus the existing window instead
-    // of opening a duplicate.
+    // of opening a duplicate. If this open came with a specific file
+    // (Files handing off to its default app), point the existing
+    // window at that file too, rather than just focusing it as-is.
     if (!def.allowMultipleInstances) {
       const existing = state.windows.find((w) => w.appId === appId);
       if (existing) {
         get().focusWindow(existing.windowId);
-        if (existing.isMinimized) {
+        if (existing.isMinimized || options?.openPath) {
           set((s) => ({
             windows: s.windows.map((w) =>
-              w.windowId === existing.windowId ? { ...w, isMinimized: false } : w
+              w.windowId === existing.windowId
+                ? { ...w, isMinimized: false, openPath: options?.openPath ?? w.openPath }
+                : w
             ),
           }));
         }
@@ -130,6 +140,7 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
       isMaximized: false,
       restoreBounds: null,
       zIndex,
+      openPath: options?.openPath,
     };
 
     set((s) => ({
