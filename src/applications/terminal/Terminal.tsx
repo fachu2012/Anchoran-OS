@@ -9,7 +9,13 @@ import { TerminalConsole } from "./TerminalConsole";
  * admin, no-chrome instance renders TerminalConsole directly instead
  * — see core/ErrorBoundary.tsx.
  */
-export function TerminalApp() {
-  const [admin, setAdmin] = useState(false);
-  return <TerminalConsole admin={admin} onUnlockAdmin={() => setAdmin(true)} />;
+export function TerminalApp({ startAdmin }: { startAdmin?: boolean }) {
+  const [admin, setAdmin] = useState(!!startAdmin);
+  return (
+    <TerminalConsole
+      admin={admin}
+      onUnlockAdmin={() => setAdmin(true)}
+      greeting={startAdmin ? 'Administrator Terminal. Type "help" to see the extra commands.' : undefined}
+    />
+  );
 }

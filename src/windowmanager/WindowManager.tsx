@@ -6,7 +6,10 @@ import type { AppId } from "@/core/types";
 // Each app is its own lazy chunk: Anchoran's initial load only ships
 // the desktop shell, not every application's code — an app's bundle
 // is fetched the first time a window for it actually opens.
-const APP_COMPONENTS: Record<AppId, React.LazyExoticComponent<(props: { openPath?: string }) => JSX.Element>> = {
+const APP_COMPONENTS: Record<
+  AppId,
+  React.LazyExoticComponent<(props: { openPath?: string; startAdmin?: boolean }) => JSX.Element>
+> = {
   files: lazy(() => import("@/applications/files/Files").then((m) => ({ default: m.FilesApp }))),
   terminal: lazy(() => import("@/applications/terminal/Terminal").then((m) => ({ default: m.TerminalApp }))),
   settings: lazy(() => import("@/applications/settings/Settings").then((m) => ({ default: m.SettingsApp }))),
@@ -139,7 +142,7 @@ export function WindowManager() {
         return (
           <WindowFrame key={win.windowId} win={win}>
             <Suspense fallback={<AppLoadingFallback />}>
-              <AppComponent openPath={win.openPath} />
+              <AppComponent openPath={win.openPath} startAdmin={win.startAdmin} />
             </Suspense>
           </WindowFrame>
         );

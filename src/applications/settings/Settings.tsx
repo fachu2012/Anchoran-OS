@@ -472,8 +472,12 @@ function UsersSection() {
   const createProfile = useProfilesStore((s) => s.createProfile);
   const deleteProfile = useProfilesStore((s) => s.deleteProfile);
   const switchProfile = useProfilesStore((s) => s.switchProfile);
+  const setProfileAdmin = useProfilesStore((s) => s.setProfileAdmin);
   const [newProfileName, setNewProfileName] = useState("");
+  const [newProfileAdmin, setNewProfileAdmin] = useState(false);
   const [avatarPicker, setAvatarPicker] = useState(false);
+  const activeProfile = profiles.find((p) => p.id === activeProfileId);
+  const isOwner = !!activeProfile?.isOwner;
 
   async function onPickAvatar(result: { path: string } | { dir: string; name: string }) {
     setAvatarPicker(false);
@@ -489,7 +493,8 @@ function UsersSection() {
           <div className="settings-row-label">Profiles</div>
           <div className="settings-row-desc">
             Each profile has its own name, avatar, PIN and appearance (accent color, wallpaper, theme). App data —
-            Notes, Files, and every other app — is shared across profiles.
+            Notes, Files, and every other app — is shared across profiles. You can only edit your own profile's
+            details below; only this PC's owner admin can grant or revoke admin status on other profiles.
           </div>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, width: "100%" }}>
@@ -507,14 +512,25 @@ function UsersSection() {
               }}
             >
               <span style={{ fontSize: 12.5 }}>{p.name}</span>
-              {p.id === activeProfileId ? (
+              {p.isOwner ? (
+                <span style={{ fontSize: 10.5, color: "var(--anchoran-accent)" }}>Owner</span>
+              ) : p.isAdmin ? (
+                <span style={{ fontSize: 10.5, color: "var(--anchoran-text-secondary)" }}>Admin</span>
+              ) : null}
+              {p.id === activeProfileId && (
                 <span style={{ fontSize: 10.5, color: "var(--anchoran-accent)" }}>Active</span>
-              ) : (
+              )}
+              {p.id !== activeProfileId && (
                 <button className="app-toolbar-btn" onClick={() => switchProfile(p.id)}>
                   Switch to
                 </button>
               )}
-              {profiles.length > 1 && (
+              {isOwner && !p.isOwner && (
+                <button className="app-toolbar-btn" onClick={() => setProfileAdmin(p.id, !p.isAdmin)}>
+                  {p.isAdmin ? "Revoke admin" : "Make admin"}
+                </button>
+              )}
+              {profiles.length > 1 && !p.isOwner && (
                 <button
                   className="app-toolbar-btn"
                   onClick={() => {
@@ -527,19 +543,28 @@ function UsersSection() {
             </div>
           ))}
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <input
             placeholder="New profile name"
             value={newProfileName}
             onChange={(e) => setNewProfileName(e.target.value)}
             style={inputStyle}
           />
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+            <input
+              type="checkbox"
+              checked={newProfileAdmin}
+              onChange={(e) => setNewProfileAdmin(e.target.checked)}
+            />
+            Administrator
+          </label>
           <button
             className="app-toolbar-btn"
             disabled={!newProfileName.trim()}
             onClick={() => {
-              createProfile(newProfileName.trim());
+              createProfile(newProfileName.trim(), newProfileAdmin);
               setNewProfileName("");
+              setNewProfileAdmin(false);
             }}
           >
             Add profile

@@ -25,10 +25,13 @@ export interface AnchoranWindow {
   zIndex: number;
   /** A real file this window was opened to show — e.g. Files handing a file to its default app (Notes, Photo Viewer, Media Player, …). */
   openPath?: string;
+  /** Terminal only: opened already-elevated via "Run as Administrator", after a successful admin PIN check. */
+  startAdmin?: boolean;
 }
 
 export interface OpenAppOptions {
   openPath?: string;
+  startAdmin?: boolean;
 }
 
 type RememberedBoundsMap = Partial<Record<AppId, Bounds>>;
@@ -133,7 +136,7 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
     const newWindow: AnchoranWindow = {
       windowId,
       appId,
-      title: def.title,
+      title: options?.startAdmin ? `${def.title} (Administrator)` : def.title,
       x: remembered?.x ?? offset.x,
       y: remembered?.y ?? offset.y,
       width: remembered?.width ?? def.defaultSize.width,
@@ -143,6 +146,7 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
       restoreBounds: null,
       zIndex,
       openPath: options?.openPath,
+      startAdmin: options?.startAdmin,
     };
 
     set((s) => ({

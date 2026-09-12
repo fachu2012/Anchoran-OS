@@ -5,6 +5,20 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.3] - 2026-09-12
+
+### Added
+
+- Profile permissions: the first user ever created on this PC becomes
+  its permanent owner admin (this can never be revoked); creating a
+  new profile now asks whether it should be an administrator, and only
+  the owner can grant or revoke admin status on other profiles
+  afterwards — from Settings → Users, which now only lets each profile
+  edit its own details.
+- Terminal / desktop icon right-click menu: "Run as Administrator" —
+  prompts for the PIN of any admin profile on this PC and, once
+  verified, opens a new Administrator Terminal window.
+
 ## [2.6.2] - 2026-09-12
 
 ### Added

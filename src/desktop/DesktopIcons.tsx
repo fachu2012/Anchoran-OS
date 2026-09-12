@@ -4,6 +4,7 @@ import { useWindowStore } from "@/windowmanager/windowStore";
 import { APP_REGISTRY } from "@/applications/registry";
 import { useDesktopIconsStore, type IconKey } from "./desktopIconsStore";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
+import { AdminPinPrompt } from "@/core/AdminPinPrompt";
 
 const GRID_X = 100;
 const GRID_Y = 92;
@@ -40,6 +41,7 @@ export function DesktopIcons() {
   const setPosition = useDesktopIconsStore((s) => s.setPosition);
   const [dragging, setDragging] = useState<IconKey | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
+  const [adminPinPrompt, setAdminPinPrompt] = useState(false);
 
   const entries: IconEntry[] = pinnedApps
     .filter((id) => APP_REGISTRY[id])
@@ -50,6 +52,9 @@ export function DesktopIcons() {
       onOpen: () => openApp(id),
       menu: [
         { label: "Open", onSelect: () => openApp(id) },
+        ...(id === "terminal"
+          ? [{ label: "Run as Administrator", icon: "lock" as IconName, onSelect: () => setAdminPinPrompt(true) }]
+          : []),
         { label: "Remove from desktop", onSelect: () => unpinApp(id) },
       ],
     }));
@@ -107,6 +112,15 @@ export function DesktopIcons() {
         );
       })}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+      {adminPinPrompt && (
+        <AdminPinPrompt
+          onCancel={() => setAdminPinPrompt(false)}
+          onSuccess={() => {
+            setAdminPinPrompt(false);
+            openApp("terminal", { startAdmin: true });
+          }}
+        />
+      )}
     </div>
   );
 }

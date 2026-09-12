@@ -8,6 +8,7 @@ import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { useSystemStatus } from "./systemStatus";
 import { QuickSettingsPanel } from "./QuickSettingsPanel";
 import { Clock } from "./Clock";
+import { AdminPinPrompt } from "@/core/AdminPinPrompt";
 import type { AppId } from "@/core/types";
 
 const DRAG_MIME = "application/x-anchoran-taskbar-app";
@@ -44,6 +45,7 @@ export function Taskbar({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; appId: AppId } | null>(null);
   const [quickSettingsOpen, setQuickSettingsOpen] = useState(false);
+  const [adminPinPrompt, setAdminPinPrompt] = useState(false);
 
   // Auto-hide, like a real OS taskbar: while any window is maximized,
   // the bar slides out of the way so the app can truly fill the
@@ -93,11 +95,15 @@ export function Taskbar({
 
   function contextItemsFor(appId: AppId): ContextMenuItem[] {
     const isPinned = pinned.includes(appId);
-    return [
+    const items: ContextMenuItem[] = [
       isPinned
         ? { label: "Unpin from taskbar", onSelect: () => unpin(appId) }
         : { label: "Pin to taskbar", onSelect: () => pin(appId) },
     ];
+    if (appId === "terminal") {
+      items.push({ label: "Run as Administrator", icon: "lock", onSelect: () => setAdminPinPrompt(true) });
+    }
+    return items;
   }
 
   const batteryPercent = Math.round(status.batteryLevel * 100);
@@ -197,6 +203,16 @@ export function Taskbar({
       )}
 
       {quickSettingsOpen && <QuickSettingsPanel onClose={() => setQuickSettingsOpen(false)} />}
+
+      {adminPinPrompt && (
+        <AdminPinPrompt
+          onCancel={() => setAdminPinPrompt(false)}
+          onSuccess={() => {
+            setAdminPinPrompt(false);
+            openApp("terminal", { startAdmin: true });
+          }}
+        />
+      )}
     </>
   );
 }
