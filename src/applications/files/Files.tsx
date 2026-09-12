@@ -2,14 +2,16 @@ import { useEffect, useState, type DragEvent } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { useWindowStore } from "@/windowmanager/windowStore";
+import { useDefaultAppsStore } from "@/core/defaultAppsStore";
 import { ContextMenu, type ContextMenuItem } from "@/desktop/ContextMenu";
 import { QuickLook } from "./QuickLook";
+import { FileProperties } from "./FileProperties";
 import JSZip from "jszip";
 import { addPathToZip, extractZipTo } from "@/core/zipHelpers";
 import "@/applications/apps.css";
 
 const THIS_PC = "This PC";
-type Entry = { name: string; path: string; isDirectory: boolean; size: number; modifiedAt: number };
+type Entry = { name: string; path: string; isDirectory: boolean; size: number; modifiedAt: number; createdAt: number };
 type Clipboard = { paths: string[]; mode: "copy" | "cut" } | null;
 type SortMode = "name-asc" | "name-desc" | "date-desc" | "date-asc" | "size-desc" | "size-asc";
 
@@ -139,8 +141,12 @@ export function FilesApp() {
   const [quickLookEntry, setQuickLookEntry] = useState<Entry | null>(null);
   const [addressInput, setAddressInput] = useState("This PC");
   const [addressError, setAddressError] = useState<string | null>(null);
+  const [includeSubfolders, setIncludeSubfolders] = useState(false);
+  const [recursiveResults, setRecursiveResults] = useState<Entry[] | null>(null);
+  const [propertiesEntry, setPropertiesEntry] = useState<Entry | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
   const openApp = useWindowStore((s) => s.openApp);
+  const defaultApps = useDefaultAppsStore();
 
   useEffect(() => {
     if (!window.anchoran) return;
@@ -184,6 +190,37 @@ export function FilesApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPath]);
 
+  // "Include subfolders" search — a bounded recursive scan under the
+  // current folder, debounced since it's real disk I/O rather than an
+  // in-memory filter of what's already loaded.
+  useEffect(() => {
+    if (!includeSubfolders || !query.trim() || currentPath === THIS_PC || !window.anchoran) {
+      setRecursiveResults(null);
+      return;
+    }
+    let cancelled = false;
+    const lowerQuery = query.trim().toLowerCase();
+    const timer = setTimeout(async () => {
+      const results: Entry[] = [];
+      async function scan(dir: string, depth: number) {
+        if (cancelled || results.length >= 300 || depth > 8) return;
+        const result = await window.anchoran!.fsListDir(dir);
+        if ("error" in result) return;
+        for (const entry of result.entries) {
+          if (cancelled || results.length >= 300) return;
+          if (entry.name.toLowerCase().includes(lowerQuery)) results.push(entry);
+          if (entry.isDirectory) await scan(entry.path, depth + 1);
+        }
+      }
+      await scan(currentPath, 0);
+      if (!cancelled) setRecursiveResults(results);
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [includeSubfolders, query, currentPath]);
+
   async function goToAddress() {
     const target = addressInput.trim();
     if (!target || target.toLowerCase() === THIS_PC.toLowerCase()) {
@@ -216,26 +253,34 @@ export function FilesApp() {
       setCurrentPath(entry.path);
       return;
     }
+    async function openExternally() {
+      const result = await window.anchoran!.fsOpenPath(entry!.path);
+      if (!result.success) pushNotification("Files", result.error ?? `Couldn't open ${entry!.name}.`);
+    }
+
     const ext = entry.name.slice(entry.name.lastIndexOf(".")).toLowerCase();
     if (IMAGE_EXT.has(ext)) {
-      openApp("photoViewer", { openPath: entry.path });
+      if (defaultApps.images === "external") await openExternally();
+      else openApp("photoViewer", { openPath: entry.path });
       return;
     }
     if (ext === ".zip") {
-      setQuickLookEntry(entry);
+      if (defaultApps.zip === "external") await openExternally();
+      else setQuickLookEntry(entry);
       return;
     }
     if (AUDIO_EXT.has(ext) || VIDEO_EXT.has(ext)) {
-      openApp("mediaPlayer", { openPath: entry.path });
+      if (defaultApps.audioVideo === "external") await openExternally();
+      else openApp("mediaPlayer", { openPath: entry.path });
       return;
     }
     const isText = await window.anchoran!.fsIsTextFile(entry.path);
     if (isText) {
-      openApp("notes", { openPath: entry.path });
+      if (defaultApps.text === "external") await openExternally();
+      else openApp("notes", { openPath: entry.path });
       return;
     }
-    const result = await window.anchoran!.fsOpenPath(entry.path);
-    if (!result.success) pushNotification("Files", result.error ?? `Couldn't open ${entry.name}.`);
+    await openExternally();
   }
 
   async function newFolder() {
@@ -388,6 +433,7 @@ export function FilesApp() {
         : []),
       { label: "Show in Explorer", onSelect: () => window.anchoran!.fsShowInExplorer(entry.path) },
       { label: paths.length > 1 ? `Delete ${paths.length} items` : "Delete", onSelect: () => deletePaths(paths) },
+      ...(paths.length === 1 ? [{ label: "Properties", onSelect: () => setPropertiesEntry(entry) }] : []),
     ];
   }
 
@@ -401,7 +447,12 @@ export function FilesApp() {
     return items;
   }
 
-  const filtered = query.trim() ? entries.filter((e) => e.name.toLowerCase().includes(query.toLowerCase())) : entries;
+  const searchingSubfolders = includeSubfolders && query.trim().length > 0 && currentPath !== THIS_PC;
+  const filtered = searchingSubfolders
+    ? recursiveResults ?? []
+    : query.trim()
+      ? entries.filter((e) => e.name.toLowerCase().includes(query.toLowerCase()))
+      : entries;
   const sorted = [...filtered].sort((a, b) =>
     a.isDirectory !== b.isDirectory ? (a.isDirectory ? -1 : 1) : compareEntries(a, b, sortMode)
   );
@@ -427,6 +478,15 @@ export function FilesApp() {
           onChange={(e) => setQuery(e.target.value)}
           style={{ border: "1px solid var(--anchoran-border)", borderRadius: 6, padding: "5px 9px", background: "var(--anchoran-bg)", color: "var(--anchoran-text-primary)", fontSize: 12.5, width: 140 }}
         />
+        <button
+          className="app-toolbar-btn"
+          data-op={includeSubfolders}
+          onClick={() => setIncludeSubfolders((v) => !v)}
+          disabled={currentPath === THIS_PC}
+          title="Also search inside subfolders"
+        >
+          Subfolders
+        </button>
         <select
           value={sortMode}
           onChange={(e) => setSortMode(e.target.value as SortMode)}
@@ -568,7 +628,14 @@ export function FilesApp() {
                 >
                   <td style={{ padding: "7px 8px", display: "flex", alignItems: "center", gap: 8 }}>
                     <Icon name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={15} />
-                    {entry.name}
+                    <span>
+                      {entry.name}
+                      {searchingSubfolders && (
+                        <div style={{ fontSize: 11, color: "var(--anchoran-text-secondary)" }}>
+                          {entry.path.slice(currentPath.length + 1, entry.path.length - entry.name.length - 1) || "."}
+                        </div>
+                      )}
+                    </span>
                   </td>
                   <td style={{ padding: "7px 8px", color: "var(--anchoran-text-secondary)" }}>{formatSize(entry.size, entry.isDirectory)}</td>
                   <td style={{ padding: "7px 8px", color: "var(--anchoran-text-secondary)" }}>{formatDate(entry.modifiedAt)}</td>
@@ -582,6 +649,7 @@ export function FilesApp() {
         <ContextMenu x={menu.x} y={menu.y} items={menu.entry ? entryMenuItems(menu.entry) : emptySpaceMenuItems()} onClose={() => setMenu(null)} />
       )}
       {quickLookEntry && <QuickLook entry={quickLookEntry} onClose={() => setQuickLookEntry(null)} />}
+      {propertiesEntry && <FileProperties entry={propertiesEntry} onClose={() => setPropertiesEntry(null)} />}
     </div>
   );
 }

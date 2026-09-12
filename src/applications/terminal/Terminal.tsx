@@ -21,6 +21,11 @@ function parentPath(p: string): string {
   return parent.length <= 2 ? `${parent}\\` : parent;
 }
 
+/** A bare drive-letter path ("C:\...") is used as-is; anything else is joined onto cwd. */
+function resolvePath(cwd: string, target: string): string {
+  return /^[A-Za-z]:[\\/]/.test(target) ? target : `${cwd}\\${target}`;
+}
+
 export function TerminalApp() {
   const [history, setHistory] = useState<HistoryEntry[]>([
     { id: entryId++, text: "Anchoran OS Terminal. Type \"help\" to get started." },
@@ -66,6 +71,27 @@ export function TerminalApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function completeTab() {
+    if (!window.anchoran) return;
+    const lastSpace = input.lastIndexOf(" ");
+    const partial = input.slice(lastSpace + 1);
+    const lastSlash = Math.max(partial.lastIndexOf("\\"), partial.lastIndexOf("/"));
+    const dirPart = lastSlash >= 0 ? partial.slice(0, lastSlash) : "";
+    const namePrefix = (lastSlash >= 0 ? partial.slice(lastSlash + 1) : partial).toLowerCase();
+    const dir = dirPart ? resolvePath(cwd, dirPart) : cwd;
+    const result = await window.anchoran.fsListDir(dir);
+    if ("error" in result) return;
+    const matches = result.entries.filter((e) => e.name.toLowerCase().startsWith(namePrefix));
+    if (matches.length === 0) return;
+    if (matches.length === 1) {
+      const completedName = matches[0].name + (matches[0].isDirectory ? "\\" : "");
+      const newPartial = (dirPart ? `${dirPart}\\` : "") + completedName;
+      setInput(input.slice(0, lastSpace + 1) + newPartial);
+    } else {
+      print(matches.map((m) => (m.isDirectory ? `${m.name}\\` : m.name)).join("  "));
+    }
+  }
+
   async function run(raw: string) {
     const line = raw.trim();
     print(`user@anchoran:~$ ${raw}`);
@@ -80,7 +106,9 @@ export function TerminalApp() {
           [
             "Available commands:",
             "  help, clear, about, system, date, echo, pwd, ls, cd, mkdir, touch, cat",
+            "  del/rm, move/mv, copy/cp, find",
             "  anchoran system | anchoran version | anchoran settings | anchoran update",
+            "Tab completes file and folder names.",
           ].join("\n")
         );
         break;
@@ -145,6 +173,69 @@ export function TerminalApp() {
         else print(`cat: no such file: ${args[0]}`);
         break;
       }
+      case "del":
+      case "rm": {
+        if (!args[0]) {
+          print(`${cmd}: missing file or folder name`);
+          break;
+        }
+        const target = resolvePath(cwd, args[0]);
+        const result = await window.anchoran?.fsDelete([target]);
+        if (!result) print(`${cmd}: not available outside the Anchoran desktop app.`);
+        else if (!result.success) print(`${cmd}: ${result.error}`);
+        break;
+      }
+      case "move":
+      case "mv": {
+        if (!args[0] || !args[1]) {
+          print(`${cmd}: usage: ${cmd} <source> <destination folder>`);
+          break;
+        }
+        const source = resolvePath(cwd, args[0]);
+        const destDir = resolvePath(cwd, args[1]);
+        const result = await window.anchoran?.fsMove([source], destDir);
+        if (!result) print(`${cmd}: not available outside the Anchoran desktop app.`);
+        else if (!result.success) print(`${cmd}: ${result.error}`);
+        break;
+      }
+      case "copy":
+      case "cp": {
+        if (!args[0] || !args[1]) {
+          print(`${cmd}: usage: ${cmd} <source> <destination folder>`);
+          break;
+        }
+        const source = resolvePath(cwd, args[0]);
+        const destDir = resolvePath(cwd, args[1]);
+        const result = await window.anchoran?.fsCopy([source], destDir);
+        if (!result) print(`${cmd}: not available outside the Anchoran desktop app.`);
+        else if (!result.success) print(`${cmd}: ${result.error}`);
+        break;
+      }
+      case "find": {
+        if (!args[0]) {
+          print("find: missing search text");
+          break;
+        }
+        if (!window.anchoran) {
+          print("find: not available outside the Anchoran desktop app.");
+          break;
+        }
+        const needle = args[0].toLowerCase();
+        const matches: string[] = [];
+        async function scan(dir: string, depth: number) {
+          if (matches.length >= 100 || depth > 8) return;
+          const result = await window.anchoran!.fsListDir(dir);
+          if ("error" in result) return;
+          for (const entry of result.entries) {
+            if (matches.length >= 100) return;
+            if (entry.name.toLowerCase().includes(needle)) matches.push(entry.path);
+            if (entry.isDirectory) await scan(entry.path, depth + 1);
+          }
+        }
+        await scan(cwd, 0);
+        print(matches.length > 0 ? matches.join("\n") : "find: no matches");
+        break;
+      }
       case "anchoran": {
         const sub = args[0];
         if (sub === "system") print(`Anchoran OS ${ANCHORAN_VERSION}`);
@@ -185,6 +276,11 @@ export function TerminalApp() {
           autoFocus
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
+            if (e.key === "Tab") {
+              e.preventDefault();
+              completeTab();
+              return;
+            }
             if (e.key === "Enter") {
               if (input.trim()) commandHistory.current.push(input);
               setHistoryCursor(null);

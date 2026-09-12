@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, clipboard, desktopCapturer, dialog, globalShortcut, ipcMain, screen, session, shell, webContents } from "electron";
+import { app, BrowserWindow, Menu, clipboard, desktopCapturer, dialog, globalShortcut, ipcMain, nativeImage, screen, session, shell, webContents } from "electron";
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
@@ -347,6 +347,16 @@ ipcMain.handle("anchoran:get-capture-sources", async () => {
   return sources.map((s) => ({ id: s.id, name: s.name, thumbnailDataUrl: s.thumbnail.toDataURL() }));
 });
 
+/** Screenshot: "Copy" puts the real image bytes on the system clipboard, the same as any real screenshot tool. */
+ipcMain.handle("anchoran:copy-image-to-clipboard", (_event, dataUrl: string) => {
+  try {
+    clipboard.writeImage(nativeImage.createFromDataURL(dataUrl));
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
 /** Event Viewer: reads Anchoran's own real log file (see logToDisk above) — the same events it has always written, just made visible. */
 ipcMain.handle("anchoran:read-log", () => {
   try {
@@ -437,6 +447,7 @@ interface FsEntry {
   isDirectory: boolean;
   size: number;
   modifiedAt: number;
+  createdAt: number;
 }
 
 ipcMain.handle("anchoran:fs-list-dir", (_event, dirPath: string) => {
@@ -453,6 +464,7 @@ ipcMain.handle("anchoran:fs-list-dir", (_event, dirPath: string) => {
           isDirectory: stat.isDirectory(),
           size: stat.size,
           modifiedAt: stat.mtimeMs,
+          createdAt: stat.birthtimeMs,
         });
       } catch {
         // Unreadable entry (permissions, broken link, …) — skip rather than fail the whole listing.
@@ -702,6 +714,40 @@ ipcMain.on("anchoran:open-recycle-bin", () => {
   if (process.platform === "win32") execFile("explorer.exe", ["shell:RecycleBinFolder"]);
 });
 
+/** Storage Usage's quick cleanup: empties the real Recycle Bin via PowerShell's own cmdlet for it. */
+ipcMain.handle("anchoran:empty-recycle-bin", () => {
+  if (process.platform !== "win32") return { success: false, error: "Only supported on Windows." };
+  return new Promise((resolve) => {
+    execFile(
+      "powershell.exe",
+      ["-NoProfile", "-Command", "Clear-RecycleBin -Force -ErrorAction SilentlyContinue"],
+      (err) => {
+        if (err) resolve({ success: false, error: err.message });
+        else resolve({ success: true });
+      }
+    );
+  });
+});
+
+/** Storage Usage's quick cleanup: clears Anchoran's own disposable cache folder (generated PDFs, etc. — see save-and-open-file above) and reports bytes freed. */
+ipcMain.handle("anchoran:clear-cache", () => {
+  try {
+    let freed = 0;
+    for (const name of fs.readdirSync(cacheDir)) {
+      const full = path.join(cacheDir, name);
+      try {
+        freed += fs.statSync(full).size;
+        fs.rmSync(full, { recursive: true, force: true });
+      } catch {
+        // Skip anything that can't be removed rather than failing the whole cleanup.
+      }
+    }
+    return { success: true, freedBytes: freed };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
 /**
  * On-Screen Keyboard and Narrator: Windows already ships fully-working,
  * properly localized, deeply OS-integrated versions of both — building
@@ -725,14 +771,30 @@ ipcMain.on("anchoran:open-narrator", () => {
  */
 const STARTUP_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 
+/** Pulls the actual executable path out of a Run-key command string (which may be quoted and/or have arguments after it) so its existence can be checked for real. */
+function extractExePath(command: string): string | null {
+  const quoted = command.match(/^\s*"([^"]+)"/);
+  if (quoted) return quoted[1];
+  const bare = command.match(/^\s*(\S+\.exe)/i);
+  return bare ? bare[1] : null;
+}
+
 ipcMain.handle("anchoran:list-startup-items", async () => {
   if (process.platform !== "win32") return [];
   const { success, output } = await runReg(["query", STARTUP_KEY]);
   if (!success) return [];
-  const items: { name: string; command: string }[] = [];
+  const items: { name: string; command: string; exists: boolean }[] = [];
   for (const line of output.split(/\r?\n/)) {
     const match = line.match(/^\s{4}(\S.*?)\s{4}REG_\S+\s{4}(.*)$/);
-    if (match) items.push({ name: match[1], command: match[2].trim() });
+    if (!match) continue;
+    const command = match[2].trim();
+    const exePath = extractExePath(command);
+    // No resolvable path (e.g. a bare rundll32 call with no exe token)
+    // is treated as "exists" — there's nothing concrete to flag as
+    // missing, so it shouldn't be marked broken just because parsing
+    // couldn't pin down a file.
+    const exists = exePath ? fs.existsSync(exePath) : true;
+    items.push({ name: match[1], command, exists });
   }
   return items;
 });

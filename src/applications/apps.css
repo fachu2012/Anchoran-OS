@@ -270,6 +270,84 @@ tr[data-selected="true"] {
   border-color: var(--anchoran-accent);
 }
 
+.calc-memory-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.calc-mem-btn {
+  border: 1px solid var(--anchoran-border);
+  background: var(--anchoran-surface);
+  border-radius: var(--anchoran-radius-sm);
+  font-size: 12px;
+  padding: 5px 10px;
+  color: var(--anchoran-text-primary);
+  cursor: pointer;
+}
+
+.calc-mem-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.calc-mem-btn:not(:disabled):hover {
+  background: var(--anchoran-border);
+}
+
+.calc-mem-indicator {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--anchoran-accent);
+}
+
+.calc-history {
+  flex-shrink: 0;
+  max-height: 120px;
+  overflow-y: auto;
+  border-top: 1px solid var(--anchoran-border);
+  padding-top: 8px;
+}
+
+.calc-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--anchoran-text-secondary);
+  margin-bottom: 4px;
+}
+
+.calc-history-clear {
+  border: none;
+  background: transparent;
+  color: var(--anchoran-text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  text-decoration: underline;
+}
+
+.calc-history-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 2px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--anchoran-text-secondary);
+}
+
+.calc-history-row:hover {
+  color: var(--anchoran-text-primary);
+}
+
+.calc-history-result {
+  color: var(--anchoran-text-primary);
+  flex-shrink: 0;
+}
+
 /* System Monitor */
 .sysmon-grid {
   display: grid;

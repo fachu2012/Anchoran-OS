@@ -14,6 +14,8 @@ export function CalculatorApp() {
   const [accumulator, setAccumulator] = useState<number | null>(null);
   const [pendingOp, setPendingOp] = useState<string | null>(null);
   const [awaitingOperand, setAwaitingOperand] = useState(false);
+  const [memory, setMemory] = useState<number | null>(null);
+  const [history, setHistory] = useState<{ expression: string; result: string }[]>([]);
 
   function inputDigit(digit: string) {
     if (awaitingOperand) {
@@ -55,7 +57,9 @@ export function CalculatorApp() {
     if (op === "=") {
       if (pendingOp && accumulator !== null) {
         const result = applyOp(accumulator, value, pendingOp);
+        const expression = `${accumulator} ${pendingOp} ${value}`;
         setDisplay(String(result));
+        setHistory((h) => [{ expression, result: String(result) }, ...h].slice(0, 30));
         setAccumulator(null);
         setPendingOp(null);
         setAwaitingOperand(true);
@@ -74,8 +78,35 @@ export function CalculatorApp() {
     setAwaitingOperand(true);
   }
 
+  function memoryAction(action: "MC" | "MR" | "M+" | "M-") {
+    const value = parseFloat(display);
+    if (action === "MC") setMemory(null);
+    else if (action === "MR") {
+      if (memory !== null) {
+        setDisplay(String(memory));
+        setAwaitingOperand(false);
+      }
+    } else if (action === "M+") setMemory((m) => (m ?? 0) + value);
+    else if (action === "M-") setMemory((m) => (m ?? 0) - value);
+  }
+
   return (
     <div className="calc-root">
+      <div className="calc-memory-row">
+        <button className="calc-mem-btn" onClick={() => memoryAction("MC")} disabled={memory === null}>
+          MC
+        </button>
+        <button className="calc-mem-btn" onClick={() => memoryAction("MR")} disabled={memory === null}>
+          MR
+        </button>
+        <button className="calc-mem-btn" onClick={() => memoryAction("M+")}>
+          M+
+        </button>
+        <button className="calc-mem-btn" onClick={() => memoryAction("M-")}>
+          M−
+        </button>
+        {memory !== null && <span className="calc-mem-indicator">M</span>}
+      </div>
       <div className="calc-display">{display}</div>
       <div className="calc-grid">
         {BUTTONS.map((btn) => {
@@ -95,6 +126,22 @@ export function CalculatorApp() {
           );
         })}
       </div>
+      {history.length > 0 && (
+        <div className="calc-history">
+          <div className="calc-history-header">
+            <span>History</span>
+            <button className="calc-history-clear" onClick={() => setHistory([])}>
+              Clear
+            </button>
+          </div>
+          {history.map((h, i) => (
+            <div key={i} className="calc-history-row" onClick={() => setDisplay(h.result)}>
+              <span className="calc-history-expr">{h.expression}</span>
+              <span className="calc-history-result">= {h.result}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

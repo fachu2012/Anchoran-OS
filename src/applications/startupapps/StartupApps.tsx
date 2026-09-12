@@ -7,6 +7,7 @@ import "./startupapps.css";
 interface StartupItem {
   name: string;
   command: string;
+  exists: boolean;
 }
 
 /**
@@ -56,7 +57,12 @@ export function StartupAppsApp() {
         {items?.map((item) => (
           <div key={item.name} className="startupapps-row">
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="startupapps-name">{item.name}</div>
+              <div className="startupapps-name">
+                {item.name}
+                {!item.exists && (
+                  <span style={{ marginLeft: 8, fontSize: 11, color: "#E5484D" }}>Target not found</span>
+                )}
+              </div>
               <div className="startupapps-command">{item.command}</div>
             </div>
             <button className="app-toolbar-btn" onClick={() => remove(item.name)}>

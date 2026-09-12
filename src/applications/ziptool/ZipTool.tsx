@@ -7,7 +7,14 @@ import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 import "@/applications/apps.css";
 import "./ziptool.css";
 
-type PickerState = "export-folder" | "import-zip" | "extract-folder" | null;
+type PickerState =
+  | "export-folder"
+  | "import-zip"
+  | "extract-folder"
+  | "add-target-zip"
+  | "add-source-file"
+  | "add-source-folder"
+  | null;
 
 export function ZipToolApp() {
   const pushNotification = useNotificationStore((s) => s.push);
@@ -15,6 +22,8 @@ export function ZipToolApp() {
   const [status, setStatus] = useState<string | null>(null);
   const [picker, setPicker] = useState<PickerState>(null);
   const [pendingZip, setPendingZip] = useState<{ base64: string; fileName: string } | null>(null);
+  const [addMode, setAddMode] = useState<"file" | "folder" | null>(null);
+  const [addTargetZip, setAddTargetZip] = useState<string | null>(null);
 
   async function exportZip(folder: string) {
     if (!window.anchoran) return;
@@ -50,6 +59,34 @@ export function ZipToolApp() {
     }
   }
 
+  async function addToZip(zipPath: string, sourcePath: string, isFolder: boolean) {
+    if (!window.anchoran) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      const binary = await window.anchoran.fsReadBinary(zipPath);
+      if ("error" in binary) {
+        setStatus(binary.error);
+        return;
+      }
+      const zip = await JSZip.loadAsync(binary.base64, { base64: true });
+      const itemName = sourcePath.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? "item";
+      await addPathToZip(zip, sourcePath, itemName, isFolder);
+      const base64 = await zip.generateAsync({ type: "base64" });
+      const dir = zipPath.slice(0, zipPath.lastIndexOf("\\"));
+      const fileName = zipPath.slice(zipPath.lastIndexOf("\\") + 1);
+      const write = await window.anchoran.fsWriteDataUrl(dir, fileName, `data:application/zip;base64,${base64}`);
+      if ("error" in write) {
+        setStatus(write.error);
+        return;
+      }
+      setStatus(`Added "${itemName}" to ${fileName}.`);
+      pushNotification("Zip Tool", `Added ${itemName} to ${fileName}.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onPickerConfirm(result: { path: string } | { dir: string; name: string }) {
     const mode = picker;
     setPicker(null);
@@ -69,6 +106,13 @@ export function ZipToolApp() {
       const zipResult = pendingZip;
       setPendingZip(null);
       extractZip(zipResult, result.path);
+    } else if (mode === "add-target-zip") {
+      setAddTargetZip(result.path);
+      setPicker(addMode === "folder" ? "add-source-folder" : "add-source-file");
+    } else if ((mode === "add-source-file" || mode === "add-source-folder") && addTargetZip) {
+      const target = addTargetZip;
+      setAddTargetZip(null);
+      addToZip(target, result.path, mode === "add-source-folder");
     }
   }
 
@@ -86,6 +130,31 @@ export function ZipToolApp() {
           <button className="app-toolbar-btn" onClick={() => setPicker("import-zip")} disabled={busy}>
             Choose .zip file…
           </button>
+        </div>
+        <div className="ziptool-section">
+          <div className="ziptool-section-title">Add to an existing .zip</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className="app-toolbar-btn"
+              onClick={() => {
+                setAddMode("file");
+                setPicker("add-target-zip");
+              }}
+              disabled={busy}
+            >
+              Add a file…
+            </button>
+            <button
+              className="app-toolbar-btn"
+              onClick={() => {
+                setAddMode("folder");
+                setPicker("add-target-zip");
+              }}
+              disabled={busy}
+            >
+              Add a folder…
+            </button>
+          </div>
         </div>
         {status && <div className="ziptool-status">{status}</div>}
       </div>
@@ -114,6 +183,40 @@ export function ZipToolApp() {
           onCancel={() => {
             setPicker(null);
             setPendingZip(null);
+          }}
+        />
+      )}
+      {picker === "add-target-zip" && (
+        <AnchoranFilePicker
+          mode="open"
+          title="Choose the .zip to add to"
+          extensions={[".zip"]}
+          onConfirm={onPickerConfirm}
+          onCancel={() => {
+            setPicker(null);
+            setAddMode(null);
+          }}
+        />
+      )}
+      {picker === "add-source-file" && (
+        <AnchoranFilePicker
+          mode="open"
+          title="Choose a file to add"
+          onConfirm={onPickerConfirm}
+          onCancel={() => {
+            setPicker(null);
+            setAddTargetZip(null);
+          }}
+        />
+      )}
+      {picker === "add-source-folder" && (
+        <AnchoranFilePicker
+          mode="folder"
+          title="Choose a folder to add"
+          onConfirm={onPickerConfirm}
+          onCancel={() => {
+            setPicker(null);
+            setAddTargetZip(null);
           }}
         />
       )}

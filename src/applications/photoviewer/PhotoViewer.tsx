@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { usePreferencesStore } from "@/theme/preferencesStore";
+import { useNotificationStore } from "@/notifications/notificationStore";
 import "@/applications/apps.css";
 import "./photoviewer.css";
 
@@ -9,6 +11,91 @@ interface Photo {
   name: string;
   path: string;
   dataUrl: string;
+}
+
+/** Renders the source image rotated by the given multiple of 90° into a same-orientation-corrected data URL — used so "Set as wallpaper" bakes in the rotation instead of ignoring it. */
+function rotateDataUrl(dataUrl: string, degrees: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (degrees % 360 === 0) {
+      resolve(dataUrl);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const swap = degrees % 180 !== 0;
+      canvas.width = swap ? img.height : img.width;
+      canvas.height = swap ? img.width : img.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((degrees * Math.PI) / 180);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+function PhotoFullView({
+  photo,
+  onBack,
+  onPrev,
+  onNext,
+}: {
+  photo: Photo;
+  onBack: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+}) {
+  const [rotation, setRotation] = useState(0);
+  const setCustomWallpaper = usePreferencesStore((s) => s.setCustomWallpaper);
+  const setWallpaper = usePreferencesStore((s) => s.setWallpaper);
+  const pushNotification = useNotificationStore((s) => s.push);
+
+  useEffect(() => setRotation(0), [photo.path]);
+
+  async function setAsWallpaper() {
+    const rotated = await rotateDataUrl(photo.dataUrl, rotation);
+    setCustomWallpaper(rotated);
+    setWallpaper("custom");
+    pushNotification("Photo Viewer", "Applied as your desktop wallpaper.");
+  }
+
+  return (
+    <div className="app-root">
+      <div className="app-toolbar">
+        <button className="app-toolbar-btn" onClick={onBack}>
+          <Icon name="chevronRight" size={13} style={{ transform: "rotate(180deg)" }} /> Back
+        </button>
+        <span style={{ fontSize: 12.5 }}>{photo.name}</span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          <button className="app-toolbar-btn" onClick={() => setRotation((r) => (r + 270) % 360)} aria-label="Rotate left">
+            <Icon name="restart" size={13} style={{ transform: "scaleX(-1)" }} />
+          </button>
+          <button className="app-toolbar-btn" onClick={() => setRotation((r) => (r + 90) % 360)} aria-label="Rotate right">
+            <Icon name="restart" size={13} />
+          </button>
+          <button className="app-toolbar-btn" onClick={setAsWallpaper}>
+            Set as wallpaper
+          </button>
+          {onPrev && (
+            <button className="app-toolbar-btn" onClick={onPrev}>
+              Prev
+            </button>
+          )}
+          {onNext && (
+            <button className="app-toolbar-btn" onClick={onNext}>
+              Next
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="app-content photoviewer-full">
+        <img src={photo.dataUrl} alt={photo.name} style={{ transform: `rotate(${rotation}deg)` }} />
+      </div>
+    </div>
+  );
 }
 
 export function PhotoViewerApp({ openPath }: { openPath?: string }) {
@@ -61,47 +148,17 @@ export function PhotoViewerApp({ openPath }: { openPath?: string }) {
   }, [openPath]);
 
   if (externalPhoto) {
-    return (
-      <div className="app-root">
-        <div className="app-toolbar">
-          <button className="app-toolbar-btn" onClick={() => setExternalPhoto(null)}>
-            <Icon name="chevronRight" size={13} style={{ transform: "rotate(180deg)" }} /> Back
-          </button>
-          <span style={{ fontSize: 12.5 }}>{externalPhoto.name}</span>
-        </div>
-        <div className="app-content photoviewer-full">
-          <img src={externalPhoto.dataUrl} alt={externalPhoto.name} />
-        </div>
-      </div>
-    );
+    return <PhotoFullView photo={externalPhoto} onBack={() => setExternalPhoto(null)} />;
   }
 
   if (openIndex !== null && photos[openIndex]) {
-    const photo = photos[openIndex];
     return (
-      <div className="app-root">
-        <div className="app-toolbar">
-          <button className="app-toolbar-btn" onClick={() => setOpenIndex(null)}>
-            <Icon name="chevronRight" size={13} style={{ transform: "rotate(180deg)" }} /> Back
-          </button>
-          <span style={{ fontSize: 12.5 }}>{photo.name}</span>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-            <button className="app-toolbar-btn" disabled={openIndex === 0} onClick={() => setOpenIndex((i) => (i! > 0 ? i! - 1 : i))}>
-              Prev
-            </button>
-            <button
-              className="app-toolbar-btn"
-              disabled={openIndex === photos.length - 1}
-              onClick={() => setOpenIndex((i) => (i! < photos.length - 1 ? i! + 1 : i))}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-        <div className="app-content photoviewer-full">
-          <img src={photo.dataUrl} alt={photo.name} />
-        </div>
-      </div>
+      <PhotoFullView
+        photo={photos[openIndex]}
+        onBack={() => setOpenIndex(null)}
+        onPrev={openIndex > 0 ? () => setOpenIndex((i) => i! - 1) : undefined}
+        onNext={openIndex < photos.length - 1 ? () => setOpenIndex((i) => i! + 1) : undefined}
+      />
     );
   }
 

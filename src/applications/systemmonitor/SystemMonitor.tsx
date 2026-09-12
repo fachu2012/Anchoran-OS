@@ -67,6 +67,26 @@ interface SystemInfo {
   systemUptimeSec: number;
 }
 
+/** A minimal rolling history bar chart — no charting library needed for ~40 points. */
+function HistorySparkline({ values }: { values: number[] }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 24, marginTop: 6 }}>
+      {values.map((v, i) => (
+        <div
+          key={i}
+          style={{
+            flex: 1,
+            height: `${Math.max(2, v)}%`,
+            background: "var(--anchoran-accent)",
+            opacity: 0.4 + (i / values.length) * 0.6,
+            borderRadius: 1,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function formatUptime(totalSeconds: number) {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -99,13 +119,22 @@ export function SystemMonitorApp() {
     loadProcesses();
   }
 
+  const HISTORY_LENGTH = 40;
+  const [cpuHistory, setCpuHistory] = useState<number[]>([]);
+  const [memHistory, setMemHistory] = useState<number[]>([]);
+
   useEffect(() => {
     let cancelled = false;
 
     async function poll() {
       if (window.anchoran) {
         const data = await window.anchoran.getSystemInfo();
-        if (!cancelled) setInfo(data);
+        if (!cancelled) {
+          setInfo(data);
+          setCpuHistory((h) => [...h, data.cpuUsagePercent].slice(-HISTORY_LENGTH));
+          const usedPct = Math.round(((data.totalMemMB - data.freeMemMB) / data.totalMemMB) * 100);
+          setMemHistory((h) => [...h, usedPct].slice(-HISTORY_LENGTH));
+        }
       }
       const perf = performance as Performance & { memory?: { usedJSHeapSize: number } };
       if (perf.memory) setRenderMemMB(Math.round(perf.memory.usedJSHeapSize / 1048576));
@@ -193,6 +222,7 @@ export function SystemMonitorApp() {
               <div className="sysmon-meter">
                 <div className="sysmon-meter-fill" style={{ width: `${info.cpuUsagePercent}%` }} />
               </div>
+              <HistorySparkline values={cpuHistory} />
             </div>
             <div className="sysmon-card">
               <div className="sysmon-card-label">Memory</div>
@@ -202,6 +232,7 @@ export function SystemMonitorApp() {
               <div className="sysmon-meter">
                 <div className="sysmon-meter-fill" style={{ width: `${memPercent}%` }} />
               </div>
+              <HistorySparkline values={memHistory} />
             </div>
             <div className="sysmon-card">
               <div className="sysmon-card-label">System Uptime</div>

@@ -18,18 +18,26 @@
 .mediaplayer-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 8px;
   border-radius: 6px;
+  color: var(--anchoran-text-primary);
+}
+
+.mediaplayer-item-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 7px 8px;
   border: none;
   background: transparent;
-  color: var(--anchoran-text-primary);
+  color: inherit;
   font-size: 12.5px;
   cursor: pointer;
   text-align: left;
 }
 
-.mediaplayer-item span {
+.mediaplayer-item-main span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -42,6 +50,53 @@
 .mediaplayer-item[data-active="true"] {
   background: var(--anchoran-accent-soft);
   color: var(--anchoran-accent);
+}
+
+.mediaplayer-queue-btn {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--anchoran-text-disabled);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+}
+
+.mediaplayer-queue-btn:hover {
+  color: var(--anchoran-accent);
+}
+
+.mediaplayer-queue {
+  width: 160px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--anchoran-border);
+  padding-right: 10px;
+}
+
+.mediaplayer-queue-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--anchoran-text-secondary);
+  margin-bottom: 6px;
+}
+
+.mediaplayer-queue-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 4px;
+  font-size: 12px;
+}
+
+.mediaplayer-queue-row span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mediaplayer-stage {

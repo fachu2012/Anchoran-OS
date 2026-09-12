@@ -69,6 +69,20 @@ export function MagnifierApp() {
     []
   );
 
+  // Anchoran itself fills the whole screen, so window-level coordinates
+  // already are real desktop coordinates — tracked here instead of on
+  // just the lens panel below, so the magnifier keeps following the
+  // real cursor anywhere on the desktop (other windows, the taskbar,
+  // …), the same as a real magnifier lens, not just while hovering its
+  // own small preview area.
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      mouse.current = { x: e.clientX, y: e.clientY };
+    }
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
+
   return (
     <div className="app-root">
       <div className="app-toolbar">
@@ -89,13 +103,7 @@ export function MagnifierApp() {
           ))}
         </div>
       </div>
-      <div
-        ref={containerRef}
-        className="magnifier-stage"
-        onMouseMove={(e) => {
-          mouse.current = { x: e.clientX, y: e.clientY };
-        }}
-      >
+      <div ref={containerRef} className="magnifier-stage">
         {error && <div className="magnifier-error">{error}</div>}
         {!active && !error && <div className="magnifier-hint">Click "Start magnifier" to begin.</div>}
         <canvas ref={canvasRef} width={640} height={400} className="magnifier-canvas" />

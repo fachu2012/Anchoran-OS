@@ -28,6 +28,7 @@ export function MediaPlayerApp({ openPath }: { openPath?: string }) {
   // A file opened directly from Files that isn't in Music/Videos —
   // played straight from wherever it actually lives, no copy needed.
   const [externalItem, setExternalItem] = useState<MediaItem | null>(null);
+  const [queue, setQueue] = useState<string[]>([]);
   const pushNotification = useNotificationStore((s) => s.push);
   const mixerLevel = useVolumeMixerStore((s) => s.getLevel("mediaPlayer"));
   const mediaRef = useRef<HTMLMediaElement>(null);
@@ -83,6 +84,24 @@ export function MediaPlayerApp({ openPath }: { openPath?: string }) {
 
   const active = externalItem ?? items.find((i) => i.path === activePath) ?? items[0];
 
+  function addToQueue(path: string) {
+    setQueue((q) => (q.includes(path) ? q : [...q, path]));
+  }
+
+  function removeFromQueue(path: string) {
+    setQueue((q) => q.filter((p) => p !== path));
+  }
+
+  function playNext() {
+    setQueue((q) => {
+      if (q.length === 0) return q;
+      const [next, ...rest] = q;
+      setExternalItem(null);
+      setActivePath(next);
+      return rest;
+    });
+  }
+
   async function onPickMedia(result: { path: string } | { dir: string; name: string }) {
     setPicking(false);
     if (!("path" in result) || !window.anchoran) return;
@@ -122,29 +141,48 @@ export function MediaPlayerApp({ openPath }: { openPath?: string }) {
             </div>
           )}
           {items.map((item) => (
-            <button
-              key={item.path}
-              className="mediaplayer-item"
-              data-active={item.path === active?.path}
-              onClick={() => {
-                setActivePath(item.path);
-                setExternalItem(null);
-              }}
-            >
-              <Icon name={item.isVideo ? "photoViewer" : "mediaPlayer"} size={15} />
-              <span>{item.name}</span>
-            </button>
+            <div key={item.path} className="mediaplayer-item" data-active={item.path === active?.path}>
+              <button
+                className="mediaplayer-item-main"
+                onClick={() => {
+                  setActivePath(item.path);
+                  setExternalItem(null);
+                }}
+              >
+                <Icon name={item.isVideo ? "photoViewer" : "mediaPlayer"} size={15} />
+                <span>{item.name}</span>
+              </button>
+              <button className="mediaplayer-queue-btn" onClick={() => addToQueue(item.path)} aria-label="Add to queue" title="Add to queue">
+                <Icon name="plus" size={12} />
+              </button>
+            </div>
           ))}
         </div>
+        {queue.length > 0 && (
+          <div className="mediaplayer-queue">
+            <div className="mediaplayer-queue-title">Up next</div>
+            {queue.map((path) => {
+              const item = items.find((i) => i.path === path);
+              return (
+                <div key={path} className="mediaplayer-queue-row">
+                  <span>{item?.name ?? path}</span>
+                  <button className="mediaplayer-queue-btn" onClick={() => removeFromQueue(path)} aria-label="Remove from queue">
+                    <Icon name="close" size={11} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className="mediaplayer-stage">
           {active ? (
             active.isVideo ? (
-              <video ref={mediaRef as never} src={toFileUrl(active.path)} controls key={active.path} />
+              <video ref={mediaRef as never} src={toFileUrl(active.path)} controls key={active.path} onEnded={playNext} />
             ) : (
               <div className="mediaplayer-audio">
                 <Icon name="mediaPlayer" size={48} />
                 <div className="mediaplayer-title">{active.name}</div>
-                <audio ref={mediaRef as never} src={toFileUrl(active.path)} controls key={active.path} />
+                <audio ref={mediaRef as never} src={toFileUrl(active.path)} controls key={active.path} onEnded={playNext} />
               </div>
             )
           ) : (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { useNotificationStore } from "@/notifications/notificationStore";
 import "@/applications/apps.css";
 import "./storageusage.css";
 
@@ -25,8 +26,10 @@ export function StorageUsageApp() {
   const [drives, setDrives] = useState<Drive[]>([]);
   const [folders, setFolders] = useState<FolderSize[] | null>(null);
   const [loadingFolders, setLoadingFolders] = useState(true);
+  const [cleaning, setCleaning] = useState<"recycleBin" | "cache" | null>(null);
+  const pushNotification = useNotificationStore((s) => s.push);
 
-  useEffect(() => {
+  function refresh() {
     if (!window.anchoran) return;
     window.anchoran.getDiskUsage().then((r) => setDrives(r.drives));
 
@@ -43,13 +46,46 @@ export function StorageUsageApp() {
       setFolders(sizes.sort((a, b) => b.size - a.size));
       setLoadingFolders(false);
     });
-  }, []);
+  }
+
+  useEffect(refresh, []);
+
+  async function emptyRecycleBin() {
+    if (!window.anchoran) return;
+    setCleaning("recycleBin");
+    const result = await window.anchoran.emptyRecycleBin();
+    setCleaning(null);
+    pushNotification("Storage Usage", result.success ? "Recycle Bin emptied." : result.error ?? "Couldn't empty the Recycle Bin.");
+    refresh();
+  }
+
+  async function clearCache() {
+    if (!window.anchoran) return;
+    setCleaning("cache");
+    const result = await window.anchoran.clearCache();
+    setCleaning(null);
+    pushNotification(
+      "Storage Usage",
+      result.success ? `Cleared ${formatBytes(result.freedBytes ?? 0)} of Anchoran's cache.` : result.error ?? "Couldn't clear the cache."
+    );
+    refresh();
+  }
 
   const maxFolderSize = folders && folders.length > 0 ? Math.max(...folders.map((f) => f.size), 1) : 1;
 
   return (
     <div className="app-root">
       <div className="app-content storageusage-content">
+        <div className="storageusage-section-title">Quick cleanup</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <button className="app-toolbar-btn" onClick={emptyRecycleBin} disabled={cleaning !== null}>
+            <Icon name="recycleBin" size={13} /> {cleaning === "recycleBin" ? "Emptying…" : "Empty Recycle Bin"}
+          </button>
+          <button className="app-toolbar-btn" onClick={clearCache} disabled={cleaning !== null}>
+            {cleaning === "cache" ? "Clearing…" : "Clear Anchoran cache"}
+          </button>
+        </div>
+
         <div className="storageusage-section-title">Drives</div>
         {drives.length === 0 && (
           <div style={{ color: "var(--anchoran-text-secondary)", fontSize: 12.5 }}>

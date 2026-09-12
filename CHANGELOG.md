@@ -5,6 +5,53 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.3.0] - 2026-09-12
+
+### Fixed
+
+- **Magnifier only followed the mouse while it was over the
+  Magnifier's own window** — it now tracks the real cursor anywhere on
+  the desktop, the way a real magnifier lens does.
+- **Screen Recorder**: codec selection now falls back if vp9 isn't
+  actually encodable on this machine, resolution/frame-rate are
+  explicit instead of left to Chromium's default, a real `onerror`
+  handler surfaces encoder failures instead of failing silently, and
+  an empty recording is now reported as an error instead of saving a
+  broken file.
+- **Screenshot's own window used to appear inside every screenshot**
+  (PrintScreen included) — it's now hidden for the moment of capture
+  and restored right after.
+
+### Added
+
+- **Screenshot**: drag-to-select a region instead of only full-screen
+  capture, and a "Copy" button that puts the image straight on the
+  clipboard.
+- **Files**: a real Properties dialog (size — recursive for folders —
+  location, created/modified dates), and an "Include subfolders" search
+  toggle for finding a file without knowing which folder it's in.
+- **Terminal**: `del`/`rm`, `move`/`mv`, `copy`/`cp`, `find`, and Tab
+  completion for file and folder names.
+- **Settings**: choose which app Files opens each file type with
+  (Photo Viewer/Notes/Media Player/Quick Look, or the real Windows
+  default app), and a "Find a setting" search box.
+- **System Monitor**: a rolling history graph under CPU and memory
+  usage instead of only the instantaneous value.
+- **Event Viewer**: an "Errors only" filter and an "Export…" button
+  that saves the current log to a real text file.
+- **Storage Usage**: a "Quick cleanup" section to empty the Recycle
+  Bin or clear Anchoran's own cache in one click.
+- **Startup Apps**: flags entries whose target program no longer
+  exists on disk.
+- **Photo Viewer**: rotate and "Set as wallpaper" from the full-size
+  view.
+- **Media Player**: a play-next queue — add tracks to "Up next" and
+  they play automatically once the current one ends.
+- **Zip Tool**: add a file or folder into an existing .zip, not just
+  export a whole folder or import a whole archive.
+- **Calculator**: memory (MC/MR/M+/M−) and a clickable history of
+  recent calculations.
+
 ## [2.2.2] - 2026-09-12
 
 ### Fixed

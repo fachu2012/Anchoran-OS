@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useNotificationStore } from "@/notifications/notificationStore";
+import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 import "@/applications/apps.css";
 import "./eventviewer.css";
+
+function isErrorLine(line: string): boolean {
+  const scope = parseLine(line).scope.toLowerCase();
+  return scope.includes("error") || scope.includes("exception");
+}
 
 function parseLine(line: string): { time: string; scope: string; message: string } {
   const match = line.match(/^\[(.+?)\] \[(.+?)\] (.*)$/);
@@ -40,6 +46,8 @@ function groupByMinute(lines: string[]): MinuteGroup[] {
 export function EventViewerApp() {
   const [lines, setLines] = useState<string[] | null>(null);
   const [query, setQuery] = useState("");
+  const [severity, setSeverity] = useState<"all" | "errors">("all");
+  const [exportPicker, setExportPicker] = useState(false);
   const pushNotification = useNotificationStore((s) => s.push);
 
   async function load() {
@@ -54,8 +62,19 @@ export function EventViewerApp() {
     load();
   }, []);
 
-  const filtered = (lines ?? []).filter((l) => l.toLowerCase().includes(query.toLowerCase()));
+  const filtered = (lines ?? [])
+    .filter((l) => l.toLowerCase().includes(query.toLowerCase()))
+    .filter((l) => severity === "all" || isErrorLine(l));
   const groups = useMemo(() => groupByMinute(filtered), [filtered]);
+
+  async function onExportConfirm(result: { path: string } | { dir: string; name: string }) {
+    setExportPicker(false);
+    if (!("dir" in result) || !window.anchoran) return;
+    const name = /\.[^.\\/]+$/.test(result.name) ? result.name : `${result.name}.log`;
+    const write = await window.anchoran.fsWriteTextFile(`${result.dir}\\${name}`, filtered.join("\n"));
+    if (!write.success) pushNotification("Event Viewer", write.error ?? "Couldn't export.");
+    else pushNotification("Event Viewer", `Exported ${filtered.length} event${filtered.length === 1 ? "" : "s"}.`);
+  }
 
   async function copyGroup(group: MinuteGroup) {
     try {
@@ -74,6 +93,15 @@ export function EventViewerApp() {
       <div className="app-toolbar">
         <button className="app-toolbar-btn" onClick={load}>
           <Icon name="restart" size={13} /> Refresh
+        </button>
+        <button className="app-toolbar-btn" data-op={severity === "all"} onClick={() => setSeverity("all")}>
+          All
+        </button>
+        <button className="app-toolbar-btn" data-op={severity === "errors"} onClick={() => setSeverity("errors")}>
+          Errors only
+        </button>
+        <button className="app-toolbar-btn" onClick={() => setExportPicker(true)} disabled={filtered.length === 0}>
+          Export…
         </button>
         <input
           placeholder="Filter…"
@@ -124,6 +152,15 @@ export function EventViewerApp() {
           </div>
         ))}
       </div>
+      {exportPicker && (
+        <AnchoranFilePicker
+          mode="save"
+          title="Export events"
+          defaultName="anchoran-events.log"
+          onConfirm={onExportConfirm}
+          onCancel={() => setExportPicker(false)}
+        />
+      )}
     </div>
   );
 }

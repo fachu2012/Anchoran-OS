@@ -14,6 +14,21 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+// Not every codec MediaRecorder claims via mimeType is actually
+// encodable on every machine — vp9 in particular can be missing or
+// broken depending on the GPU/driver, and used to fail the whole
+// recording silently. Falls through to whatever this Chromium build
+// can actually encode, down to the browser's own unspecified default.
+const CANDIDATE_MIME_TYPES = [
+  "video/webm;codecs=vp9",
+  "video/webm;codecs=vp8",
+  "video/webm",
+];
+
+function pickSupportedMimeType(): string | undefined {
+  return CANDIDATE_MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type));
+}
+
 export function ScreenRecorderApp() {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -42,29 +57,60 @@ export function ScreenRecorderApp() {
     try {
       const sources = await window.anchoran.getCaptureSources();
       if (sources.length === 0) throw new Error("no sources");
+      // Explicit resolution/frame-rate constraints — without them,
+      // Chromium's desktop capture can default to a much lower
+      // resolution than the real screen instead of the full thing.
       const constraints = {
         audio: false,
-        video: { mandatory: { chromeMediaSource: "desktop", chromeMediaSourceId: sources[0].id } },
+        video: {
+          mandatory: {
+            chromeMediaSource: "desktop",
+            chromeMediaSourceId: sources[0].id,
+            minWidth: window.screen.width * window.devicePixelRatio,
+            maxWidth: window.screen.width * window.devicePixelRatio,
+            minHeight: window.screen.height * window.devicePixelRatio,
+            maxHeight: window.screen.height * window.devicePixelRatio,
+            maxFrameRate: 30,
+          },
+        },
       } as unknown as MediaStreamConstraints;
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
       chunksRef.current = [];
-      const recorder = new MediaRecorder(stream, { mimeType: "video/webm; codecs=vp9" });
+      const mimeType = pickSupportedMimeType();
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
-      recorder.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: "video/webm" });
-        setLastRecording(await blobToDataUrl(blob));
+      recorder.onerror = (e) => {
+        setError(`Recording failed: ${(e as unknown as { error?: Error }).error?.message ?? "unknown error"}`);
+        setRecording(false);
+        if (timerRef.current) window.clearInterval(timerRef.current);
         stream.getTracks().forEach((t) => t.stop());
       };
-      recorder.start();
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (chunksRef.current.length === 0) {
+          setError("The recording didn't capture any data — try again.");
+          return;
+        }
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "video/webm" });
+        if (blob.size === 0) {
+          setError("The recording came out empty — try again.");
+          return;
+        }
+        setLastRecording(await blobToDataUrl(blob));
+      };
+      // A periodic timeslice means chunks are flushed as you go rather
+      // than only once at the very end, so a longer recording isn't
+      // riding entirely on a single final dataavailable event.
+      recorder.start(1000);
       recorderRef.current = recorder;
       setRecording(true);
       setSeconds(0);
       timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
-    } catch {
-      setError("Couldn't start screen recording.");
+    } catch (err) {
+      setError(err instanceof Error ? `Couldn't start screen recording: ${err.message}` : "Couldn't start screen recording.");
     }
   }
 

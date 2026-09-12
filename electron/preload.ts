@@ -63,18 +63,24 @@ contextBridge.exposeInMainWorld("anchoran", {
 
   getCaptureSources: (): Promise<{ id: string; name: string; thumbnailDataUrl: string }[]> =>
     ipcRenderer.invoke("anchoran:get-capture-sources"),
+  copyImageToClipboard: (dataUrl: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:copy-image-to-clipboard", dataUrl),
 
 
   openRecycleBin: (): void => {
     ipcRenderer.send("anchoran:open-recycle-bin");
   },
+  emptyRecycleBin: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:empty-recycle-bin"),
+  clearCache: (): Promise<{ success: boolean; error?: string; freedBytes?: number }> =>
+    ipcRenderer.invoke("anchoran:clear-cache"),
   openOsk: (): void => {
     ipcRenderer.send("anchoran:open-osk");
   },
   openNarrator: (): void => {
     ipcRenderer.send("anchoran:open-narrator");
   },
-  listStartupItems: (): Promise<{ name: string; command: string }[]> =>
+  listStartupItems: (): Promise<{ name: string; command: string; exists: boolean }[]> =>
     ipcRenderer.invoke("anchoran:list-startup-items"),
   removeStartupItem: (name: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("anchoran:remove-startup-item", name),

@@ -9,6 +9,7 @@ import { useSystemModeStore } from "@/desktop/systemModeStore";
 import { useProfilesStore } from "@/core/profilesStore";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
+import { useDefaultAppsStore } from "@/core/defaultAppsStore";
 import "@/applications/apps.css";
 
 const DEFAULT_AVATAR = new URL("../../../assets/avatar/default-avatar.png", import.meta.url).href;
@@ -32,6 +33,36 @@ const SECTIONS = [
 
 const ACCENTS = ["#6E9BF7", "#1E3A8A", "#0F766E", "#7C3AED", "#B45309", "#94A3B8"];
 
+// A lightweight "find a setting" index — enough to jump to the right
+// section without building a full per-row search across every control.
+const SETTINGS_INDEX: { label: string; section: (typeof SECTIONS)[number] }[] = [
+  { label: "Theme (Light/Dark)", section: "Appearance" },
+  { label: "Accent color", section: "Appearance" },
+  { label: "Animations", section: "Appearance" },
+  { label: "Wallpaper", section: "Personalization" },
+  { label: "Custom wallpaper", section: "Personalization" },
+  { label: "Interface scale", section: "Display" },
+  { label: "Monitor / Display", section: "Display" },
+  { label: "Volume", section: "Sound" },
+  { label: "Volume mixer", section: "Sound" },
+  { label: "Network status", section: "Network" },
+  { label: "Notifications", section: "Notifications" },
+  { label: "Profiles", section: "Users" },
+  { label: "Profile picture / Avatar", section: "Users" },
+  { label: "Username", section: "Users" },
+  { label: "PIN / Lock screen", section: "Users" },
+  { label: "Auto-lock", section: "Users" },
+  { label: "Privacy", section: "Privacy" },
+  { label: "Backup / Export data", section: "System" },
+  { label: "Import data", section: "System" },
+  { label: "Reset Anchoran", section: "System" },
+  { label: "Default apps", section: "System" },
+  { label: "Keyboard shortcuts", section: "Shortcuts" },
+  { label: "System Mode", section: "System Mode" },
+  { label: "Check for updates", section: "Updater" },
+  { label: "Update history", section: "Updater" },
+];
+
 const inputStyle: CSSProperties = {
   background: "var(--anchoran-bg)",
   border: "1px solid var(--anchoran-border)",
@@ -45,6 +76,10 @@ export function SettingsApp() {
   const [section, setSection] = useState<(typeof SECTIONS)[number]>("Appearance");
   const prefs = usePreferencesStore();
   const [wallpaperPicker, setWallpaperPicker] = useState(false);
+  const [settingsQuery, setSettingsQuery] = useState("");
+  const settingsMatches = settingsQuery.trim()
+    ? SETTINGS_INDEX.filter((s) => s.label.toLowerCase().includes(settingsQuery.trim().toLowerCase()))
+    : [];
 
   async function onPickWallpaper(result: { path: string } | { dir: string; name: string }) {
     setWallpaperPicker(false);
@@ -56,6 +91,46 @@ export function SettingsApp() {
   return (
     <div className="settings-root">
       <nav className="settings-nav">
+        <div style={{ position: "relative", margin: "0 0 8px" }}>
+          <input
+            placeholder="Find a setting…"
+            value={settingsQuery}
+            onChange={(e) => setSettingsQuery(e.target.value)}
+            style={{ ...inputStyle, width: "100%" }}
+          />
+          {settingsMatches.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                zIndex: 10,
+                background: "var(--anchoran-surface)",
+                border: "1px solid var(--anchoran-border)",
+                borderRadius: 8,
+                marginTop: 4,
+                boxShadow: "var(--anchoran-shadow-window)",
+                overflow: "hidden",
+              }}
+            >
+              {settingsMatches.map((m) => (
+                <button
+                  key={m.label}
+                  className="settings-nav-item"
+                  style={{ width: "100%", display: "flex", alignItems: "center" }}
+                  onClick={() => {
+                    setSection(m.section);
+                    setSettingsQuery("");
+                  }}
+                >
+                  {m.label}
+                  <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--anchoran-text-secondary)" }}>{m.section}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {SECTIONS.map((s) => (
           <button
             key={s}
@@ -760,6 +835,7 @@ function SystemSection() {
   const [info, setInfo] = useState<Awaited<ReturnType<NonNullable<typeof window.anchoran>["getSystemInfo"]>> | null>(
     null
   );
+  const defaultApps = useDefaultAppsStore();
 
   useEffect(() => {
     window.anchoran?.getSystemInfo().then(setInfo);
@@ -786,6 +862,35 @@ function SystemSection() {
           </div>
         </>
       )}
+
+      <div className="settings-row">
+        <div>
+          <div className="settings-row-label">Default apps</div>
+          <div className="settings-row-desc">Which app Files opens each file type with by default.</div>
+        </div>
+      </div>
+      {(
+        [
+          { key: "images", label: "Images", appLabel: "Photo Viewer" },
+          { key: "text", label: "Text files", appLabel: "Notes" },
+          { key: "audioVideo", label: "Audio & video", appLabel: "Media Player" },
+          { key: "zip", label: "Zip archives", appLabel: "Quick Look" },
+        ] as const
+      ).map((row) => (
+        <div className="settings-row" key={row.key}>
+          <div className="settings-row-label">{row.label}</div>
+          <select
+            value={defaultApps[row.key]}
+            onChange={(e) => defaultApps.setDefault(row.key, e.target.value as never)}
+            style={inputStyle}
+          >
+            <option value={row.key === "zip" ? "quickLook" : row.key === "images" ? "photoViewer" : row.key === "text" ? "notes" : "mediaPlayer"}>
+              {row.appLabel} (Anchoran)
+            </option>
+            <option value="external">Windows default app</option>
+          </select>
+        </div>
+      ))}
     </>
   );
 }

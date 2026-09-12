@@ -61,3 +61,32 @@
   border-radius: var(--anchoran-radius-md);
   border: 1px solid var(--anchoran-border);
 }
+
+.screenshot-region-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  cursor: crosshair;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  user-select: none;
+}
+
+.screenshot-region-box {
+  position: absolute;
+  border: 1.5px solid var(--anchoran-accent);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.45);
+}
+
+.screenshot-region-hint {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 12.5px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 6px 12px;
+  border-radius: var(--anchoran-radius-sm);
+}

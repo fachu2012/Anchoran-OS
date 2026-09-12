@@ -37,10 +37,13 @@ declare global {
     resetData: () => Promise<boolean>;
     saveAndOpenFile: (fileName: string, base64: string) => Promise<{ success: boolean; error?: string }>;
     getCaptureSources: () => Promise<{ id: string; name: string; thumbnailDataUrl: string }[]>;
+    copyImageToClipboard: (dataUrl: string) => Promise<{ success: boolean; error?: string }>;
     openRecycleBin: () => void;
+    emptyRecycleBin: () => Promise<{ success: boolean; error?: string }>;
+    clearCache: () => Promise<{ success: boolean; error?: string; freedBytes?: number }>;
     openOsk: () => void;
     openNarrator: () => void;
-    listStartupItems: () => Promise<{ name: string; command: string }[]>;
+    listStartupItems: () => Promise<{ name: string; command: string; exists: boolean }[]>;
     removeStartupItem: (name: string) => Promise<{ success: boolean; error?: string }>;
     listProcesses: () => Promise<{ pid: number; parentPid: number; name: string }[]>;
     killProcess: (pid: number) => Promise<{ success: boolean; error?: string }>;
@@ -95,6 +98,7 @@ declare global {
     isDirectory: boolean;
     size: number;
     modifiedAt: number;
+    createdAt: number;
   }
 
   type AnchoranUpdateStatus =
