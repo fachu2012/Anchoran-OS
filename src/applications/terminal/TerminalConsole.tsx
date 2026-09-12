@@ -108,6 +108,19 @@ export function TerminalConsole({
     window.anchoran?.fsSpecialFolders().then((folders) => setCwd(folders.home));
   }, []);
 
+  // Belt-and-suspenders alongside the input's own `autoFocus`: in a
+  // window that can be mid-open-animation, reparented, or otherwise
+  // not yet laid out at the exact moment React applies `autoFocus`,
+  // that attribute can silently fail to actually move focus — leaving
+  // every keystroke going nowhere with no visible error. An explicit
+  // focus() after mount (and once more shortly after, past any
+  // entrance transition) costs nothing and closes that gap.
+  useEffect(() => {
+    inputRef.current?.focus();
+    const t = setTimeout(() => inputRef.current?.focus(), 250);
+    return () => clearTimeout(t);
+  }, []);
+
   function print(text: string) {
     progressLineId.current = null;
     setHistory((h) => [...h, { id: entryId++, text }]);

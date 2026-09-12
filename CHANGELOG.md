@@ -5,7 +5,25 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
-## [2.6.12] - 2026-09-12
+## [2.6.13] - 2026-09-12
+
+### Fixed
+
+- Terminal: added an explicit focus-on-mount fallback alongside the
+  input's own `autoFocus`, for the case where `autoFocus` silently
+  fails to actually move keyboard focus in a window that's mid-open-
+  animation or otherwise not fully laid out the instant React applies
+  it — previously that left every keystroke going nowhere with no
+  visible error until the window was closed and reopened.
+
+### Added (in progress)
+
+- Early groundwork for embedding real external Windows apps inside an
+  Anchoran window: a new native helper (native/windowembed, alongside
+  the existing native/kioskhook) that launches an app and reparents
+  its window via SetParent, driven by a line-based stdin/stdout
+  protocol. Not wired into any UI yet — no way to trigger it from
+  Anchoran in this release.
 
 ### Fixed
 
