@@ -1,5 +1,6 @@
 import { useEffect, useState, type DragEvent } from "react";
 import { Icon, type IconName } from "@/components/Icon";
+import { IconTile } from "@/components/IconTile";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useDefaultAppsStore } from "@/core/defaultAppsStore";
@@ -584,13 +585,13 @@ export function FilesApp() {
           <div className="files-grid">
             {quickLinks.map((q) => (
               <div key={q.path} className="files-item" onDoubleClick={() => setCurrentPath(q.path)} onClick={() => setCurrentPath(q.path)}>
-                <Icon name="folder" size={30} />
+                <IconTile name="folder" size={38} glyphScale={0.56} />
                 <span>{q.label}</span>
               </div>
             ))}
             {drives.map((d) => (
               <div key={d} className="files-item" onDoubleClick={() => setCurrentPath(d)} onClick={() => setCurrentPath(d)}>
-                <Icon name="files" size={30} />
+                <IconTile name="files" size={38} glyphScale={0.56} />
                 <span>{d}</span>
               </div>
             ))}
@@ -618,7 +619,7 @@ export function FilesApp() {
                   setMenu({ x: e.clientX, y: e.clientY, entry });
                 }}
               >
-                <Icon name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={30} />
+                <IconTile name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={38} glyphScale={0.56} />
                 {renamingPath === entry.path ? (
                   <input
                     autoFocus
@@ -665,7 +666,7 @@ export function FilesApp() {
                   style={{ cursor: "default", borderTop: "1px solid var(--anchoran-border)" }}
                 >
                   <td style={{ padding: "7px 8px", display: "flex", alignItems: "center", gap: 8 }}>
-                    <Icon name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={15} />
+                    <IconTile name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={20} glyphScale={0.6} />
                     <span>
                       {entry.name}
                       {searchingSubfolders && (

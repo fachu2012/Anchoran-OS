@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Icon, type IconName } from "@/components/Icon";
+import type { IconName } from "@/components/Icon";
+import { IconTile } from "@/components/IconTile";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { APP_REGISTRY } from "@/applications/registry";
 import { useDesktopIconsStore, type IconKey } from "./desktopIconsStore";
@@ -106,7 +107,7 @@ export function DesktopIcons() {
               setMenu({ x: e.clientX, y: e.clientY, items: entry.menu });
             }}
           >
-            <Icon name={entry.icon} size={30} />
+            <IconTile name={entry.icon} size={38} glyphScale={0.56} />
             <span>{entry.label}</span>
           </div>
         );

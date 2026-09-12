@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon, type IconName } from "@/components/Icon";
+import { IconTile } from "@/components/IconTile";
 import { APP_LIST } from "@/applications/registry";
 import { fetchWebstoreCatalog } from "@/applications/webstoreRegistry";
 import { useInstalledAppsStore, isProtectedApp } from "@/applications/installedAppsStore";
@@ -86,9 +87,7 @@ export function AppCenterApp() {
               ← Back
             </button>
             <div className="webstore-detail-header">
-              <div className="webstore-icon-badge webstore-icon-badge-lg">
-                <Icon name={detail.icon as IconName} size={32} />
-              </div>
+              <IconTile name={detail.icon as IconName} size={64} glyphScale={0.5} />
               <div>
                 <h2 style={{ margin: 0, fontWeight: 500 }}>{detail.title}</h2>
                 <div className="webstore-detail-category">{detail.category}</div>
@@ -120,9 +119,7 @@ export function AppCenterApp() {
               const isInstalled = installed.has(app.id);
               return (
                 <div className="webstore-card" key={app.id} onClick={() => setSelected(app.id)}>
-                  <div className="webstore-icon-badge">
-                    <Icon name={app.icon as IconName} size={20} />
-                  </div>
+                  <IconTile name={app.icon as IconName} size={40} glyphScale={0.5} />
                   <div className="webstore-card-body">
                     <div className="webstore-card-title">{app.title}</div>
                     <div className="webstore-card-desc">{app.description}</div>

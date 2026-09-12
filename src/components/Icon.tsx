@@ -108,7 +108,8 @@ export type IconName =
   | "emojiPicker"
   | "onScreenKeyboard"
   | "narrator"
-  | "recycleBin";
+  | "recycleBin"
+  | "desktop";
 
 const PATHS: Record<IconName, string> = {
   files:
@@ -245,6 +246,7 @@ const PATHS: Record<IconName, string> = {
   onScreenKeyboard: "M4 6.5h16v11H4v-11Zm2.5 2.5h1.4M9.5 9h1.4M12.5 9h1.4M15.5 9h1.4M6.5 12h1.4M9.5 12h5M15.5 12h1.4M8 15h8",
   narrator: "M12 4.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3ZM7 11v1.5a5 5 0 0 0 10 0V11M12 17.5v2.5M8 21h8",
   recycleBin: "M6 7.5h12l-1 12.5H7L6 7.5Zm3-3h6l1 2H8l1-2ZM10 11v6M14 11v6",
+  desktop: "M4 5.5h16v10H4v-10Zm5.5 14h5M12 15.5v4",
 };
 
 export function Icon({

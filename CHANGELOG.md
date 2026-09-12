@@ -5,6 +5,22 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.4] - 2026-09-12
+
+### Added
+
+- The Launcher's per-app row now has an "Add to desktop" pin button
+  next to "Pin to taskbar" — any installed app can be pinned to the
+  desktop, not just the handful pinned there by default.
+- Every app icon and every file-type icon now sits on its own solid
+  color tile instead of rendering as plain white line art, so apps
+  and files are recognizable by color at a glance: file types use
+  real-world conventions (folders amber, PDFs red, zips orange, images
+  purple, video pink, audio green, code teal, …), and every other app
+  icon gets a color derived from its own name so it's stable and
+  distinct from its neighbors. Applied across the taskbar, desktop
+  icons, the Launcher, the Webstore, and Files' grid/list views.
+
 ## [2.6.3] - 2026-09-12
 
 ### Added

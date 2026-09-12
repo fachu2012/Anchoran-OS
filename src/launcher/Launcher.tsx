@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon, type IconName } from "@/components/Icon";
+import { IconTile } from "@/components/IconTile";
 import { APP_LIST } from "@/applications/registry";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useTaskbarStore } from "@/desktop/taskbarStore";
+import { useDesktopIconsStore } from "@/desktop/desktopIconsStore";
 import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import "./launcher.css";
 
@@ -55,6 +57,9 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
   const pinned = useTaskbarStore((s) => s.pinned);
   const pin = useTaskbarStore((s) => s.pin);
   const unpin = useTaskbarStore((s) => s.unpin);
+  const desktopPinned = useDesktopIconsStore((s) => s.pinnedApps);
+  const pinToDesktop = useDesktopIconsStore((s) => s.pinApp);
+  const unpinFromDesktop = useDesktopIconsStore((s) => s.unpinApp);
   const installed = useInstalledAppsStore((s) => s.installed);
 
   // The Launcher is a list of apps you can actually open — like any
@@ -134,14 +139,26 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
         <div className="launcher-results">
           {appResults.map((app, i) => {
             const isPinned = pinned.includes(app.id);
+            const isOnDesktop = desktopPinned.includes(app.id);
             return (
               <div key={app.id} className="launcher-item" data-active={i === 0}>
                 <button className="launcher-item-main" onClick={() => launch(app.id)}>
-                  <span className="launcher-item-icon">
-                    <Icon name={app.icon as IconName} size={18} />
-                  </span>
+                  <IconTile name={app.icon as IconName} size={34} />
                   {app.title}
                   {i === 0 && <span className="launcher-item-hint">↵</span>}
+                </button>
+                <button
+                  className="launcher-item-pin"
+                  data-pinned={isOnDesktop}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isOnDesktop) unpinFromDesktop(app.id);
+                    else pinToDesktop(app.id);
+                  }}
+                  aria-label={isOnDesktop ? `Remove ${app.title} from desktop` : `Add ${app.title} to desktop`}
+                  title={isOnDesktop ? "Remove from desktop" : "Add to desktop"}
+                >
+                  <Icon name="desktop" size={14} />
                 </button>
                 <button
                   className="launcher-item-pin"
@@ -166,9 +183,7 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
               {settingResults.map((s) => (
                 <div key={s} className="launcher-item">
                   <button className="launcher-item-main" onClick={openSettingSection}>
-                    <span className="launcher-item-icon">
-                      <Icon name="settings" size={18} />
-                    </span>
+                    <IconTile name="settings" size={34} />
                     {s}
                   </button>
                 </div>
@@ -182,9 +197,7 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
               {fileResults.map((f) => (
                 <div key={f.path} className="launcher-item">
                   <button className="launcher-item-main" onClick={() => openFileResult(f)}>
-                    <span className="launcher-item-icon">
-                      <Icon name={f.isDirectory ? "folder" : "file"} size={18} />
-                    </span>
+                    <IconTile name={f.isDirectory ? "folder" : "file"} size={34} />
                     {f.name}
                   </button>
                 </div>

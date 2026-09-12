@@ -1,5 +1,6 @@
 import { useState, type DragEvent } from "react";
 import { Icon, type IconName } from "@/components/Icon";
+import { IconTile } from "@/components/IconTile";
 import { APP_REGISTRY } from "@/applications/registry";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
@@ -156,7 +157,7 @@ export function Taskbar({
                 aria-label={app.title}
                 title={app.title}
               >
-                <Icon name={app.icon as IconName} size={18} />
+                <IconTile name={app.icon as IconName} size={26} glyphScale={0.62} />
                 {isOpen && <span className="taskbar-dot" />}
               </button>
             );
