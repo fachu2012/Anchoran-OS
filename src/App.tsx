@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 import { BootScreen } from "@/boot/BootScreen";
 import { Desktop } from "@/desktop/Desktop";
@@ -35,6 +35,25 @@ export default function App() {
   const [pendingSaveImage, setPendingSaveImage] = useState<{ dataUrl: string; name: string } | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
 
+  // Global shortcuts (Windows key, Alt+Tab, PrintScreen…) are forwarded
+  // here from the main process regardless of whether Anchoran is
+  // locked — the lock screen is just a visual overlay on top of the
+  // real desktop, so acting on them while locked used to open the
+  // Launcher (or a window) behind the lock screen. Invisible, but its
+  // search box still grabbed real keyboard focus away from the PIN
+  // field, so typing your PIN silently typed into the hidden Launcher
+  // instead. A ref (not `locked` state itself) so these IPC listeners
+  // — registered once, with no "off" counterpart to call on cleanup —
+  // aren't torn down and re-added every time the lock state flips.
+  const lockedRef = useRef(false);
+  useEffect(() => {
+    lockedRef.current = locked;
+    // Locking while the Launcher happens to already be open (e.g. the
+    // inactivity auto-lock timer firing) would leave it — and the
+    // keyboard focus inside it — sitting behind the lock screen too.
+    if (locked) setLauncherOpen(false);
+  }, [locked]);
+
   useEffect(() => {
     window.anchoran?.consumePendingUpdate().then(setFinishingUpdateVersion) ?? setFinishingUpdateVersion(null);
 
@@ -44,7 +63,10 @@ export default function App() {
     // Anchoran's own Launcher — see electron/main.ts and project
     // instructions §11/§16 for the security scope of this behavior.
     // Ctrl+Alt+L is the reliable fallback, registered alongside it.
-    window.anchoran?.onToggleLauncher(() => setLauncherOpen((v) => !v));
+    window.anchoran?.onToggleLauncher(() => {
+      if (lockedRef.current) return;
+      setLauncherOpen((v) => !v);
+    });
 
     // System Mode (see TODO.md / native/kioskhook): while it's on, the
     // Windows key and Alt+Tab are claimed system-wide by the native
@@ -52,6 +74,7 @@ export default function App() {
     // toggle as the line above, plus Anchoran's own window switcher
     // for Alt+Tab (the same one Ctrl+Tab already opens, see Desktop.tsx).
     window.anchoran?.onSystemModeKey((key) => {
+      if (lockedRef.current) return;
       if (key === "WIN") setLauncherOpen((v) => !v);
       else if (key === "ALTTAB") useWindowStore.getState().cycleFocus(1);
     });
@@ -61,6 +84,7 @@ export default function App() {
     // listener); the short delay gives its lazily-loaded chunk time to
     // mount before that event fires.
     window.anchoran?.onTriggerScreenshot(() => {
+      if (lockedRef.current) return;
       useWindowStore.getState().openApp("screenshot");
       setTimeout(() => window.dispatchEvent(new Event("anchoran-auto-capture")), 300);
     });

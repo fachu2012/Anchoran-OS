@@ -5,6 +5,49 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.5.0] - 2026-09-12
+
+### Fixed
+
+- **A real keyboard-focus leak on the Lock Screen**: the Windows key,
+  Ctrl+Alt+L, and Alt+Tab still worked while locked and opened the
+  Launcher (or switched focus) behind the lock screen — invisible, but
+  real, so the next keys you typed for your PIN could silently go into
+  the hidden Launcher's search box instead. The lock screen now blocks
+  every keystroke not aimed at itself while it's up, and Space now
+  also opens the PIN entry (not just a click).
+- **`ContextMenu` leaked a `keydown` listener on `window` on every
+  open** — it was never removed, so opening a lot of right-click menus
+  over a session quietly stacked up duplicate Escape handlers.
+- **A real design bug**: `data-op="true"` (the "this tab/toggle is
+  active" state) had no CSS at all for `.app-toolbar-btn`, so the
+  active state was invisible in 12+ apps (Clock, Calculator, System
+  Monitor, Event Viewer, Converter, Todo, Pomodoro, Sudoku, Paint,
+  Pixel Art, Wallpaper Maker, Browser, Magnifier, Files, Settings).
+
+### Changed
+
+- **Boot and Shutdown screens redesigned**: bigger logo and loading
+  bar on both, the logo now sits in a real solid tile instead of
+  floating on a transparent background, the Boot screen's "ANCHORAN
+  OS" wordmark is gone, and the Shutdown screen now shows only the
+  icon and the bar — no more status text.
+- Buttons across the OS now have a real `:active` press state, a real
+  `:disabled` look, and visible focus rings.
+
+### Added
+
+- **The Administrator Terminal**: type `sudo` in the normal Terminal
+  to unlock it for that window — real admin commands (`ps`,
+  `taskkill`, `startup`, `systemmode`, `df`, `emptyrecyclebin`,
+  `clearcache`, `backup`/`restore`, `wipe --confirm`, `theme`,
+  `wallpaper`, `accent`, `scale`, `logs`, `changeto`, and more) wired
+  to real, already-existing capabilities, not fake ones. Anchoran's
+  crash screen now also embeds a live Administrator Terminal directly
+  (no window chrome — it isn't a real window), so there's a real way
+  to poke at processes, logs, and disk usage even when the desktop
+  itself has crashed.
+
 ## [2.4.0] - 2026-09-12
 
 ### Added

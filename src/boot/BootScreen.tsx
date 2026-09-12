@@ -4,11 +4,10 @@ import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 
 // A deliberately slow, staged boot sequence: black screen first, then
-// the icon alone, then the wordmark, then a thick macOS-style loading
-// bar that actually takes its time — closer to a real OS boot than a
-// splash flash. Total runtime is intentionally ~6.5s.
+// the icon alone, then a thick macOS-style loading bar that actually
+// takes its time — closer to a real OS boot than a splash flash.
+// Total runtime is intentionally ~6.5s.
 const LOGO_AT = 700;
-const WORDMARK_AT = 1650;
 const BAR_AT = 2150;
 const BAR_FILL_MS = 3600;
 const HOLD_AFTER_BAR_MS = 350;
@@ -41,7 +40,6 @@ function StandardBoot({ onDone }: { onDone: () => void }) {
   const accentColor = usePreferencesStore((s) => s.accentColor);
   const [visible, setVisible] = useState(true);
   const [showLogo, setShowLogo] = useState(false);
-  const [showWordmark, setShowWordmark] = useState(false);
   const [showBar, setShowBar] = useState(false);
   const [statusIndex, setStatusIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -49,7 +47,6 @@ function StandardBoot({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     const timers = [
       setTimeout(() => setShowLogo(true), LOGO_AT),
-      setTimeout(() => setShowWordmark(true), WORDMARK_AT),
       setTimeout(() => setShowBar(true), BAR_AT),
       ...STATUS_STAGES.map((s, i) => setTimeout(() => setStatusIndex(i), s.at)),
     ];
@@ -85,53 +82,49 @@ function StandardBoot({ onDone }: { onDone: () => void }) {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 30,
+        gap: 36,
         zIndex: 2000,
         opacity: visible ? 1 : 0,
         transition: `opacity ${FADE_MS}ms ease`,
         pointerEvents: visible ? "auto" : "none",
       }}
     >
-      <AnchoranLogo
-        size={84}
-        color={accentColor}
+      <div
         style={{
-          opacity: showLogo ? 0.96 : 0,
+          width: 200,
+          height: 200,
+          borderRadius: 44,
+          background: "rgba(255,255,255,0.05)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: showLogo ? 1 : 0,
           transform: showLogo ? "scale(1)" : "scale(0.82)",
           transition: "opacity 600ms cubic-bezier(0.16,1,0.3,1), transform 600ms cubic-bezier(0.16,1,0.3,1)",
         }}
-      />
-      <div
-        style={{
-          color: "#F3F4F6",
-          fontSize: 20,
-          letterSpacing: 3,
-          fontWeight: 300,
-          opacity: showWordmark ? 1 : 0,
-          transform: showWordmark ? "none" : "translateY(6px)",
-          transition: "opacity 600ms cubic-bezier(0.16,1,0.3,1), transform 600ms cubic-bezier(0.16,1,0.3,1)",
-        }}
       >
-        ANCHORAN OS
+        <AnchoranLogo size={132} color={accentColor} style={{ opacity: 0.98 }} />
       </div>
 
       {/* Thick, macOS-style loading bar. */}
       <div
         style={{
-          width: 260,
-          height: 8,
-          borderRadius: 4,
+          width: 340,
+          height: 10,
+          borderRadius: 5,
           background: "rgba(255,255,255,0.14)",
           overflow: "hidden",
           opacity: showBar ? 1 : 0,
           transition: "opacity 500ms ease",
+          marginTop: 14,
         }}
       >
         <div
           style={{
             height: "100%",
             width: `${progress}%`,
-            borderRadius: 4,
+            borderRadius: 5,
             background: "#F3F4F6",
             transition: "width 120ms linear",
           }}
@@ -222,7 +215,20 @@ function FinishingUpdateBoot({ version, onDone }: { version: string; onDone: () 
         pointerEvents: visible ? "auto" : "none",
       }}
     >
-      <AnchoranLogo size={72} color={accentColor} style={{ opacity: 0.95 }} />
+      <div
+        style={{
+          width: 130,
+          height: 130,
+          borderRadius: 30,
+          background: "rgba(255,255,255,0.05)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <AnchoranLogo size={84} color={accentColor} style={{ opacity: 0.95 }} />
+      </div>
       <div
         key={phraseIndex}
         style={{

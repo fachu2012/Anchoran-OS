@@ -26,11 +26,33 @@
   color: var(--anchoran-text-primary);
   font-size: 12.5px;
   cursor: pointer;
-  transition: background var(--anchoran-duration-fast) var(--anchoran-ease);
+  transition: background var(--anchoran-duration-fast) var(--anchoran-ease),
+    border-color var(--anchoran-duration-fast) var(--anchoran-ease),
+    color var(--anchoran-duration-fast) var(--anchoran-ease),
+    transform var(--anchoran-duration-fast) var(--anchoran-ease);
 }
 
 .app-toolbar-btn:hover {
   background: var(--anchoran-border);
+}
+
+.app-toolbar-btn:active {
+  transform: scale(0.97);
+}
+
+.app-toolbar-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* The active/selected state of a toggle or tab button — used across
+   the OS (Clock's World/Stopwatch/Timer, Calculator's memory keys,
+   System Monitor's Apps/Processes, Converter's categories, …). */
+.app-toolbar-btn[data-op="true"] {
+  background: var(--anchoran-accent-soft);
+  border-color: var(--anchoran-accent);
+  color: var(--anchoran-accent);
 }
 
 .app-content {
@@ -121,6 +143,14 @@ tr[data-selected="true"] {
   font-size: 13px;
   padding: 12px 14px;
   overflow-y: auto;
+}
+
+.terminal-root[data-admin="true"] {
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.35);
+}
+
+.terminal-root[data-admin="true"] .terminal-prompt-label {
+  color: #E5484D;
 }
 
 .terminal-line {

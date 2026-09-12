@@ -3,6 +3,8 @@ import { useEffect, useRef } from "react";
 export interface ContextMenuItem {
   label: string;
   onSelect: () => void;
+  disabled?: boolean;
+  danger?: boolean;
 }
 
 export function ContextMenu({
@@ -22,9 +24,15 @@ export function ContextMenu({
     function onPointerDown(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
     window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", (e) => e.key === "Escape" && onClose());
-    return () => window.removeEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, [onClose]);
 
   return (
@@ -33,7 +41,10 @@ export function ContextMenu({
         <button
           key={item.label}
           className="context-menu-item"
+          data-danger={item.danger || undefined}
+          disabled={item.disabled}
           onClick={() => {
+            if (item.disabled) return;
             item.onSelect();
             onClose();
           }}

@@ -19,6 +19,7 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState(false);
   const pinInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   function requestUnlock() {
     if (unlocking) return;
@@ -43,10 +44,25 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
     }
   }
 
+  // One capture-phase guard for the whole time the lock screen is up:
+  // the lock screen is only a visual overlay, not a real focus trap —
+  // without this, a keystroke could still reach whatever real app
+  // happened to have focus underneath (invisible behind the lock
+  // screen), the Launcher included, since global shortcuts like the
+  // Windows key/Ctrl+Alt+L still open it there. Anything not aimed at
+  // the lock screen's own elements (the PIN field once it's open)
+  // never reaches the desktop while locked. Without a PIN, any key
+  // unlocks (matching the "press any key" hint below); with one,
+  // Space opens the PIN entry the same as a click does.
   useEffect(() => {
-    if (lockPin) return; // a PIN is required — don't unlock on an arbitrary keypress
-    window.addEventListener("keydown", wake, { once: true });
-    return () => window.removeEventListener("keydown", wake);
+    function guard(e: KeyboardEvent) {
+      if (containerRef.current?.contains(e.target as Node)) return;
+      e.stopPropagation();
+      e.preventDefault();
+      if (!lockPin || e.key === " " || e.key === "Spacebar") wake();
+    }
+    window.addEventListener("keydown", guard, true);
+    return () => window.removeEventListener("keydown", guard, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lockPin]);
 
@@ -66,6 +82,7 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
 
   return (
     <div
+      ref={containerRef}
       style={{
         position: "absolute",
         inset: 0,

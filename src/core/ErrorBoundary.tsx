@@ -1,6 +1,7 @@
 import { Component, type ReactNode } from "react";
 import { logAnchoranError } from "./persist";
 import { playErrorSound } from "./sound";
+import { TerminalConsole } from "@/applications/terminal/TerminalConsole";
 
 interface Props {
   children: ReactNode;
@@ -55,7 +56,9 @@ export class ErrorBoundary extends Component<Props, State> {
         <div style={{ fontSize: 12.5, opacity: 0.6, maxWidth: 480 }}>
           The error was logged. A crash this deep can leave the desktop in a
           broken state, so this closes Anchoran entirely rather than trying
-          to keep going.
+          to keep going — the Administrator Terminal below is real and can
+          still poke at things (real processes, logs, the disk) if you need
+          to before you do.
         </div>
         <button
           onClick={() => {
@@ -69,7 +72,6 @@ export class ErrorBoundary extends Component<Props, State> {
             else this.setState({ error: null });
           }}
           style={{
-            marginTop: 8,
             padding: "9px 18px",
             borderRadius: 8,
             border: "1px solid rgba(255,255,255,0.16)",
@@ -81,6 +83,48 @@ export class ErrorBoundary extends Component<Props, State> {
         >
           Return to Windows
         </button>
+
+        {/*
+          A real terminal, already unlocked to Administrator mode —
+          deliberately with none of a normal window's chrome (no
+          resize/minimize/maximize/close): this isn't a real Anchoran
+          window, it's a fixed diagnostic panel that only exists on
+          this screen, and "exit" out of admin mode doesn't apply here
+          either — there's no normal mode to fall back to once the app
+          has already crashed.
+        */}
+        <div
+          style={{
+            width: "min(720px, 92vw)",
+            height: 320,
+            marginTop: 6,
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            overflow: "hidden",
+            boxShadow: "0 20px 48px rgba(0,0,0,0.4)",
+            textAlign: "left",
+          }}
+        >
+          <div
+            style={{
+              padding: "8px 14px",
+              fontSize: 12,
+              fontWeight: 500,
+              color: "rgba(255,255,255,0.7)",
+              background: "rgba(255,255,255,0.04)",
+              borderBottom: "1px solid rgba(255,255,255,0.1)",
+            }}
+          >
+            Administrator Terminal
+          </div>
+          <div style={{ height: "calc(100% - 33px)" }}>
+            <TerminalConsole
+              admin
+              canExitAdmin={false}
+              greeting='Administrator Terminal (crash diagnostics). Type "help" to get started.'
+            />
+          </div>
+        </div>
       </div>
     );
   }
