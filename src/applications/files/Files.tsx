@@ -9,6 +9,33 @@ import "@/applications/apps.css";
 const THIS_PC = "This PC";
 type Entry = { name: string; path: string; isDirectory: boolean; size: number; modifiedAt: number };
 type Clipboard = { paths: string[]; mode: "copy" | "cut" } | null;
+type SortMode = "name-asc" | "name-desc" | "date-desc" | "date-asc" | "size-desc" | "size-asc";
+
+const SORT_LABELS: Record<SortMode, string> = {
+  "name-asc": "Name (A–Z)",
+  "name-desc": "Name (Z–A)",
+  "date-desc": "Newest first",
+  "date-asc": "Oldest first",
+  "size-desc": "Largest first",
+  "size-asc": "Smallest first",
+};
+
+function compareEntries(a: Entry, b: Entry, mode: SortMode): number {
+  switch (mode) {
+    case "name-asc":
+      return a.name.localeCompare(b.name);
+    case "name-desc":
+      return b.name.localeCompare(a.name);
+    case "date-desc":
+      return b.modifiedAt - a.modifiedAt;
+    case "date-asc":
+      return a.modifiedAt - b.modifiedAt;
+    case "size-desc":
+      return b.size - a.size;
+    case "size-asc":
+      return a.size - b.size;
+  }
+}
 
 function parentOf(p: string): string {
   const trimmed = p.replace(/[\\/]+$/, "");
@@ -101,12 +128,15 @@ export function FilesApp() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [sortMode, setSortMode] = useState<SortMode>("name-asc");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [clipboard, setClipboard] = useState<Clipboard>(null);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; entry: Entry | null } | null>(null);
   const [quickLookEntry, setQuickLookEntry] = useState<Entry | null>(null);
+  const [addressInput, setAddressInput] = useState("This PC");
+  const [addressError, setAddressError] = useState<string | null>(null);
   const [openFile, setOpenFile] = useState<{ path: string; name: string; content: string; isImage: boolean; dataUrl?: string } | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
 
@@ -147,8 +177,26 @@ export function FilesApp() {
     load(currentPath);
     setSelected(new Set());
     setQuery("");
+    setAddressInput(currentPath);
+    setAddressError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPath]);
+
+  async function goToAddress() {
+    const target = addressInput.trim();
+    if (!target || target.toLowerCase() === THIS_PC.toLowerCase()) {
+      setCurrentPath(THIS_PC);
+      return;
+    }
+    if (!window.anchoran) return;
+    const result = await window.anchoran.fsListDir(target);
+    if ("error" in result) {
+      setAddressError(`"${target}" doesn't exist or can't be opened.`);
+      return;
+    }
+    setAddressError(null);
+    setCurrentPath(target);
+  }
 
   function refresh() {
     load(currentPath);
@@ -317,6 +365,9 @@ export function FilesApp() {
   }
 
   const filtered = query.trim() ? entries.filter((e) => e.name.toLowerCase().includes(query.toLowerCase())) : entries;
+  const sorted = [...filtered].sort((a, b) =>
+    a.isDirectory !== b.isDirectory ? (a.isDirectory ? -1 : 1) : compareEntries(a, b, sortMode)
+  );
 
   if (openFile) {
     return (
@@ -374,10 +425,46 @@ export function FilesApp() {
           onChange={(e) => setQuery(e.target.value)}
           style={{ border: "1px solid var(--anchoran-border)", borderRadius: 6, padding: "5px 9px", background: "var(--anchoran-bg)", color: "var(--anchoran-text-primary)", fontSize: 12.5, width: 140 }}
         />
+        <select
+          value={sortMode}
+          onChange={(e) => setSortMode(e.target.value as SortMode)}
+          style={{ border: "1px solid var(--anchoran-border)", borderRadius: 6, padding: "5px 9px", background: "var(--anchoran-bg)", color: "var(--anchoran-text-primary)", fontSize: 12.5 }}
+        >
+          {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => (
+            <option key={mode} value={mode}>
+              {SORT_LABELS[mode]}
+            </option>
+          ))}
+        </select>
         <button className="app-toolbar-btn" onClick={() => setViewMode((v) => (v === "grid" ? "list" : "grid"))} style={{ marginLeft: "auto" }}>
           {viewMode === "grid" ? "List view" : "Grid view"}
         </button>
-        {currentPath !== THIS_PC && <span className="files-path">{currentPath}</span>}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", borderBottom: "1px solid var(--anchoran-border)", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px" }}>
+          <Icon name="folder" size={13} style={{ flexShrink: 0, color: "var(--anchoran-text-secondary)" }} />
+          <input
+            value={addressInput}
+            onChange={(e) => {
+              setAddressInput(e.target.value);
+              setAddressError(null);
+            }}
+            onKeyDown={(e) => e.key === "Enter" && goToAddress()}
+            placeholder="This PC"
+            style={{
+              flex: 1,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              color: "var(--anchoran-text-primary)",
+              fontSize: 12.5,
+              fontFamily: "Cascadia Code, Consolas, monospace",
+            }}
+          />
+        </div>
+        {addressError && (
+          <div style={{ padding: "0 14px 6px", fontSize: 11.5, color: "#E5484D" }}>{addressError}</div>
+        )}
       </div>
       <div
         className="app-content"
@@ -412,7 +499,7 @@ export function FilesApp() {
           <div style={{ color: "#E5484D", fontSize: 13, padding: 12 }}>{loadError}</div>
         ) : viewMode === "grid" ? (
           <div className="files-grid">
-            {filtered.map((entry) => (
+            {sorted.map((entry) => (
               <div
                 key={entry.path}
                 className="files-item"
@@ -447,7 +534,7 @@ export function FilesApp() {
                 )}
               </div>
             ))}
-            {filtered.length === 0 && (
+            {sorted.length === 0 && (
               <span style={{ color: "var(--anchoran-text-secondary)", fontSize: 13 }}>
                 {query ? "No results." : "This folder is empty."}
               </span>
@@ -463,7 +550,7 @@ export function FilesApp() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((entry) => (
+              {sorted.map((entry) => (
                 <tr
                   key={entry.path}
                   data-selected={selected.has(entry.path)}

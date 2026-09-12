@@ -592,9 +592,18 @@ ipcMain.handle("anchoran:fs-open-path", async (_event, filePath: string) => {
  * way any desktop app invokes it; there's no other public API for it.
  */
 ipcMain.on("anchoran:fs-open-with", (_event, filePath: string) => {
-  if (process.platform === "win32") {
-    execFile("rundll32.exe", ["shell32.dll,OpenAs_RunDLL", filePath]);
-  }
+  if (process.platform !== "win32") return;
+  // Fully-qualified paths for both — resolving "rundll32.exe" and
+  // "shell32.dll" by bare name relies on the process's PATH/DLL search
+  // order being exactly what's expected; qualifying them removes that
+  // ambiguity. Logs on failure instead of failing silently, which is
+  // what made the previous version look like it "did nothing".
+  const systemRoot = process.env.SystemRoot || "C:\\Windows";
+  const rundll32 = path.join(systemRoot, "System32", "rundll32.exe");
+  const shell32 = path.join(systemRoot, "System32", "shell32.dll");
+  execFile(rundll32, [`${shell32},OpenAs_RunDLL`, filePath], (err) => {
+    if (err) logToDisk("fs-open-with", `Couldn't open "Open with" for ${filePath}: ${err.message}`);
+  });
 });
 
 ipcMain.on("anchoran:fs-show-in-explorer", (_event, filePath: string) => {

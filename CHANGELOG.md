@@ -5,6 +5,27 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.1.11] - 2026-09-11
+
+### Fixed
+
+- **Notes' layout was broken** (toolbar squeezed to one side, editor
+  pushed off to the right) — a leftover `display: flex` row layout from
+  before Notes became a full Notepad-style editor. Now uses the same
+  column layout every other app does.
+- **"Open with…" did nothing** — `rundll32`/`shell32.dll` were resolved
+  by bare name instead of a fully-qualified path, and failures were
+  silently swallowed. Now uses explicit paths and logs any failure
+  instead of failing invisibly.
+
+### Added
+
+- **Sort options in Files**: Name (A–Z/Z–A), Newest/Oldest first,
+  Largest/Smallest first — folders always stay grouped before files.
+- **An address bar in Files**: shows the real current path and lets you
+  type one to jump straight there; an invalid path shows an error and
+  never changes the current folder.
+
 ## [2.1.10] - 2026-09-11
 
 ### Added

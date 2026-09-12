@@ -67,7 +67,7 @@ export function NotesApp() {
   }
 
   return (
-    <div className="notes-root">
+    <div className="app-root">
       <div className="app-toolbar">
         <button className="app-toolbar-btn" onClick={newDocument}>
           <Icon name="file" size={14} /> New
@@ -86,7 +86,7 @@ export function NotesApp() {
         </button>
         <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--anchoran-text-secondary)" }}>{title}</span>
       </div>
-      <div className="notes-editor" style={{ width: "100%" }}>
+      <div className="notes-editor">
         <textarea
           className="notes-textarea"
           placeholder="Start typing…"
