@@ -95,6 +95,13 @@ declare global {
     onSystemModeKey: (callback: (key: "WIN" | "ALTTAB") => void) => void;
     onSystemModeStatusChange: (callback: (running: boolean) => void) => void;
 
+    embedStart: (windowId: string, exePath: string) => Promise<{ success: boolean; error?: string }>;
+    embedBounds: (windowId: string, x: number, y: number, width: number, height: number) => void;
+    embedVisibility: (windowId: string, visible: boolean) => void;
+    embedFocus: (windowId: string) => void;
+    embedStop: (windowId: string) => Promise<{ success: boolean }>;
+    onEmbedStatus: (callback: (status: AnchoranEmbedStatus) => void) => void;
+
     fsSpecialFolders: () => Promise<Record<"home" | "desktop" | "documents" | "downloads" | "pictures" | "music" | "videos", string>>;
     fsListDrives: () => Promise<string[]>;
     fsListDir: (
@@ -138,6 +145,11 @@ declare global {
     | { state: "downloading"; percent: number }
     | { state: "installing" }
     | { state: "error"; message: string };
+
+  type AnchoranEmbedStatus =
+    | { windowId: string; state: "embedded" }
+    | { windowId: string; state: "closed" }
+    | { windowId: string; state: "error"; message: string };
 
   interface Window {
     anchoran?: AnchoranBridge;

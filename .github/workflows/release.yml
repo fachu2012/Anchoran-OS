@@ -60,6 +60,7 @@ jobs:
           npm run build:renderer
           npm run build:electron
           npm run build:kioskhook
+          npm run build:windowembed
           npx electron-builder --publish never
 
       # AnchoranSetup: the fullscreen, Anchoran-branded installer end

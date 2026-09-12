@@ -27,11 +27,16 @@ export interface AnchoranWindow {
   openPath?: string;
   /** Terminal only: opened already-elevated via "Run as Administrator", after a successful admin PIN check. */
   startAdmin?: boolean;
+  /** embeddedApp only: the real .exe this window reparents into itself — see EmbeddedApp.tsx. */
+  embedPath?: string;
 }
 
 export interface OpenAppOptions {
   openPath?: string;
   startAdmin?: boolean;
+  embedPath?: string;
+  /** Overrides the app's registry title for this one window — e.g. an embedded app is titled after its own exe, not the generic "Windows App Window". */
+  title?: string;
 }
 
 type RememberedBoundsMap = Partial<Record<AppId, Bounds>>;
@@ -136,7 +141,7 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
     const newWindow: AnchoranWindow = {
       windowId,
       appId,
-      title: options?.startAdmin ? `${def.title} (Administrator)` : def.title,
+      title: options?.title ?? (options?.startAdmin ? `${def.title} (Administrator)` : def.title),
       x: remembered?.x ?? offset.x,
       y: remembered?.y ?? offset.y,
       width: remembered?.width ?? def.defaultSize.width,
@@ -147,6 +152,7 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
       zIndex,
       openPath: options?.openPath,
       startAdmin: options?.startAdmin,
+      embedPath: options?.embedPath,
     };
 
     set((s) => ({

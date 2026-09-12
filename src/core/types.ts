@@ -61,7 +61,8 @@ export type AppId =
   | "emojiPicker"
   | "onScreenKeyboard"
   | "narrator"
-  | "recycleBin";
+  | "recycleBin"
+  | "embeddedApp";
 
 export type AppCategory = "System" | "Productivity" | "Utilities" | "Internet" | "Games";
 

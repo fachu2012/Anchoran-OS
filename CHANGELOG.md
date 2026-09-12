@@ -5,6 +5,33 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.14] - 2026-09-12
+
+### Added
+
+- Real external Windows apps can now open embedded inside an Anchoran
+  window instead of floating separately on the desktop: right-click
+  any .exe in Files → "Run embedded in Anchoran (experimental)", or
+  open the new "Windows App Window" app from the Webstore and pick one.
+  Built on a new native helper (native/windowembed) that launches the
+  app and reparents its real window via SetParent, keeping it
+  positioned over the matching Anchoran window as it moves, resizes,
+  minimizes, or gets focused/closed. Marked experimental on purpose:
+  the embedded window is a real Win32 window compositing on top of the
+  whole screen, so it will always render above every other Anchoran UI
+  element in the space it occupies (other dragged windows, menus, …) —
+  an inherent limit of mixing a real window with Anchoran's own
+  GPU-composited UI, not something fixable without a full compositor.
+
+### Fixed
+
+- Terminal now also refocuses its input whenever its window becomes
+  the focused one (clicking its taskbar icon, Ctrl+Tab, …) — the
+  window store's own "focused" state is just app bookkeeping and
+  doesn't move real keyboard focus by itself, which could leave a
+  Terminal window with no visible cursor and no way to type until it
+  was closed and reopened.
+
 ## [2.6.13] - 2026-09-12
 
 ### Fixed

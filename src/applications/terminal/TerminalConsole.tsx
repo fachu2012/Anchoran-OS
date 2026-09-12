@@ -68,10 +68,13 @@ export function TerminalConsole({
   admin,
   canExitAdmin = true,
   greeting,
+  windowId,
 }: {
   admin: boolean;
   canExitAdmin?: boolean;
   greeting?: string;
+  /** This window's id in windowStore, when rendered as a real window (not the crash screen) — used only to refocus the input whenever this Terminal becomes the focused window. */
+  windowId?: string;
 }) {
   const [isAdmin, setIsAdmin] = useState(admin);
   const [history, setHistory] = useState<HistoryEntry[]>([
@@ -86,6 +89,7 @@ export function TerminalConsole({
   const openApp = useWindowStore((s) => s.openApp);
   const windows = useWindowStore((s) => s.windows);
   const closeWindow = useWindowStore((s) => s.closeWindow);
+  const isFocusedWindow = useWindowStore((s) => !windowId || s.focusedWindowId === windowId);
   const prefs = usePreferencesStore();
   const profiles = useProfilesStore((s) => s.profiles);
   const activeProfileId = useProfilesStore((s) => s.activeProfileId);
@@ -114,12 +118,17 @@ export function TerminalConsole({
   // that attribute can silently fail to actually move focus — leaving
   // every keystroke going nowhere with no visible error. An explicit
   // focus() after mount (and once more shortly after, past any
-  // entrance transition) costs nothing and closes that gap.
+  // entrance transition) costs nothing and closes that gap. Also
+  // refocuses whenever this window becomes the focused one (clicking
+  // its taskbar icon, Ctrl+Tab, …) — the window store's own idea of
+  // "focused" is just app state and doesn't move real DOM focus by
+  // itself.
   useEffect(() => {
+    if (!isFocusedWindow) return;
     inputRef.current?.focus();
     const t = setTimeout(() => inputRef.current?.focus(), 250);
     return () => clearTimeout(t);
-  }, []);
+  }, [isFocusedWindow]);
 
   function print(text: string) {
     progressLineId.current = null;

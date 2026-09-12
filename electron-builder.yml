@@ -20,6 +20,10 @@ extraResources:
   # this step, never compiled by electron-builder itself.
   - from: native/kioskhook/bin/Release/net8.0/win-x64/publish/AnchoranKioskHook.exe
     to: AnchoranKioskHook.exe
+  # Window-embedding helper (native/windowembed) — same deal, built via
+  # `npm run build:windowembed` before this step.
+  - from: native/windowembed/bin/Release/net8.0/win-x64/publish/AnchoranWindowEmbed.exe
+    to: AnchoranWindowEmbed.exe
 
 win:
   target:

@@ -1,0 +1,31 @@
+.embeddedapp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  text-align: center;
+  color: var(--anchoran-text-secondary);
+  font-size: 13px;
+  padding: 20px;
+}
+
+.embeddedapp-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+.embeddedapp-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12.5px;
+}

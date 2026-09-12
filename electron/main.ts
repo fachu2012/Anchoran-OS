@@ -1451,6 +1451,124 @@ ipcMain.handle("anchoran:system-mode-status", () => ({
   supported: process.platform === "win32",
 }));
 
+/**
+ * Real external Windows app embedding: launches a real .exe and
+ * reparents its window into Anchoran's own window via
+ * native/windowembed's helper (SetParent + strips its title bar) — see
+ * that helper's Program.cs for the full protocol and its stated
+ * "airspace" limitation: the embedded window always renders above
+ * every other Anchoran UI element in the screen region it occupies.
+ * That's an inherent limit of mixing a real Win32 child window with a
+ * GPU-composited Chromium surface, not something fixable here without
+ * a full compositor (DirectComposition) — stated once, honestly,
+ * rather than pretended away. One helper process per embedded window,
+ * keyed by the Anchoran windowId that owns it.
+ */
+const embedProcesses = new Map<string, ReturnType<typeof spawn>>();
+
+function windowEmbedExePath(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "AnchoranWindowEmbed.exe")
+    : path.join(__dirname, "..", "native", "windowembed", "bin", "Release", "net8.0", "win-x64", "publish", "AnchoranWindowEmbed.exe");
+}
+
+/** Anchoran's own top-level HWND, as a decimal string the .NET helper's SetParent can consume. */
+function nativeWindowHandleDecimal(): string | null {
+  if (!mainWindow) return null;
+  const buf = mainWindow.getNativeWindowHandle();
+  if (buf.length >= 8) return buf.readBigUInt64LE(0).toString();
+  if (buf.length >= 4) return buf.readUInt32LE(0).toString();
+  return null;
+}
+
+function stopEmbed(windowId: string) {
+  const proc = embedProcesses.get(windowId);
+  if (!proc) return;
+  try {
+    proc.stdin?.write("EXIT\n");
+  } catch {
+    // Falls through to a hard kill below regardless.
+  }
+  embedProcesses.delete(windowId);
+  setTimeout(() => {
+    if (!proc.killed) proc.kill();
+  }, 1500);
+}
+
+ipcMain.handle("anchoran:embed-start", (_event, windowId: string, exePath: string) => {
+  if (process.platform !== "win32") return { success: false, error: "Only supported on Windows." };
+  if (embedProcesses.has(windowId)) return { success: true };
+
+  const helperPath = windowEmbedExePath();
+  if (!fs.existsSync(helperPath)) {
+    return {
+      success: false,
+      error: isDev
+        ? "Run `npm run build:windowembed` first — it isn't built automatically in dev mode."
+        : "The window-embedding helper is missing from this build.",
+    };
+  }
+  if (!fs.existsSync(exePath)) {
+    return { success: false, error: `${exePath} doesn't exist.` };
+  }
+  const parentHandle = nativeWindowHandleDecimal();
+  if (!parentHandle) return { success: false, error: "Couldn't read Anchoran's own window handle." };
+
+  try {
+    const child = spawn(helperPath, [exePath, parentHandle]);
+    embedProcesses.set(windowId, child);
+
+    child.stdout.setEncoding("utf-8");
+    let buffer = "";
+    child.stdout.on("data", (chunk: string) => {
+      buffer += chunk;
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (line.startsWith("EMBEDDED")) {
+          mainWindow?.webContents.send("anchoran:embed-status", { windowId, state: "embedded" });
+        } else if (line === "CLOSED") {
+          embedProcesses.delete(windowId);
+          mainWindow?.webContents.send("anchoran:embed-status", { windowId, state: "closed" });
+        } else if (line.startsWith("ERROR")) {
+          embedProcesses.delete(windowId);
+          mainWindow?.webContents.send("anchoran:embed-status", { windowId, state: "error", message: line.slice(6).trim() });
+        }
+      }
+    });
+
+    child.on("exit", () => {
+      if (embedProcesses.get(windowId) === child) embedProcesses.delete(windowId);
+    });
+    child.on("error", (err) => {
+      logToDisk("windowembed", `Helper process error: ${err.message}`);
+      if (embedProcesses.get(windowId) === child) embedProcesses.delete(windowId);
+      mainWindow?.webContents.send("anchoran:embed-status", { windowId, state: "error", message: err.message });
+    });
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.on("anchoran:embed-bounds", (_event, windowId: string, x: number, y: number, width: number, height: number) => {
+  embedProcesses.get(windowId)?.stdin?.write(`BOUNDS ${Math.round(x)} ${Math.round(y)} ${Math.round(width)} ${Math.round(height)}\n`);
+});
+
+ipcMain.on("anchoran:embed-visibility", (_event, windowId: string, visible: boolean) => {
+  embedProcesses.get(windowId)?.stdin?.write(`${visible ? "SHOW" : "HIDE"}\n`);
+});
+
+ipcMain.on("anchoran:embed-focus", (_event, windowId: string) => {
+  embedProcesses.get(windowId)?.stdin?.write("FOCUS\n");
+});
+
+ipcMain.handle("anchoran:embed-stop", (_event, windowId: string) => {
+  stopEmbed(windowId);
+  return { success: true };
+});
+
 app.whenReady().then(() => {
   createMainWindow();
   registerGlobalShortcuts();
@@ -1468,6 +1586,7 @@ app.whenReady().then(() => {
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
   stopKioskHook();
+  for (const windowId of embedProcesses.keys()) stopEmbed(windowId);
 });
 
 app.on("window-all-closed", () => {

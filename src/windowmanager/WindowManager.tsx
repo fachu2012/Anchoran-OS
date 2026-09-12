@@ -8,7 +8,9 @@ import type { AppId } from "@/core/types";
 // is fetched the first time a window for it actually opens.
 const APP_COMPONENTS: Record<
   AppId,
-  React.LazyExoticComponent<(props: { openPath?: string; startAdmin?: boolean }) => JSX.Element>
+  React.LazyExoticComponent<
+    (props: { openPath?: string; startAdmin?: boolean; windowId?: string; embedPath?: string }) => JSX.Element
+  >
 > = {
   files: lazy(() => import("@/applications/files/Files").then((m) => ({ default: m.FilesApp }))),
   terminal: lazy(() => import("@/applications/terminal/Terminal").then((m) => ({ default: m.TerminalApp }))),
@@ -120,6 +122,9 @@ const APP_COMPONENTS: Record<
   recycleBin: lazy(() => Promise.resolve({ default: () => <></> })),
   onScreenKeyboard: lazy(() => Promise.resolve({ default: () => <></> })),
   narrator: lazy(() => Promise.resolve({ default: () => <></> })),
+  embeddedApp: lazy(() =>
+    import("@/applications/embeddedapp/EmbeddedApp").then((m) => ({ default: m.EmbeddedApp }))
+  ),
 };
 
 function AppLoadingFallback() {
@@ -142,7 +147,12 @@ export function WindowManager() {
         return (
           <WindowFrame key={win.windowId} win={win}>
             <Suspense fallback={<AppLoadingFallback />}>
-              <AppComponent openPath={win.openPath} startAdmin={win.startAdmin} />
+              <AppComponent
+                openPath={win.openPath}
+                startAdmin={win.startAdmin}
+                windowId={win.windowId}
+                embedPath={win.embedPath}
+              />
             </Suspense>
           </WindowFrame>
         );

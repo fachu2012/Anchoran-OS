@@ -163,6 +163,25 @@ contextBridge.exposeInMainWorld("anchoran", {
     ipcRenderer.on("anchoran:system-mode-status", (_e, running) => callback(running));
   },
 
+  // Real external Windows app embedding — see electron/main.ts's
+  // embed-* handlers and native/windowembed/Program.cs for the full
+  // protocol and its stated "airspace" limitation.
+  embedStart: (windowId: string, exePath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:embed-start", windowId, exePath),
+  embedBounds: (windowId: string, x: number, y: number, width: number, height: number): void => {
+    ipcRenderer.send("anchoran:embed-bounds", windowId, x, y, width, height);
+  },
+  embedVisibility: (windowId: string, visible: boolean): void => {
+    ipcRenderer.send("anchoran:embed-visibility", windowId, visible);
+  },
+  embedFocus: (windowId: string): void => {
+    ipcRenderer.send("anchoran:embed-focus", windowId);
+  },
+  embedStop: (windowId: string): Promise<{ success: boolean }> => ipcRenderer.invoke("anchoran:embed-stop", windowId),
+  onEmbedStatus: (callback: (status: unknown) => void): void => {
+    ipcRenderer.on("anchoran:embed-status", (_e, status) => callback(status));
+  },
+
   // Real Windows filesystem access for Files, Notes, and every app
   // that saves what it creates — see electron/main.ts's "Real
   // filesystem" section for the full rationale.

@@ -395,6 +395,14 @@ export function FilesApp() {
             },
           ]
         : []),
+      ...(!entry.isDirectory && entry.name.toLowerCase().endsWith(".exe")
+        ? [
+            {
+              label: "Run embedded in Anchoran (experimental)",
+              onSelect: () => openApp("embeddedApp", { embedPath: entry.path, title: entry.name }),
+            },
+          ]
+        : []),
       { label: "Cut", onSelect: () => setClipboard({ paths, mode: "cut" }) },
       { label: "Copy", onSelect: () => setClipboard({ paths, mode: "copy" }) },
       ...(paths.length === 1 ? [{ label: "Rename", onSelect: () => startRename(entry) }] : []),

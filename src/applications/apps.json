@@ -553,5 +553,15 @@
     "description": "Opens the real Windows Recycle Bin — restore or permanently delete what you've removed.",
     "defaultSize": { "width": 400, "height": 300 },
     "minSize": { "width": 320, "height": 260 }
+  },
+  {
+    "id": "embeddedApp",
+    "title": "Windows App Window",
+    "icon": "executable",
+    "category": "System",
+    "description": "Runs a real Windows app (.exe) reparented into an Anchoran window, instead of floating separately on the desktop. Experimental — the embedded app always renders on top of other Anchoran windows in the space it occupies, a limitation of mixing a real window with Anchoran's own UI.",
+    "allowMultipleInstances": true,
+    "defaultSize": { "width": 760, "height": 520 },
+    "minSize": { "width": 360, "height": 260 }
   }
 ]
