@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useNotificationStore } from "@/notifications/notificationStore";
+import { useVolumeMixerStore } from "@/desktop/volumeMixerStore";
 import "@/applications/apps.css";
 import "./mediaplayer.css";
 
@@ -21,6 +22,16 @@ export function MediaPlayerApp() {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [activePath, setActivePath] = useState<string | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
+  const mixerLevel = useVolumeMixerStore((s) => s.getLevel("mediaPlayer"));
+  const mediaRef = useRef<HTMLMediaElement>(null);
+
+  useEffect(() => {
+    const el = mediaRef.current;
+    if (el) {
+      el.volume = mixerLevel.volume;
+      el.muted = mixerLevel.muted;
+    }
+  }, [mixerLevel, activePath]);
 
   async function refresh() {
     if (!window.anchoran) return;
@@ -94,12 +105,12 @@ export function MediaPlayerApp() {
         <div className="mediaplayer-stage">
           {active ? (
             active.isVideo ? (
-              <video src={toFileUrl(active.path)} controls key={active.path} />
+              <video ref={mediaRef as never} src={toFileUrl(active.path)} controls key={active.path} />
             ) : (
               <div className="mediaplayer-audio">
                 <Icon name="mediaPlayer" size={48} />
                 <div className="mediaplayer-title">{active.name}</div>
-                <audio src={toFileUrl(active.path)} controls key={active.path} />
+                <audio ref={mediaRef as never} src={toFileUrl(active.path)} controls key={active.path} />
               </div>
             )
           ) : (

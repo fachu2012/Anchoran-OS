@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useWebviewContextMenu } from "@/core/useWebviewContextMenu";
+import { useWebviewVolume } from "@/core/useWebviewVolume";
 import "@/applications/apps.css";
 
 /**
@@ -28,6 +29,7 @@ export function BrowserApp() {
   const [activeUrl, setActiveUrl] = useState(urlInput);
   const webviewRef = useRef<HTMLElement>(null);
   useWebviewContextMenu(webviewRef);
+  useWebviewVolume("browser", webviewRef);
 
   function navigate() {
     setActiveUrl(normalizeUrl(urlInput));

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Wallpaper } from "@/desktop/Wallpaper";
 import { usePreferencesStore } from "@/theme/preferencesStore";
+import { useProfilesStore } from "@/core/profilesStore";
 
 const UNLOCK_ANIMATION_MS = 220;
 const DEFAULT_AVATAR = new URL("../../assets/avatar/default-avatar.png", import.meta.url).href;
@@ -9,6 +10,9 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const username = usePreferencesStore((s) => s.username);
   const lockPin = usePreferencesStore((s) => s.lockPin);
   const avatarDataUrl = usePreferencesStore((s) => s.avatarDataUrl);
+  const profiles = useProfilesStore((s) => s.profiles);
+  const activeProfileId = useProfilesStore((s) => s.activeProfileId);
+  const switchProfile = useProfilesStore((s) => s.switchProfile);
   const [now] = useState(new Date());
   const [unlocking, setUnlocking] = useState(false);
   const [pinPromptOpen, setPinPromptOpen] = useState(false);
@@ -20,6 +24,13 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
     if (unlocking) return;
     setUnlocking(true);
     setTimeout(onUnlock, UNLOCK_ANIMATION_MS);
+  }
+
+  function selectProfile(id: string) {
+    if (id === activeProfileId) return;
+    switchProfile(id);
+    setPinPromptOpen(false);
+    setPinInput("");
   }
 
   function wake() {
@@ -85,16 +96,50 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
         <div style={{ fontSize: 16, opacity: 0.85 }}>
           {now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}
         </div>
-        <div
-          style={{
-            marginTop: 60,
-            width: 72,
-            height: 72,
-            borderRadius: "50%",
-            background: `url(${avatarDataUrl || DEFAULT_AVATAR}) center/cover`,
-            border: "1px solid rgba(255,255,255,0.3)",
-          }}
-        />
+        {profiles.length > 1 && (
+          <div style={{ display: "flex", gap: 14, marginTop: 50 }} onClick={(e) => e.stopPropagation()}>
+            {profiles.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => selectProfile(p.id)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 6,
+                  background: "transparent",
+                  border: "none",
+                  color: "#fff",
+                  cursor: "pointer",
+                  opacity: p.id === activeProfileId ? 1 : 0.55,
+                }}
+              >
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    background: `url(${p.avatarDataUrl || DEFAULT_AVATAR}) center/cover`,
+                    border: p.id === activeProfileId ? "2px solid #fff" : "1px solid rgba(255,255,255,0.4)",
+                  }}
+                />
+                <span style={{ fontSize: 11 }}>{p.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {profiles.length <= 1 && (
+          <div
+            style={{
+              marginTop: 60,
+              width: 72,
+              height: 72,
+              borderRadius: "50%",
+              background: `url(${avatarDataUrl || DEFAULT_AVATAR}) center/cover`,
+              border: "1px solid rgba(255,255,255,0.3)",
+            }}
+          />
+        )}
         <div style={{ fontSize: 14, marginTop: 6 }}>{username}</div>
 
         {!pinPromptOpen ? (

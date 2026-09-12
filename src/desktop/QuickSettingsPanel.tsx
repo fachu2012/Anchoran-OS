@@ -1,8 +1,10 @@
-import { Icon } from "@/components/Icon";
+import { Icon, type IconName } from "@/components/Icon";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useSystemStatus } from "./systemStatus";
+import { useVolumeMixerStore, MIXER_APP_IDS } from "./volumeMixerStore";
+import { APP_REGISTRY } from "@/applications/registry";
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -52,6 +54,9 @@ export function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
   const openApp = useWindowStore((s) => s.openApp);
   const status = useSystemStatus();
   const batteryPercent = Math.round(status.batteryLevel * 100);
+  const getLevel = useVolumeMixerStore((s) => s.getLevel);
+  const setVolume = useVolumeMixerStore((s) => s.setVolume);
+  const setMuted = useVolumeMixerStore((s) => s.setMuted);
 
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 690 }} onClick={onClose}>
@@ -125,6 +130,37 @@ export function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
             onChange={(e) => prefs.setSoundVolume(Number(e.target.value))}
             style={{ width: "100%" }}
           />
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <span style={{ fontSize: 12.5, color: "var(--anchoran-text-secondary)" }}>App volume</span>
+          {MIXER_APP_IDS.map((appId) => {
+            const level = getLevel(appId);
+            const app = APP_REGISTRY[appId];
+            return (
+              <div key={appId} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Icon name={app.icon as IconName} size={14} style={{ flexShrink: 0, opacity: level.muted ? 0.4 : 1 }} />
+                <span style={{ fontSize: 12, width: 78, flexShrink: 0 }}>{app.title}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={level.volume}
+                  disabled={level.muted}
+                  onChange={(e) => setVolume(appId, Number(e.target.value))}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  onClick={() => setMuted(appId, !level.muted)}
+                  aria-label={level.muted ? "Unmute" : "Mute"}
+                  style={{ border: "none", background: "transparent", color: "var(--anchoran-text-secondary)", cursor: "pointer", flexShrink: 0 }}
+                >
+                  <Icon name="volume" size={13} style={{ opacity: level.muted ? 0.4 : 1 }} />
+                </button>
+              </div>
+            );
+          })}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

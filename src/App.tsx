@@ -14,6 +14,7 @@ import { recordUpdateIfVersionChanged } from "@/core/updateHistory";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { Onboarding } from "@/onboarding/Onboarding";
 import { useWindowStore } from "@/windowmanager/windowStore";
+import { useSystemModeStore } from "@/desktop/systemModeStore";
 
 const WELCOMED_KEY = "welcomed";
 
@@ -82,6 +83,13 @@ export default function App() {
   async function enterDesktop() {
     setBooted(true);
     playLoginSound();
+
+    // System Mode now starts on by default every launch (not
+    // persisted — a fresh, deliberate start each time, same safety
+    // model as before, just flipped to auto-on instead of requiring a
+    // manual toggle in Settings each session). Turning it off in
+    // Settings only lasts for the current session.
+    useSystemModeStore.getState().start();
 
     // First-ever boot after installing: the welcome wizard (username,
     // PIN, avatar, wallpaper) takes the place of both the lock screen

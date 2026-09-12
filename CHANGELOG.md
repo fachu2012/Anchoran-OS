@@ -5,6 +5,24 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.1.8] - 2026-09-11
+
+### Added
+
+- **System Mode is now on by default** every launch (previously an
+  opt-in toggle each session) — per explicit request.
+- **Per-app volume mixer** in Quick Settings: independent volume/mute
+  sliders for Browser, Chat and Media Player, on top of the existing
+  system-sounds volume. Browser/Chat apply it to their real `<webview>`
+  guest page; Media Player applies it directly to its own player.
+- **Multiple user profiles**: Settings → Users can now create, switch
+  between and delete profiles, each with its own name, avatar, PIN,
+  accent color, wallpaper and theme. The lock screen shows a profile
+  picker whenever more than one exists. Scope note: app data (Notes,
+  Files, and every other app's own data) is shared across profiles —
+  this covers identity and appearance, not full per-user data
+  isolation.
+
 ## [2.1.7] - 2026-09-11
 
 ### Fixed

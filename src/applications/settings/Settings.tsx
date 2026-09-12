@@ -6,6 +6,7 @@ import { WALLPAPERS } from "@/desktop/wallpapers";
 import { playNotificationSound } from "@/core/sound";
 import { useUpdateHistoryStore } from "@/core/updateHistory";
 import { useSystemModeStore } from "@/desktop/systemModeStore";
+import { useProfilesStore } from "@/core/profilesStore";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import "@/applications/apps.css";
 
@@ -378,9 +379,77 @@ function NotificationsSection() {
 function UsersSection() {
   const prefs = usePreferencesStore();
   const [pinDraft, setPinDraft] = useState("");
+  const profiles = useProfilesStore((s) => s.profiles);
+  const activeProfileId = useProfilesStore((s) => s.activeProfileId);
+  const createProfile = useProfilesStore((s) => s.createProfile);
+  const deleteProfile = useProfilesStore((s) => s.deleteProfile);
+  const switchProfile = useProfilesStore((s) => s.switchProfile);
+  const [newProfileName, setNewProfileName] = useState("");
 
   return (
     <>
+      <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
+        <div>
+          <div className="settings-row-label">Profiles</div>
+          <div className="settings-row-desc">
+            Each profile has its own name, avatar, PIN and appearance (accent color, wallpaper, theme). App data —
+            Notes, Files, and every other app — is shared across profiles.
+          </div>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, width: "100%" }}>
+          {profiles.map((p) => (
+            <div
+              key={p.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 10px",
+                borderRadius: "var(--anchoran-radius-md)",
+                border: p.id === activeProfileId ? "1px solid var(--anchoran-accent)" : "1px solid var(--anchoran-border)",
+                background: p.id === activeProfileId ? "var(--anchoran-accent-soft)" : "transparent",
+              }}
+            >
+              <span style={{ fontSize: 12.5 }}>{p.name}</span>
+              {p.id === activeProfileId ? (
+                <span style={{ fontSize: 10.5, color: "var(--anchoran-accent)" }}>Active</span>
+              ) : (
+                <button className="app-toolbar-btn" onClick={() => switchProfile(p.id)}>
+                  Switch to
+                </button>
+              )}
+              {profiles.length > 1 && (
+                <button
+                  className="app-toolbar-btn"
+                  onClick={() => {
+                    if (window.confirm(`Delete profile "${p.name}"? This can't be undone.`)) deleteProfile(p.id);
+                  }}
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            placeholder="New profile name"
+            value={newProfileName}
+            onChange={(e) => setNewProfileName(e.target.value)}
+            style={inputStyle}
+          />
+          <button
+            className="app-toolbar-btn"
+            disabled={!newProfileName.trim()}
+            onClick={() => {
+              createProfile(newProfileName.trim());
+              setNewProfileName("");
+            }}
+          >
+            Add profile
+          </button>
+        </div>
+      </div>
       <div className="settings-row">
         <div>
           <div className="settings-row-label">Profile picture</div>

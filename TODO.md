@@ -6,7 +6,7 @@ Larger, not-yet-started ideas that don't fit neatly into a single wave of work. 
 
 **Status: core implementation done (v1.19.0). Not yet confirmed working on an actual physical keyboard/session by the user — do that before relying on it.**
 
-What it does: Anchoran can now claim the Windows key and Alt+Tab system-wide while it's running, via a native low-level keyboard hook (`native/kioskhook`), without touching anything about how Windows itself boots, logs in, or what the user had open before launching Anchoran. Toggle lives in Settings → System Mode, off by default every session (never persisted as "was on").
+What it does: Anchoran can now claim the Windows key and Alt+Tab system-wide while it's running, via a native low-level keyboard hook (`native/kioskhook`), without touching anything about how Windows itself boots, logs in, or what the user had open before launching Anchoran. Toggle lives in Settings → System Mode — **on by default every session** (per explicit user request), not persisted as a stored preference; it's started fresh on each launch rather than remembering a previous "off" choice. Turning it off in Settings only lasts for that session.
 
 How it works, in short:
 - `native/kioskhook/Program.cs` — a small standalone .NET 8 console app (self-contained single-file publish, so end users need nothing extra installed) that installs a `WH_KEYBOARD_LL` hook, swallows only the Windows key and Alt+Tab (prints `WIN` / `ALTTAB` to stdout each time), and does nothing else. Exits on an `EXIT` line over stdin, or on its own within ~1s if its parent process (Anchoran) disappears — a watchdog thread, independent of the graceful-shutdown path.

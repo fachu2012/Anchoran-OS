@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { useWebviewContextMenu } from "@/core/useWebviewContextMenu";
+import { useWebviewVolume } from "@/core/useWebviewVolume";
 import "@/applications/apps.css";
 
 // The user's own chat app (Firebase-backed, their project) — embedded
@@ -11,6 +12,7 @@ const isElectron = typeof window !== "undefined" && !!window.anchoran;
 export function ChatApp() {
   const webviewRef = useRef<HTMLElement>(null);
   useWebviewContextMenu(webviewRef);
+  useWebviewVolume("chat", webviewRef);
 
   return (
     <div className="app-root">
