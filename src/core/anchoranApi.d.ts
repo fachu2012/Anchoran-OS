@@ -68,6 +68,7 @@ declare global {
     fsReadTextFile: (filePath: string) => Promise<{ content: string } | { error: string }>;
     fsReadImageFile: (filePath: string) => Promise<{ dataUrl: string } | { error: string }>;
     fsIsTextFile: (filePath: string) => Promise<boolean>;
+    fsReadBinary: (filePath: string) => Promise<{ base64: string } | { error: string }>;
     fsWriteTextFile: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
     fsCreateFolder: (parentPath: string, name: string) => Promise<{ path: string } | { error: string }>;
     fsCreateFile: (parentPath: string, name: string, content?: string) => Promise<{ path: string } | { error: string }>;

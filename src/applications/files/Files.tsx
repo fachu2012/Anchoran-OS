@@ -3,6 +3,7 @@ import { Icon, type IconName } from "@/components/Icon";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { ContextMenu, type ContextMenuItem } from "@/desktop/ContextMenu";
 import { printTextAsPdf } from "@/core/print";
+import { QuickLook } from "./QuickLook";
 import "@/applications/apps.css";
 
 const THIS_PC = "This PC";
@@ -34,23 +35,61 @@ function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Functional sets — these gate real behavior (inline preview eligibility,
+// the Media Player suggestion message) and must stay narrow, matching
+// exactly what Anchoran can actually do with the file.
 const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]);
 const AUDIO_EXT = new Set([".mp3", ".wav", ".ogg", ".m4a"]);
 const VIDEO_EXT = new Set([".mp4", ".webm", ".mov", ".avi", ".mkv"]);
-const ARCHIVE_EXT = new Set([".zip", ".rar", ".7z", ".tar", ".gz"]);
-const CODE_EXT = new Set([".js", ".ts", ".tsx", ".jsx", ".json", ".html", ".css", ".py", ".java", ".c", ".cpp", ".cs", ".sh", ".ps1", ".yml", ".yaml", ".xml"]);
-const SHEET_EXT = new Set([".csv", ".xlsx", ".xls"]);
-const DOC_EXT = new Set([".txt", ".md", ".doc", ".docx", ".pdf", ".log"]);
+
+// Icon-only sets — purely cosmetic, so these can be as broad as real
+// file extensions actually in use, even ones Anchoran can't open yet.
+const ICON_IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".tiff", ".tif", ".bmp", ".heic", ".raw", ".cr2", ".nef", ".arw", ".ico", ".icns", ".psd", ".xcf", ".tga", ".iff"]);
+const ICON_DOC_EXT = new Set([".docx", ".doc", ".odt", ".rtf", ".pages", ".wpd", ".wps", ".dotx", ".md", ".txt", ".log"]);
+const ICON_PDF_EXT = new Set([".pdf"]);
+const ICON_SHEET_EXT = new Set([".xlsx", ".xls", ".ods", ".numbers", ".csv", ".xltx"]);
+const ICON_PRESENTATION_EXT = new Set([".pptx", ".ppt", ".odp", ".key", ".potx"]);
+const ICON_EBOOK_EXT = new Set([".epub", ".mobi", ".azw3", ".djvu"]);
+const ICON_EMAIL_EXT = new Set([".msg", ".eml"]);
+const ICON_VECTOR_EXT = new Set([".svg", ".ai", ".eps", ".cdr", ".indd", ".sketch", ".fig"]);
+const ICON_MODEL3D_EXT = new Set([".obj", ".fbx", ".stl", ".blend", ".skp", ".3ds"]);
+const ICON_VIDEO_EXT = new Set([".mp4", ".mkv", ".mov", ".avi", ".wmv", ".flv", ".webm", ".mpeg", ".mpg", ".m4v", ".3gp", ".ts", ".vob", ".ogv", ".rmvb", ".asf", ".divx", ".swf"]);
+const ICON_AUDIO_EXT = new Set([".mp3", ".wav", ".flac", ".m4a", ".aac", ".wma", ".ogg", ".opus", ".mid", ".midi", ".amr", ".aif", ".aiff", ".ape", ".mka", ".mpc", ".ra"]);
+const ICON_ARCHIVE_EXT = new Set([".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".cab", ".jar", ".wim"]);
+const ICON_DISK_EXT = new Set([".iso", ".bin", ".cue", ".img", ".vhd", ".vhdx", ".vmdk", ".ova", ".ovf", ".pvm"]);
+const ICON_EXE_EXT = new Set([".exe", ".msi", ".dmg", ".app", ".apk", ".aab", ".deb", ".rpm", ".dll", ".sys", ".drv", ".com", ".gadget", ".scr", ".efi"]);
+const ICON_DB_EXT = new Set([".db", ".sqlite", ".sqlite3", ".mdb", ".accdb", ".bak", ".dat", ".gdb", ".nsf", ".frm", ".ibd"]);
+const ICON_FONT_EXT = new Set([".ttf", ".otf", ".woff", ".woff2", ".eot", ".fnt"]);
+const ICON_ROM_EXT = new Set([".rom", ".sav", ".pak", ".paks", ".vpk", ".gsa", ".nds", ".gba", ".sfc", ".nes"]);
+const ICON_CERT_EXT = new Set([".pfx", ".p12", ".crt", ".csr", ".pem", ".pub", ".ppk"]);
+const ICON_SHORTCUT_EXT = new Set([".lnk", ".url", ".alias"]);
+const ICON_SUBTITLE_EXT = new Set([".srt", ".ass"]);
+const ICON_CODE_EXT = new Set([".js", ".ts", ".tsx", ".jsx", ".json", ".xml", ".html", ".htm", ".css", ".py", ".java", ".c", ".cpp", ".cs", ".sh", ".bat", ".ps1", ".rb", ".go", ".rs", ".swift", ".sql", ".yaml", ".yml", ".ini", ".config", ".env", ".sass", ".scss", ".vue", ".asp", ".aspx", ".pl", ".kt", ".dart", ".lua", ".asm", ".h", ".php"]);
 
 /** Picks a more specific icon by extension where Anchoran has one, falling back to a generic file icon. */
 function iconForFile(name: string): IconName {
   const ext = name.slice(name.lastIndexOf(".")).toLowerCase();
-  if (IMAGE_EXT.has(ext)) return "photoViewer";
-  if (AUDIO_EXT.has(ext) || VIDEO_EXT.has(ext)) return "mediaPlayer";
-  if (ARCHIVE_EXT.has(ext)) return "zipTool";
-  if (CODE_EXT.has(ext)) return "jsonFormatter";
-  if (SHEET_EXT.has(ext)) return "spreadsheet";
-  if (DOC_EXT.has(ext)) return "wordCounter";
+  if (ICON_IMAGE_EXT.has(ext)) return "photoViewer";
+  if (ICON_PDF_EXT.has(ext)) return "pdfFile";
+  if (ICON_PRESENTATION_EXT.has(ext)) return "presentation";
+  if (ICON_SHEET_EXT.has(ext)) return "spreadsheet";
+  if (ICON_EBOOK_EXT.has(ext)) return "ebook";
+  if (ICON_EMAIL_EXT.has(ext)) return "email";
+  if (ICON_VECTOR_EXT.has(ext)) return "vectorDesign";
+  if (ICON_MODEL3D_EXT.has(ext)) return "model3d";
+  if (ICON_VIDEO_EXT.has(ext)) return "videoFile";
+  if (ICON_AUDIO_EXT.has(ext)) return "audioFile";
+  if (ICON_ARCHIVE_EXT.has(ext)) return "zipTool";
+  if (ICON_DISK_EXT.has(ext)) return "diskImage";
+  if (ICON_EXE_EXT.has(ext)) return "executable";
+  if (ICON_DB_EXT.has(ext)) return "database";
+  if (ICON_FONT_EXT.has(ext)) return "fontFile";
+  if (ICON_ROM_EXT.has(ext)) return "gameRom";
+  if (ICON_CERT_EXT.has(ext)) return "certificate";
+  if (ICON_SHORTCUT_EXT.has(ext)) return "shortcut";
+  if (ICON_SUBTITLE_EXT.has(ext)) return "subtitle";
+  if (ICON_CODE_EXT.has(ext)) return "jsonFormatter";
+  if (ICON_DOC_EXT.has(ext)) return "document";
   return "file";
 }
 
@@ -67,6 +106,7 @@ export function FilesApp() {
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; entry: Entry | null } | null>(null);
+  const [quickLookEntry, setQuickLookEntry] = useState<Entry | null>(null);
   const [openFile, setOpenFile] = useState<{ path: string; name: string; content: string; isImage: boolean; dataUrl?: string } | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
 
@@ -227,7 +267,7 @@ export function FilesApp() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (openFile || renamingPath) return;
+      if (openFile || renamingPath || quickLookEntry) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "c" && selected.size > 0) {
         setClipboard({ paths: Array.from(selected), mode: "copy" });
@@ -237,18 +277,27 @@ export function FilesApp() {
         pasteClipboard();
       } else if (e.key === "Delete" && selected.size > 0) {
         deletePaths(Array.from(selected));
+      } else if (e.key === " " && selected.size === 1) {
+        e.preventDefault();
+        const entry = entries.find((en) => selected.has(en.path));
+        if (entry && !entry.isDirectory) setQuickLookEntry(entry);
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, clipboard, openFile, renamingPath, currentPath]);
+  }, [selected, clipboard, openFile, renamingPath, currentPath, quickLookEntry, entries]);
 
   function entryMenuItems(entry: Entry): ContextMenuItem[] {
     const paths = selected.has(entry.path) && selected.size > 1 ? Array.from(selected) : [entry.path];
     return [
       { label: "Open", onSelect: () => openEntry(entry) },
-      ...(!entry.isDirectory ? [{ label: "Open with…", onSelect: () => window.anchoran!.fsOpenWith(entry.path) }] : []),
+      ...(!entry.isDirectory
+        ? [
+            { label: "Quick Look", onSelect: () => setQuickLookEntry(entry) },
+            { label: "Open with…", onSelect: () => window.anchoran!.fsOpenWith(entry.path) },
+          ]
+        : []),
       { label: "Cut", onSelect: () => setClipboard({ paths, mode: "cut" }) },
       { label: "Copy", onSelect: () => setClipboard({ paths, mode: "copy" }) },
       ...(paths.length === 1 ? [{ label: "Rename", onSelect: () => startRename(entry) }] : []),
@@ -443,6 +492,7 @@ export function FilesApp() {
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} items={menu.entry ? entryMenuItems(menu.entry) : emptySpaceMenuItems()} onClose={() => setMenu(null)} />
       )}
+      {quickLookEntry && <QuickLook entry={quickLookEntry} onClose={() => setQuickLookEntry(null)} />}
     </div>
   );
 }

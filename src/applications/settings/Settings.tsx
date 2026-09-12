@@ -552,6 +552,7 @@ const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: "Ctrl + Alt + L", action: "Open the Launcher (also works if the Windows key can't be captured)" },
   { keys: "Ctrl + Tab", action: "Switch to the next open window" },
   { keys: "Ctrl + Shift + Tab", action: "Switch to the previous open window" },
+  { keys: "Space", action: "Quick Look a selected file in Files — a read-only preview, without opening it" },
   { keys: "Ctrl + Z", action: "Undo the last action in Files" },
   { keys: "Ctrl + Y", action: "Redo in Files" },
   { keys: "Ctrl + X / C / V", action: "Cut / Copy / Paste selected items in Files" },

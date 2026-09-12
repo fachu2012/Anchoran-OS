@@ -85,7 +85,24 @@ export type IconName =
   | "zipTool"
   | "spreadsheet"
   | "magnifier"
-  | "screenRecorder";
+  | "screenRecorder"
+  | "document"
+  | "pdfFile"
+  | "presentation"
+  | "ebook"
+  | "email"
+  | "vectorDesign"
+  | "model3d"
+  | "videoFile"
+  | "audioFile"
+  | "diskImage"
+  | "executable"
+  | "database"
+  | "fontFile"
+  | "gameRom"
+  | "certificate"
+  | "shortcut"
+  | "subtitle";
 
 const PATHS: Record<IconName, string> = {
   files:
@@ -199,6 +216,23 @@ const PATHS: Record<IconName, string> = {
     "M10.5 4.5a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm4.2 10.2L19.5 19.5M10.5 8v5M8 10.5h5",
   screenRecorder:
     "M4.5 6.5h11v11h-11v-11Zm11 3 4-2.5v7l-4-2.5M9 10.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z",
+  document: "M7 3.5h7l4 4v13H7v-17Zm7 0v4h4M9 12h6M9 15h6M9 9h3",
+  pdfFile: "M7 3.5h7l4 4v13H7v-17Zm7 0v4h4M8.5 17.5v-5h1.3a1.3 1.3 0 0 1 0 2.6H8.5m4-2.6v5m0-2.5h1.5m2-2.5v5h1.2a1.4 1.4 0 0 0 0-5H16",
+  presentation: "M4 5.5h16v10H4v-10Zm4 14 4-4 4 4M12 15.5v4M9.5 9l2 2 3-3.5",
+  ebook: "M4.5 6c2-1 5-1 7 0v13c-2-1-5-1-7 0V6Zm14 0c-2-1-5-1-7 0v13c2-1 5-1 7 0V6Z",
+  email: "M4.5 6.5h15v11h-15v-11Zm0 0 7.5 6.5 7.5-6.5",
+  vectorDesign: "M5 19 15 5l1.5 3.5L20 10 6 19Zm10-14a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6ZM6 19a1.2 1.2 0 1 0 0-2.4A1.2 1.2 0 0 0 6 19Z",
+  model3d: "M12 3.5 4.5 8v8l7.5 4.5 7.5-4.5V8L12 3.5Zm0 0v9m0 9v-9m0 0L4.7 8.2M12 12.5l7.3-4.3",
+  videoFile: "M7 3.5h7l4 4v13H7v-17Zm7 0v4h4M10.5 12v4l3.5-2-3.5-2Z",
+  audioFile: "M7 3.5h7l4 4v13H7v-17Zm7 0v4h4M14 11v4.3a1.7 1.7 0 1 1-1-1.55V11h1ZM9.5 12h1",
+  diskImage: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-5.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM4.5 12h3M16.5 12h3",
+  executable: "M7 3.5h7l4 4v13H7v-17Zm7 0v4h4M10 11l2 2-2 2",
+  database: "M12 5.2c3.6 0 6.5-1 6.5-1.7S15.6 1.8 12 1.8 5.5 2.8 5.5 3.5 8.4 5.2 12 5.2Zm6.5-1.7v13c0 .7-2.9 1.7-6.5 1.7s-6.5-1-6.5-1.7v-13M18.5 8.5c0 .7-2.9 1.7-6.5 1.7s-6.5-1-6.5-1.7M18.5 13c0 .7-2.9 1.7-6.5 1.7S5.5 13.7 5.5 13",
+  fontFile: "M6 18.5 10.5 6h1.6L16.5 18.5M7.8 14h5.9M17 18.5v-6c0-1 .8-1.4 2-1.4.8 0 1.5.3 1.5.3",
+  gameRom: "M6.5 9.5h11a3.5 3.5 0 0 1 3.3 4.7l-.5 1.4a2 2 0 0 1-3.5.5L15.5 14h-7l-1.3 2.1a2 2 0 0 1-3.5-.5l-.5-1.4A3.5 3.5 0 0 1 6.5 9.5Zm2 1.5v3M7 12.5h3M16.5 11.5h.01M18.5 13h.01",
+  certificate: "M12 3.5 5 6.5v5.5c0 4.5 3 7 7 8.5 4-1.5 7-4 7-8.5V6.5L12 3.5Zm-2.8 8.3 2 2 4-4.3",
+  shortcut: "M7 3.5h7l4 4v13H7v-17Zm7 0v4h4M11 17.5l4-4M15 13.5v3.3h-3.3",
+  subtitle: "M4.5 6.5h15v11h-15v-11Zm3 3h3M13.5 9.5H17M7.5 13h2.5M13.5 13h4",
 };
 
 export function Icon({

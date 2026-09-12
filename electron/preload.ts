@@ -120,6 +120,8 @@ contextBridge.exposeInMainWorld("anchoran", {
   fsReadImageFile: (filePath: string): Promise<{ dataUrl: string } | { error: string }> =>
     ipcRenderer.invoke("anchoran:fs-read-image-file", filePath),
   fsIsTextFile: (filePath: string): Promise<boolean> => ipcRenderer.invoke("anchoran:fs-is-text-file", filePath),
+  fsReadBinary: (filePath: string): Promise<{ base64: string } | { error: string }> =>
+    ipcRenderer.invoke("anchoran:fs-read-binary", filePath),
   fsWriteTextFile: (filePath: string, content: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("anchoran:fs-write-text-file", filePath, content),
   fsCreateFolder: (parentPath: string, name: string): Promise<{ path: string } | { error: string }> =>

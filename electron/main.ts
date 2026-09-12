@@ -476,6 +476,15 @@ ipcMain.handle("anchoran:fs-read-image-file", (_event, filePath: string) => {
 
 ipcMain.handle("anchoran:fs-is-text-file", (_event, filePath: string) => isLikelyTextFile(filePath));
 
+/** Generic raw-bytes reader for Quick Look's archive inspector (peeking inside a .zip without extracting it). */
+ipcMain.handle("anchoran:fs-read-binary", (_event, filePath: string) => {
+  try {
+    return { base64: fs.readFileSync(filePath).toString("base64") };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
 ipcMain.handle("anchoran:fs-write-text-file", (_event, filePath: string, content: string) => {
   try {
     fs.writeFileSync(filePath, content, "utf-8");

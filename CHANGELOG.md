@@ -5,6 +5,22 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.1.10] - 2026-09-11
+
+### Added
+
+- **17 new dedicated file-type icons** in Files, covering the full
+  range of common extensions (documents, PDF, presentations, ebooks,
+  email, vector/design, 3D models, video, audio, disk images,
+  executables, databases, fonts, game ROMs, certificates, shortcuts,
+  subtitles) instead of a generic icon for everything beyond images/
+  audio/video/archives/code/spreadsheets.
+- **Quick Look**: press **Space** on a selected file in Files (or
+  right-click → Quick Look) for a real, read-only preview without
+  opening it — images and SVGs render directly, PDFs use Chromium's
+  own built-in viewer, .zip archives list their real contents without
+  extracting anything, and text/code shows as plain monospace text.
+
 ## [2.1.9] - 2026-09-11
 
 ### Changed
