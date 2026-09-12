@@ -5,6 +5,22 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.1.7] - 2026-09-11
+
+### Fixed
+
+- **Files' "<" button now always goes to the actual parent folder**,
+  fixing a case where going up from a top-level folder (e.g.
+  `C:\Users`) skipped straight to "This PC" instead of stopping at the
+  drive root (`C:\`) first.
+
+### Added
+
+- **Files shows more specific icons per file extension** instead of a
+  generic file icon for everything — images, audio/video, archives
+  (.zip/.rar/.7z), code files, spreadsheets (.csv/.xlsx) and documents
+  (.txt/.md/.pdf/.doc) each get their own icon.
+
 ## [2.1.6] - 2026-09-11
 
 ### Changed

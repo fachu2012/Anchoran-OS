@@ -1,5 +1,5 @@
 import { useEffect, useState, type DragEvent } from "react";
-import { Icon } from "@/components/Icon";
+import { Icon, type IconName } from "@/components/Icon";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { ContextMenu, type ContextMenuItem } from "@/desktop/ContextMenu";
 import { printTextAsPdf } from "@/core/print";
@@ -11,9 +11,15 @@ type Clipboard = { paths: string[]; mode: "copy" | "cut" } | null;
 
 function parentOf(p: string): string {
   const trimmed = p.replace(/[\\/]+$/, "");
+  // Already at a bare drive root ("C:") — one level up is This PC.
+  if (/^[A-Za-z]:$/.test(trimmed)) return THIS_PC;
   const idx = Math.max(trimmed.lastIndexOf("\\"), trimmed.lastIndexOf("/"));
-  if (idx <= 2) return THIS_PC; // "C:\" or shorter -> back to This PC
-  return trimmed.slice(0, idx);
+  if (idx < 0) return THIS_PC;
+  const parent = trimmed.slice(0, idx);
+  // A parent of just "C:" is the drive root — keep its trailing
+  // backslash so it lists that drive, not This PC directly (one more
+  // "<" from there does land on This PC, via the check above).
+  return /^[A-Za-z]:$/.test(parent) ? `${parent}\\` : parent;
 }
 
 function formatSize(bytes: number, isDir: boolean) {
@@ -30,7 +36,23 @@ function formatDate(ts: number) {
 
 const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]);
 const AUDIO_EXT = new Set([".mp3", ".wav", ".ogg", ".m4a"]);
-const VIDEO_EXT = new Set([".mp4", ".webm"]);
+const VIDEO_EXT = new Set([".mp4", ".webm", ".mov", ".avi", ".mkv"]);
+const ARCHIVE_EXT = new Set([".zip", ".rar", ".7z", ".tar", ".gz"]);
+const CODE_EXT = new Set([".js", ".ts", ".tsx", ".jsx", ".json", ".html", ".css", ".py", ".java", ".c", ".cpp", ".cs", ".sh", ".ps1", ".yml", ".yaml", ".xml"]);
+const SHEET_EXT = new Set([".csv", ".xlsx", ".xls"]);
+const DOC_EXT = new Set([".txt", ".md", ".doc", ".docx", ".pdf", ".log"]);
+
+/** Picks a more specific icon by extension where Anchoran has one, falling back to a generic file icon. */
+function iconForFile(name: string): IconName {
+  const ext = name.slice(name.lastIndexOf(".")).toLowerCase();
+  if (IMAGE_EXT.has(ext)) return "photoViewer";
+  if (AUDIO_EXT.has(ext) || VIDEO_EXT.has(ext)) return "mediaPlayer";
+  if (ARCHIVE_EXT.has(ext)) return "zipTool";
+  if (CODE_EXT.has(ext)) return "jsonFormatter";
+  if (SHEET_EXT.has(ext)) return "spreadsheet";
+  if (DOC_EXT.has(ext)) return "wordCounter";
+  return "file";
+}
 
 export function FilesApp() {
   const [currentPath, setCurrentPath] = useState<string>(THIS_PC);
@@ -360,7 +382,7 @@ export function FilesApp() {
                   setMenu({ x: e.clientX, y: e.clientY, entry });
                 }}
               >
-                <Icon name={entry.isDirectory ? "folder" : "file"} size={30} />
+                <Icon name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={30} />
                 {renamingPath === entry.path ? (
                   <input
                     autoFocus
@@ -407,7 +429,7 @@ export function FilesApp() {
                   style={{ cursor: "default", borderTop: "1px solid var(--anchoran-border)" }}
                 >
                   <td style={{ padding: "7px 8px", display: "flex", alignItems: "center", gap: 8 }}>
-                    <Icon name={entry.isDirectory ? "folder" : "file"} size={15} />
+                    <Icon name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={15} />
                     {entry.name}
                   </td>
                   <td style={{ padding: "7px 8px", color: "var(--anchoran-text-secondary)" }}>{formatSize(entry.size, entry.isDirectory)}</td>
