@@ -27,10 +27,19 @@ export function useWebviewVolume(appId: AppId, ref: RefObject<HTMLElement | null
     function apply() {
       const webview = ref.current as WebviewElement | null;
       if (!webview) return;
-      webview.setAudioMuted(level.muted);
-      webview
-        .executeJavaScript(`document.querySelectorAll('audio,video').forEach(el => { el.volume = ${level.volume}; });`)
-        .catch(() => {});
+      // The guest page's webContents isn't attached yet the instant
+      // this effect runs on mount (only guaranteed after "dom-ready"),
+      // and Electron's setAudioMuted throws synchronously rather than
+      // rejecting when called too early — uncaught, that crash used to
+      // bubble all the way up to Anchoran's own error boundary.
+      try {
+        webview.setAudioMuted(level.muted);
+        webview
+          .executeJavaScript(`document.querySelectorAll('audio,video').forEach(el => { el.volume = ${level.volume}; });`)
+          .catch(() => {});
+      } catch {
+        // Not ready yet — the "dom-ready" listener below re-applies once it is.
+      }
     }
 
     apply();

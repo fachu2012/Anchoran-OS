@@ -53,10 +53,21 @@ export class ErrorBoundary extends Component<Props, State> {
       >
         <div style={{ fontSize: 18, fontWeight: 300 }}>Something went wrong in Anchoran.</div>
         <div style={{ fontSize: 12.5, opacity: 0.6, maxWidth: 480 }}>
-          The error was logged. You can try to recover the desktop below.
+          The error was logged. A crash this deep can leave the desktop in a
+          broken state, so this closes Anchoran entirely rather than trying
+          to keep going.
         </div>
         <button
-          onClick={() => this.setState({ error: null })}
+          onClick={() => {
+            // A crash that reached here came from React's own render
+            // tree, not a single app window — clearing local state and
+            // hoping the desktop is still intact isn't reliable.
+            // Ending the whole task and dropping back to Windows is
+            // the safe outcome (System Mode's shell hook is already
+            // restored on quit, see "will-quit" in electron/main.ts).
+            if (window.anchoran) window.anchoran.confirmExit();
+            else this.setState({ error: null });
+          }}
           style={{
             marginTop: 8,
             padding: "9px 18px",
@@ -68,7 +79,7 @@ export class ErrorBoundary extends Component<Props, State> {
             fontSize: 13,
           }}
         >
-          Return to Anchoran
+          Return to Windows
         </button>
       </div>
     );

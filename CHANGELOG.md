@@ -5,6 +5,23 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.2.2] - 2026-09-12
+
+### Fixed
+
+- **A real crash**: opening the Browser or Chat app could throw a
+  synchronous error from Electron's `<webview>` (`setAudioMuted`
+  called before its guest page was actually ready), taking down the
+  whole desktop to Anchoran's crash screen. Now caught and retried once
+  the page is ready.
+
+### Changed
+
+- **The crash screen's recovery button now closes Anchoran entirely**
+  ("Return to Windows") instead of trying to resume — a crash that
+  deep can leave the desktop in an unreliable state, so ending the
+  task cleanly is the safer outcome.
+
 ## [2.2.1] - 2026-09-12
 
 ### Changed
