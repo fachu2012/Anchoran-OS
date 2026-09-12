@@ -144,6 +144,7 @@ export function Taskbar({
                 onClick={() => onAppIconClick(appId)}
                 onContextMenu={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
                   setContextMenu({ x: e.clientX, y: e.clientY, appId });
                 }}
                 aria-label={app.title}

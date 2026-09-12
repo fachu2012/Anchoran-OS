@@ -5,6 +5,23 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.1.13] - 2026-09-12
+
+### Added
+
+- **Copy everything from a minute in Event Viewer** — events are now
+  grouped by the minute they happened in, and each group has a "Copy
+  minute" button that copies every event from that minute to the
+  clipboard at once.
+
+### Fixed
+
+- **Right-clicking inside an app window or the taskbar/dock opened the
+  desktop's own context menu on top of (or instead of) the right one**
+  — a right-click with nowhere else to go bubbled all the way up to the
+  desktop background's handler. It now only opens for the desktop
+  background itself.
+
 ## [2.1.12] - 2026-09-12
 
 ### Fixed

@@ -14,6 +14,32 @@
   text-align: center;
 }
 
+.eventviewer-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.eventviewer-group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 4px;
+  margin-top: 4px;
+  border-bottom: 1px solid var(--anchoran-border);
+  color: var(--anchoran-text-primary);
+  font-weight: 600;
+}
+
+.eventviewer-group-header .app-toolbar-btn {
+  margin-left: auto;
+}
+
+.eventviewer-group-count {
+  color: var(--anchoran-text-secondary);
+  font-weight: 400;
+}
+
 .eventviewer-row {
   display: flex;
   gap: 10px;

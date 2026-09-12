@@ -80,6 +80,14 @@ export function Desktop({
       className="desktop-root"
       onContextMenu={(e) => {
         e.preventDefault();
+        // Only the desktop background itself gets this menu — a
+        // right-click that bubbled up from inside an app window or the
+        // taskbar/dock (because that spot has no context menu of its
+        // own) should just do nothing, not fall back to this one.
+        const target = e.target as HTMLElement;
+        if (target.closest(".wm-window") || target.closest(".taskbar") || target.closest(".taskbar-hotzone")) {
+          return;
+        }
         setContextMenu({ x: e.clientX, y: e.clientY });
       }}
     >
