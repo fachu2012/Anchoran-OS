@@ -5,6 +5,13 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.2] - 2026-09-12
+
+### Added
+
+- Administrator Terminal: `crashinfo` — the last crash recorded in
+  Anchoran's own log, the one item missing from its full command list.
+
 ## [2.6.1] - 2026-09-12
 
 ### Fixed

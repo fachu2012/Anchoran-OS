@@ -184,7 +184,7 @@ export function TerminalConsole({
                   "  startup, startup remove <name>, systemmode on|off",
                   "  df, du <path>, emptyrecyclebin, clearcache, backup, restore, wipe --confirm",
                   "  theme light|dark, wallpaper <name>, accent <hex>, scale <value>",
-                  "  logs, logs --errors, exportlogs, changeto [vX.Y.Z]",
+                  "  logs, logs --errors, crashinfo, exportlogs, changeto [vX.Y.Z]",
                   "  shutdown, restart, sleep, resetpin --confirm",
                   "  listprofiles, delprofile <id>, regquery <key>",
                   "  netcheck, ping <host>, myip",
@@ -596,6 +596,17 @@ export function TerminalConsole({
         }
         const filtered = args[0] === "--errors" ? lines.filter((l) => /error|exception/i.test(l)) : lines;
         print(filtered.slice(0, 30).join("\n") || "No matching log entries.");
+        break;
+      }
+      case "crashinfo": {
+        if (!isAdmin) break;
+        const lines = await window.anchoran?.readLog();
+        if (!lines) {
+          print("crashinfo: not available outside the Anchoran desktop app.");
+          break;
+        }
+        const lastCrash = lines.find((l) => l.includes("renderer:react"));
+        print(lastCrash ? lastCrash : "No crash recorded since Anchoran's log started.");
         break;
       }
       case "changeto": {
