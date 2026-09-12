@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 
 export interface ContextMenuItem {
@@ -32,6 +32,26 @@ export function ContextMenu({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // The menu is rendered once at the raw click point to measure its own
+  // size, then nudged back on-screen if it would otherwise overflow any
+  // edge — up if it runs off the bottom, left if it runs off the right,
+  // and so on. Hidden until that correction is applied so it never
+  // visibly flashes in the wrong spot first.
+  const [pos, setPos] = useState<{ x: number; y: number; ready: boolean }>({ x, y, ready: false });
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const margin = 6;
+    let nx = x;
+    let ny = y;
+    if (nx + rect.width > window.innerWidth - margin) nx = window.innerWidth - rect.width - margin;
+    if (ny + rect.height > window.innerHeight - margin) ny = window.innerHeight - rect.height - margin;
+    nx = Math.max(margin, nx);
+    ny = Math.max(margin, ny);
+    setPos({ x: nx, y: ny, ready: true });
+  }, [x, y]);
 
   useEffect(() => {
     function onPointerDown(e: MouseEvent) {
@@ -49,7 +69,11 @@ export function ContextMenu({
   }, [onClose]);
 
   return (
-    <div ref={ref} className="context-menu" style={{ left: x, top: y }}>
+    <div
+      ref={ref}
+      className="context-menu"
+      style={{ left: pos.x, top: pos.y, visibility: pos.ready ? "visible" : "hidden" }}
+    >
       {items.map((entry, i) =>
         isSeparator(entry) ? (
           <div key={`sep-${i}`} className="context-menu-separator" />

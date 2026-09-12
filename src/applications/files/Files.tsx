@@ -1,5 +1,5 @@
 import { useEffect, useState, type DragEvent } from "react";
-import { Icon, type IconName } from "@/components/Icon";
+import { Icon } from "@/components/Icon";
 import { IconTile } from "@/components/IconTile";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { useWindowStore } from "@/windowmanager/windowStore";
@@ -7,6 +7,7 @@ import { useDefaultAppsStore } from "@/core/defaultAppsStore";
 import { ContextMenu, type ContextMenuEntry } from "@/desktop/ContextMenu";
 import { QuickLook } from "./QuickLook";
 import { FileProperties } from "./FileProperties";
+import { iconForFile } from "./fileTypes";
 import JSZip from "jszip";
 import { addPathToZip, extractZipTo } from "@/core/zipHelpers";
 import "@/applications/apps.css";
@@ -73,57 +74,6 @@ function formatDate(ts: number) {
 const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]);
 const AUDIO_EXT = new Set([".mp3", ".wav", ".ogg", ".m4a"]);
 const VIDEO_EXT = new Set([".mp4", ".webm", ".mov", ".avi", ".mkv"]);
-
-// Icon-only sets — purely cosmetic, so these can be as broad as real
-// file extensions actually in use, even ones Anchoran can't open yet.
-const ICON_IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".tiff", ".tif", ".bmp", ".heic", ".raw", ".cr2", ".nef", ".arw", ".ico", ".icns", ".psd", ".xcf", ".tga", ".iff"]);
-const ICON_DOC_EXT = new Set([".docx", ".doc", ".odt", ".rtf", ".pages", ".wpd", ".wps", ".dotx", ".md", ".txt", ".log"]);
-const ICON_PDF_EXT = new Set([".pdf"]);
-const ICON_SHEET_EXT = new Set([".xlsx", ".xls", ".ods", ".numbers", ".csv", ".xltx"]);
-const ICON_PRESENTATION_EXT = new Set([".pptx", ".ppt", ".odp", ".key", ".potx"]);
-const ICON_EBOOK_EXT = new Set([".epub", ".mobi", ".azw3", ".djvu"]);
-const ICON_EMAIL_EXT = new Set([".msg", ".eml"]);
-const ICON_VECTOR_EXT = new Set([".svg", ".ai", ".eps", ".cdr", ".indd", ".sketch", ".fig"]);
-const ICON_MODEL3D_EXT = new Set([".obj", ".fbx", ".stl", ".blend", ".skp", ".3ds"]);
-const ICON_VIDEO_EXT = new Set([".mp4", ".mkv", ".mov", ".avi", ".wmv", ".flv", ".webm", ".mpeg", ".mpg", ".m4v", ".3gp", ".ts", ".vob", ".ogv", ".rmvb", ".asf", ".divx", ".swf"]);
-const ICON_AUDIO_EXT = new Set([".mp3", ".wav", ".flac", ".m4a", ".aac", ".wma", ".ogg", ".opus", ".mid", ".midi", ".amr", ".aif", ".aiff", ".ape", ".mka", ".mpc", ".ra"]);
-const ICON_ARCHIVE_EXT = new Set([".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".cab", ".jar", ".wim"]);
-const ICON_DISK_EXT = new Set([".iso", ".bin", ".cue", ".img", ".vhd", ".vhdx", ".vmdk", ".ova", ".ovf", ".pvm"]);
-const ICON_EXE_EXT = new Set([".exe", ".msi", ".dmg", ".app", ".apk", ".aab", ".deb", ".rpm", ".dll", ".sys", ".drv", ".com", ".gadget", ".scr", ".efi"]);
-const ICON_DB_EXT = new Set([".db", ".sqlite", ".sqlite3", ".mdb", ".accdb", ".bak", ".dat", ".gdb", ".nsf", ".frm", ".ibd"]);
-const ICON_FONT_EXT = new Set([".ttf", ".otf", ".woff", ".woff2", ".eot", ".fnt"]);
-const ICON_ROM_EXT = new Set([".rom", ".sav", ".pak", ".paks", ".vpk", ".gsa", ".nds", ".gba", ".sfc", ".nes"]);
-const ICON_CERT_EXT = new Set([".pfx", ".p12", ".crt", ".csr", ".pem", ".pub", ".ppk"]);
-const ICON_SHORTCUT_EXT = new Set([".lnk", ".url", ".alias"]);
-const ICON_SUBTITLE_EXT = new Set([".srt", ".ass"]);
-const ICON_CODE_EXT = new Set([".js", ".ts", ".tsx", ".jsx", ".json", ".xml", ".html", ".htm", ".css", ".py", ".java", ".c", ".cpp", ".cs", ".sh", ".bat", ".ps1", ".rb", ".go", ".rs", ".swift", ".sql", ".yaml", ".yml", ".ini", ".config", ".env", ".sass", ".scss", ".vue", ".asp", ".aspx", ".pl", ".kt", ".dart", ".lua", ".asm", ".h", ".php"]);
-
-/** Picks a more specific icon by extension where Anchoran has one, falling back to a generic file icon. */
-function iconForFile(name: string): IconName {
-  const ext = name.slice(name.lastIndexOf(".")).toLowerCase();
-  if (ICON_IMAGE_EXT.has(ext)) return "photoViewer";
-  if (ICON_PDF_EXT.has(ext)) return "pdfFile";
-  if (ICON_PRESENTATION_EXT.has(ext)) return "presentation";
-  if (ICON_SHEET_EXT.has(ext)) return "spreadsheet";
-  if (ICON_EBOOK_EXT.has(ext)) return "ebook";
-  if (ICON_EMAIL_EXT.has(ext)) return "email";
-  if (ICON_VECTOR_EXT.has(ext)) return "vectorDesign";
-  if (ICON_MODEL3D_EXT.has(ext)) return "model3d";
-  if (ICON_VIDEO_EXT.has(ext)) return "videoFile";
-  if (ICON_AUDIO_EXT.has(ext)) return "audioFile";
-  if (ICON_ARCHIVE_EXT.has(ext)) return "zipTool";
-  if (ICON_DISK_EXT.has(ext)) return "diskImage";
-  if (ICON_EXE_EXT.has(ext)) return "executable";
-  if (ICON_DB_EXT.has(ext)) return "database";
-  if (ICON_FONT_EXT.has(ext)) return "fontFile";
-  if (ICON_ROM_EXT.has(ext)) return "gameRom";
-  if (ICON_CERT_EXT.has(ext)) return "certificate";
-  if (ICON_SHORTCUT_EXT.has(ext)) return "shortcut";
-  if (ICON_SUBTITLE_EXT.has(ext)) return "subtitle";
-  if (ICON_CODE_EXT.has(ext)) return "jsonFormatter";
-  if (ICON_DOC_EXT.has(ext)) return "document";
-  return "file";
-}
 
 export function FilesApp() {
   const [currentPath, setCurrentPath] = useState<string>(THIS_PC);

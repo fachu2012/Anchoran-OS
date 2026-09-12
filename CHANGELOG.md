@@ -5,6 +5,34 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.6] - 2026-09-12
+
+### Fixed
+
+- Right-clicking an app in the Launcher no longer also opens the
+  desktop's own context menu (change wallpaper, refresh, …) behind it.
+- Every context menu now stays fully on-screen — it flips upward if it
+  would run off the bottom edge, and left/right if it would run off
+  either side, instead of getting clipped.
+- Files' Properties dialog "Type" row no longer says "File" for every
+  single file — it now reads "Image" for photos, "Multimedia" for
+  audio/video, and a specific label for documents, archives, code,
+  and everything else Anchoran already recognizes by extension; its
+  icon matches the file's real type and color too.
+- Color Picker can now sample a color from anywhere on screen (not
+  just its own color wheel), via a new "Pick from screen" button.
+- Removed the accent-colored keyboard-focus ring from text fields —
+  clicking into an input no longer outlines the whole box; the accent
+  border stays reserved for the focused app window.
+
+### Changed
+
+- Removed the boxed background/border around the Anchoran logo on the
+  Boot and Shutdown screens and enlarged the logo itself to fill the
+  space instead.
+- The taskbar's Launcher button now shows the actual Anchoran logo, in
+  the user's configured accent color, instead of a plain hamburger icon.
+
 ## [2.6.5] - 2026-09-12
 
 ### Changed

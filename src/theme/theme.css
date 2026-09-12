@@ -177,3 +177,17 @@ button {
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* Text fields don't get this ring — Chromium treats clicking into an
+   <input>/<textarea> as ":focus-visible" too (not just real keyboard
+   navigation), so without this every text box in Anchoran would
+   outline itself in accent color on a plain mouse click. The accent
+   border belongs to the focused app window, not every field inside
+   it; a handful of apps already give their own inputs a quieter,
+   deliberate focus treatment (border-color change, no thick outline),
+   which this doesn't touch. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}

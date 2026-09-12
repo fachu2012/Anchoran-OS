@@ -202,6 +202,7 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
         data-active={showHint}
         onContextMenu={(e) => {
           e.preventDefault();
+          e.stopPropagation();
           setMenu({ x: e.clientX, y: e.clientY, app });
         }}
       >
@@ -218,7 +219,11 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
 
   return (
     <div className="launcher-backdrop" onClick={onClose}>
-      <div className="launcher-panel" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="launcher-panel"
+        onClick={(e) => e.stopPropagation()}
+        onContextMenu={(e) => e.stopPropagation()}
+      >
         <div className="launcher-search">
           <Icon name="search" size={18} />
           <input

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Icon } from "@/components/Icon";
+import { IconTile } from "@/components/IconTile";
+import { iconForFile, typeLabelForFile } from "./fileTypes";
 
 interface Entry {
   name: string;
@@ -68,10 +69,10 @@ export function FileProperties({ entry, onClose }: { entry: Entry; onClose: () =
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-          <Icon name={entry.isDirectory ? "folder" : "file"} size={22} />
+          <IconTile name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={30} glyphScale={0.56} />
           <span style={{ fontSize: 14, fontWeight: 500, wordBreak: "break-all" }}>{entry.name}</span>
         </div>
-        <Row label="Type" value={entry.isDirectory ? "Folder" : "File"} />
+        <Row label="Type" value={entry.isDirectory ? "Folder" : typeLabelForFile(entry.name)} />
         <Row label="Location" value={location} />
         <Row label="Size" value={sizeText} />
         <Row label="Created" value={formatDate(entry.createdAt)} />

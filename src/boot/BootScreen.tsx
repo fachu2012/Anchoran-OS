@@ -89,23 +89,15 @@ function StandardBoot({ onDone }: { onDone: () => void }) {
         pointerEvents: visible ? "auto" : "none",
       }}
     >
-      <div
+      <AnchoranLogo
+        size={200}
+        color={accentColor}
         style={{
-          width: 200,
-          height: 200,
-          borderRadius: 44,
-          background: "rgba(255,255,255,0.05)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: showLogo ? 1 : 0,
+          opacity: showLogo ? 0.98 : 0,
           transform: showLogo ? "scale(1)" : "scale(0.82)",
           transition: "opacity 600ms cubic-bezier(0.16,1,0.3,1), transform 600ms cubic-bezier(0.16,1,0.3,1)",
         }}
-      >
-        <AnchoranLogo size={132} color={accentColor} style={{ opacity: 0.98 }} />
-      </div>
+      />
 
       {/* Thick, macOS-style loading bar. */}
       <div
@@ -215,20 +207,7 @@ function FinishingUpdateBoot({ version, onDone }: { version: string; onDone: () 
         pointerEvents: visible ? "auto" : "none",
       }}
     >
-      <div
-        style={{
-          width: 130,
-          height: 130,
-          borderRadius: 30,
-          background: "rgba(255,255,255,0.05)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <AnchoranLogo size={84} color={accentColor} style={{ opacity: 0.95 }} />
-      </div>
+      <AnchoranLogo size={130} color={accentColor} style={{ opacity: 0.95 }} />
       <div
         key={phraseIndex}
         style={{

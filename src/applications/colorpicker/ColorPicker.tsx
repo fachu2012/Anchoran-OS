@@ -3,6 +3,21 @@ import { Icon } from "@/components/Icon";
 import "@/applications/apps.css";
 import "./colorpicker.css";
 
+// The EyeDropper API isn't in TypeScript's DOM lib yet, but Electron's
+// Chromium runtime supports it — it lets the user sample a color from
+// anywhere on screen, not just inside this window.
+interface EyeDropperResult {
+  sRGBHex: string;
+}
+interface EyeDropperInstance {
+  open: (options?: { signal?: AbortSignal }) => Promise<EyeDropperResult>;
+}
+declare global {
+  interface Window {
+    EyeDropper?: new () => EyeDropperInstance;
+  }
+}
+
 function hexToRgb(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -46,9 +61,20 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 export function ColorPickerApp() {
   const [color, setColor] = useState("#6E9BF7");
   const [swatches, setSwatches] = useState<string[]>(["#6E9BF7", "#1E3A8A", "#0F766E", "#7C3AED", "#B45309"]);
+  const eyeDropperSupported = typeof window !== "undefined" && !!window.EyeDropper;
 
   const [r, g, b] = useMemo(() => hexToRgb(color), [color]);
   const [h, s, l] = useMemo(() => rgbToHsl(r, g, b), [r, g, b]);
+
+  async function pickFromScreen() {
+    if (!window.EyeDropper) return;
+    try {
+      const result = await new window.EyeDropper().open();
+      setColor(result.sRGBHex);
+    } catch {
+      // The user pressed Escape or clicked away to cancel — nothing to do.
+    }
+  }
 
   return (
     <div className="app-root">
@@ -62,6 +88,16 @@ export function ColorPickerApp() {
             aria-label="Pick a color"
           />
         </div>
+
+        {eyeDropperSupported ? (
+          <button className="app-toolbar-btn" onClick={pickFromScreen}>
+            <Icon name="colorPicker" size={14} /> Pick from screen
+          </button>
+        ) : (
+          <div className="colorpicker-copy-label" style={{ fontSize: 11.5 }}>
+            Picking from anywhere on screen isn't available on this build — use the wheel above instead.
+          </div>
+        )}
 
         <div className="colorpicker-values">
           <CopyRow label="HEX" value={color.toUpperCase()} />

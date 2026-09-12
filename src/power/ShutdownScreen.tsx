@@ -51,23 +51,15 @@ export function ShutdownScreen({ mode, onComplete }: { mode: ExitMode; onComplet
         transition: `opacity ${stage === "blackout" ? BLACKOUT_MS : DIM_MS}ms cubic-bezier(0.4,0,0.4,1)`,
       }}
     >
-      <div
+      <AnchoranLogo
+        size={170}
+        color={accentColor}
         style={{
-          width: 170,
-          height: 170,
-          borderRadius: 38,
-          background: "rgba(255,255,255,0.05)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: stage === "blackout" ? 0 : 1,
+          opacity: stage === "blackout" ? 0 : 0.92,
           transform: stage === "blackout" ? "scale(0.9)" : "scale(1)",
           transition: `opacity ${BLACKOUT_MS}ms ease, transform ${BLACKOUT_MS}ms ease`,
         }}
-      >
-        <AnchoranLogo size={110} color={accentColor} style={{ opacity: 0.92 }} />
-      </div>
+      />
       <div
         style={{
           width: 260,

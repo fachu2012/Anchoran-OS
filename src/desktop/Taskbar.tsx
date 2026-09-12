@@ -10,6 +10,8 @@ import { useSystemStatus } from "./systemStatus";
 import { QuickSettingsPanel } from "./QuickSettingsPanel";
 import { Clock } from "./Clock";
 import { AdminPinPrompt } from "@/core/AdminPinPrompt";
+import { AnchoranLogo } from "@/components/AnchoranLogo";
+import { usePreferencesStore } from "@/theme/preferencesStore";
 import type { AppId } from "@/core/types";
 
 const DRAG_MIME = "application/x-anchoran-taskbar-app";
@@ -37,6 +39,7 @@ export function Taskbar({
   const restoreWindow = useWindowStore((s) => s.restoreWindow);
   const minimizeWindow = useWindowStore((s) => s.minimizeWindow);
   const notificationCount = useNotificationStore((s) => s.notifications.length);
+  const accentColor = usePreferencesStore((s) => s.accentColor);
   const status = useSystemStatus();
 
   const pinned = useTaskbarStore((s) => s.pinned);
@@ -120,7 +123,7 @@ export function Taskbar({
         onMouseLeave={() => anyMaximized && setRevealed(false)}
       >
         <button className="taskbar-btn taskbar-launcher" onClick={onLauncher} aria-label="Launcher">
-          <Icon name="launcher" size={18} />
+          <AnchoranLogo size={20} color={accentColor} />
         </button>
 
         <div className="taskbar-divider" />
