@@ -5,6 +5,25 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.8] - 2026-09-12
+
+### Added
+
+- Task View: a new taskbar button next to the Launcher shows every
+  open window as a card (icon, title, a Close button) you can click to
+  jump straight to it — the "see everything open at once" complement
+  to Ctrl+Tab's one-at-a-time cycling.
+
+### Fixed
+
+- Terminal output text can now actually be selected and copied with
+  Ctrl+C. Two separate bugs blocked it: a global `user-select: none`
+  meant to stop accidental UI text selection also applied to the
+  terminal's own output lines, and clicking anywhere in the terminal
+  immediately refocused the hidden input, stealing focus back the
+  instant a selection drag ended — so Ctrl+C copied the empty input
+  instead of the text you'd just selected.
+
 ## [2.6.7] - 2026-09-12
 
 ### Added

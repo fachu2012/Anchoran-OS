@@ -109,7 +109,8 @@ export type IconName =
   | "onScreenKeyboard"
   | "narrator"
   | "recycleBin"
-  | "desktop";
+  | "desktop"
+  | "taskView";
 
 const PATHS: Record<IconName, string> = {
   files:
@@ -247,6 +248,7 @@ const PATHS: Record<IconName, string> = {
   narrator: "M12 4.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3ZM7 11v1.5a5 5 0 0 0 10 0V11M12 17.5v2.5M8 21h8",
   recycleBin: "M6 7.5h12l-1 12.5H7L6 7.5Zm3-3h6l1 2H8l1-2ZM10 11v6M14 11v6",
   desktop: "M4 5.5h16v10H4v-10Zm5.5 14h5M12 15.5v4",
+  taskView: "M4 5h9v6.5H4V5Zm11 2.5h5V15h-5V7.5ZM4 14h9v5H4v-5Z",
 };
 
 export function Icon({

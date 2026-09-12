@@ -1,0 +1,131 @@
+.taskview-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 720;
+  background: rgba(4, 5, 8, 0.45);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  animation: taskview-fade var(--anchoran-duration-base) var(--anchoran-ease);
+}
+
+@keyframes taskview-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.taskview-panel {
+  width: min(900px, 92vw);
+  max-height: 80vh;
+  background: var(--anchoran-surface-overlay);
+  backdrop-filter: blur(24px) saturate(1.5);
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-lg);
+  box-shadow: var(--anchoran-shadow-window);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.taskview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--anchoran-border);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.taskview-close {
+  display: flex;
+  border: none;
+  background: transparent;
+  color: var(--anchoran-text-secondary);
+  cursor: pointer;
+}
+
+.taskview-close:hover {
+  color: var(--anchoran-text-primary);
+}
+
+.taskview-empty {
+  padding: 40px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--anchoran-text-secondary);
+}
+
+.taskview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.taskview-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 10px 12px;
+  border-radius: var(--anchoran-radius-md);
+  border: 1px solid var(--anchoran-border);
+  background: var(--anchoran-surface);
+  cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.taskview-card:hover {
+  background: var(--anchoran-accent-soft);
+  transform: translateY(-2px);
+}
+
+.taskview-card[data-minimized="true"] {
+  opacity: 0.65;
+}
+
+.taskview-card-title {
+  font-size: 12px;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskview-card-badge {
+  font-size: 10px;
+  color: var(--anchoran-text-disabled);
+}
+
+.taskview-card-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--anchoran-border);
+  color: var(--anchoran-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.taskview-card:hover .taskview-card-close {
+  opacity: 1;
+}
+
+.taskview-card-close:hover {
+  background: #E5484D;
+  color: #fff;
+}

@@ -185,6 +185,8 @@ tr[data-selected="true"] {
 .terminal-line {
   white-space: pre-wrap;
   line-height: 1.6;
+  user-select: text;
+  cursor: text;
 }
 
 .terminal-prompt-row {

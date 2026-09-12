@@ -27,10 +27,12 @@ export function Taskbar({
   onLauncher,
   onToggleNotifications,
   onTogglePower,
+  onToggleTaskView,
 }: {
   onLauncher: () => void;
   onToggleNotifications: () => void;
   onTogglePower: () => void;
+  onToggleTaskView: () => void;
 }) {
   const openApp = useWindowStore((s) => s.openApp);
   const windows = useWindowStore((s) => s.windows);
@@ -124,6 +126,9 @@ export function Taskbar({
       >
         <button className="taskbar-btn taskbar-launcher" onClick={onLauncher} aria-label="Launcher">
           <AnchoranLogo size={20} color={accentColor} />
+        </button>
+        <button className="taskbar-btn" onClick={onToggleTaskView} aria-label="Task View" title="Task View">
+          <Icon name="taskView" size={17} />
         </button>
 
         <div className="taskbar-divider" />

@@ -8,6 +8,7 @@ import { useDesktopIconsStore } from "./desktopIconsStore";
 import { useClipboardHistoryStore } from "@/core/clipboardHistoryStore";
 import { WindowManager } from "@/windowmanager/WindowManager";
 import { Launcher } from "@/launcher/Launcher";
+import { TaskView } from "./TaskView";
 import { PowerMenu } from "@/power/PowerMenu";
 import { NotificationToasts } from "@/notifications/NotificationCenter";
 import { NotificationPanel } from "@/notifications/NotificationPanel";
@@ -31,6 +32,7 @@ export function Desktop({
 }) {
   const [powerOpen, setPowerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [taskViewOpen, setTaskViewOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
   const cycleFocus = useWindowStore((s) => s.cycleFocus);
@@ -98,9 +100,11 @@ export function Desktop({
         onLauncher={() => setLauncherOpen((v) => !v)}
         onToggleNotifications={() => setNotificationsOpen((v) => !v)}
         onTogglePower={() => setPowerOpen((v) => !v)}
+        onToggleTaskView={() => setTaskViewOpen((v) => !v)}
       />
       <NotificationToasts />
       {notificationsOpen && <NotificationPanel onClose={() => setNotificationsOpen(false)} />}
+      {taskViewOpen && <TaskView onClose={() => setTaskViewOpen(false)} />}
 
       {launcherOpen && (
         <Launcher onClose={() => setLauncherOpen(false)} onPower={() => setPowerOpen(true)} />

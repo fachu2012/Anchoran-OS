@@ -860,7 +860,20 @@ export function TerminalConsole({
   }
 
   return (
-    <div className="terminal-root" data-admin={isAdmin} onClick={() => inputRef.current?.focus()}>
+    <div
+      className="terminal-root"
+      data-admin={isAdmin}
+      onClick={() => {
+        // Re-focusing the input on every click made it steal focus
+        // back the instant a text selection drag ended, so Ctrl+C
+        // always copied the (empty) input instead of the output text
+        // the user just selected. Only steal focus back when nothing
+        // is actually selected — a plain click to "come back to
+        // typing" still works exactly as before.
+        if (window.getSelection()?.toString()) return;
+        inputRef.current?.focus();
+      }}
+    >
       {history.map((entry) => (
         <div key={entry.id} className="terminal-line">
           {entry.text}
