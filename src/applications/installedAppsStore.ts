@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persistGet, persistSet } from "@/core/persist";
 import type { AppId } from "@/core/types";
 import { APP_LIST } from "./registry";
+import { useTaskbarStore } from "@/desktop/taskbarStore";
+import { useDesktopIconsStore } from "@/desktop/desktopIconsStore";
 
 const INSTALLED_KEY = "installedApps";
 
@@ -79,6 +81,12 @@ export const useInstalledAppsStore = create<InstalledAppsState>((set, get) => ({
     installed.delete(appId);
     set({ installed });
     persist(installed);
+    // An uninstalled app can't stay pinned anywhere it was shortcut to —
+    // wherever uninstall is triggered from (the Launcher, the Webstore,
+    // or anywhere else), it always unpins the app from the taskbar and
+    // removes it from the desktop too.
+    useTaskbarStore.getState().unpin(appId);
+    useDesktopIconsStore.getState().unpinApp(appId);
   },
 }));
 

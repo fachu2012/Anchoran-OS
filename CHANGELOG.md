@@ -5,6 +5,24 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.5] - 2026-09-12
+
+### Changed
+
+- Launcher: browsing all apps (no search query) now groups them by
+  first letter, Windows-10-style — click any letter header to open a
+  full A–Z jump grid and scroll straight to that section. Searching
+  still shows a plain flat list of matches, as before.
+- Launcher: removed the per-row "pin to taskbar" / "add to desktop"
+  buttons; right-clicking an app now opens a context menu with Open,
+  Pin/Unpin taskbar, Add/Remove desktop, Run as Administrator (only
+  for apps that support it), and Uninstall (only for apps that aren't
+  installed by default).
+- Uninstalling an app — from the Launcher, the Webstore, or anywhere
+  else — now always unpins it from the taskbar and removes it from
+  the desktop too, instead of leaving a shortcut to an app that's no
+  longer installed.
+
 ## [2.6.4] - 2026-09-12
 
 ### Added

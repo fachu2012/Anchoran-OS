@@ -63,6 +63,7 @@
 }
 
 .launcher-results {
+  position: relative;
   max-height: 360px;
   overflow-y: auto;
   padding: 8px;
@@ -97,30 +98,6 @@
   text-align: left;
 }
 
-.launcher-item-pin {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  margin-right: 6px;
-  border: none;
-  background: transparent;
-  border-radius: var(--anchoran-radius-sm);
-  color: var(--anchoran-text-disabled);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.launcher-item-pin:hover {
-  background: var(--anchoran-border);
-  color: var(--anchoran-text-primary);
-}
-
-.launcher-item-pin[data-pinned="true"] {
-  color: var(--anchoran-accent);
-}
-
 .launcher-item-hint {
   margin-left: auto;
   font-size: 11px;
@@ -149,6 +126,65 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--anchoran-text-disabled);
+}
+
+/* Windows-10-style "jump list" grouping in the browse-all-apps view:
+   a clickable letter header per group, and — on click — a full-panel
+   alphabet grid to jump straight to any group that has apps in it. */
+.launcher-letter-header {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 12px 4px;
+  border: none;
+  background: transparent;
+  color: var(--anchoran-accent);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.launcher-letter-header:hover {
+  text-decoration: underline;
+}
+
+.launcher-jump-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--anchoran-surface-overlay);
+  backdrop-filter: blur(24px) saturate(1.5);
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  align-content: start;
+  padding: 10px;
+  overflow-y: auto;
+  z-index: 5;
+}
+
+.launcher-jump-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border: none;
+  border-radius: var(--anchoran-radius-sm);
+  background: transparent;
+  color: var(--anchoran-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.launcher-jump-letter:hover:not(:disabled) {
+  background: var(--anchoran-accent-soft);
+  color: var(--anchoran-accent);
+}
+
+.launcher-jump-letter:disabled {
+  color: var(--anchoran-text-disabled);
+  cursor: default;
+  opacity: 0.35;
 }
 
 .launcher-footer {

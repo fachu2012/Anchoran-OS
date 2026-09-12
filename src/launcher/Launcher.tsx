@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 import { IconTile } from "@/components/IconTile";
 import { APP_LIST } from "@/applications/registry";
+import type { AppDefinition, AppId } from "@/core/types";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useTaskbarStore } from "@/desktop/taskbarStore";
 import { useDesktopIconsStore } from "@/desktop/desktopIconsStore";
-import { useInstalledAppsStore } from "@/applications/installedAppsStore";
+import { useInstalledAppsStore, isProtectedApp } from "@/applications/installedAppsStore";
+import { ContextMenu, type ContextMenuEntry } from "@/desktop/ContextMenu";
+import { AdminPinPrompt } from "@/core/AdminPinPrompt";
 import "./launcher.css";
 
 // Mirrors Settings.tsx's SECTIONS — kept here as a plain list rather
@@ -16,6 +19,16 @@ const SETTINGS_SECTIONS = [
   "Appearance", "Personalization", "Display", "Sound", "Network", "Notifications",
   "Users", "Privacy", "System", "Shortcuts", "System Mode", "Updater",
 ];
+
+/** Apps that can be opened already-elevated via a right-click "Run as Administrator". */
+const ADMIN_CAPABLE_APPS = new Set<AppId>(["terminal"]);
+
+const JUMP_LETTERS = ["#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
+
+function letterFor(title: string): string {
+  const c = title.trim().charAt(0).toUpperCase();
+  return /[A-Z]/.test(c) ? c : "#";
+}
 
 interface FileResult {
   name: string;
@@ -61,17 +74,39 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
   const pinToDesktop = useDesktopIconsStore((s) => s.pinApp);
   const unpinFromDesktop = useDesktopIconsStore((s) => s.unpinApp);
   const installed = useInstalledAppsStore((s) => s.installed);
+  const uninstall = useInstalledAppsStore((s) => s.uninstall);
+
+  const [menu, setMenu] = useState<{ x: number; y: number; app: AppDefinition } | null>(null);
+  const [adminPinPrompt, setAdminPinPrompt] = useState(false);
+  const [letterJumpOpen, setLetterJumpOpen] = useState(false);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // The Launcher is a list of apps you can actually open — like any
   // real OS, that means installed apps only. Anchoran Webstore is
-  // where you browse and install the rest.
-  const installedApps = useMemo(() => APP_LIST.filter((a) => installed.has(a.id)), [installed]);
+  // where you browse and install the rest. Sorted alphabetically once
+  // here, so both the plain search results and the "browse all,
+  // grouped by letter" view (see JUMP_LETTERS) share the same order.
+  const sortedApps = useMemo(
+    () => APP_LIST.filter((a) => installed.has(a.id)).sort((a, b) => a.title.localeCompare(b.title)),
+    [installed]
+  );
 
   const appResults = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return installedApps;
-    return installedApps.filter((a) => a.title.toLowerCase().includes(q));
-  }, [installedApps, query]);
+    if (!q) return sortedApps;
+    return sortedApps.filter((a) => a.title.toLowerCase().includes(q));
+  }, [sortedApps, query]);
+
+  const groupedApps = useMemo(() => {
+    const groups = new Map<string, AppDefinition[]>();
+    for (const app of sortedApps) {
+      const letter = letterFor(app.title);
+      if (!groups.has(letter)) groups.set(letter, []);
+      groups.get(letter)!.push(app);
+    }
+    return groups;
+  }, [sortedApps]);
 
   const settingResults = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -98,7 +133,21 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
     };
   }, [query]);
 
-  function launch(appId: (typeof APP_LIST)[number]["id"]) {
+  // While the letter-jump overlay is open, Escape closes just the
+  // overlay instead of the whole Launcher.
+  useEffect(() => {
+    if (!letterJumpOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setLetterJumpOpen(false);
+      }
+    }
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [letterJumpOpen]);
+
+  function launch(appId: AppId) {
     openApp(appId);
     onClose();
   }
@@ -118,6 +167,53 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
     if (result.success) onClose();
   }
 
+  function scrollToLetter(letter: string) {
+    sectionRefs.current.get(letter)?.scrollIntoView({ block: "start" });
+    setLetterJumpOpen(false);
+  }
+
+  function contextItemsFor(app: AppDefinition): ContextMenuEntry[] {
+    const isPinned = pinned.includes(app.id);
+    const isOnDesktop = desktopPinned.includes(app.id);
+    const items: ContextMenuEntry[] = [
+      { label: "Open", onSelect: () => launch(app.id) },
+      isPinned
+        ? { label: "Unpin from taskbar", onSelect: () => unpin(app.id) }
+        : { label: "Pin to taskbar", onSelect: () => pin(app.id) },
+      isOnDesktop
+        ? { label: "Remove from desktop", onSelect: () => unpinFromDesktop(app.id) }
+        : { label: "Add to desktop", onSelect: () => pinToDesktop(app.id) },
+    ];
+    if (ADMIN_CAPABLE_APPS.has(app.id)) {
+      items.push({ separator: true });
+      items.push({ label: "Run as Administrator", icon: "lock", onSelect: () => setAdminPinPrompt(true) });
+    }
+    if (!isProtectedApp(app.id)) {
+      items.push({ separator: true });
+      items.push({ label: "Uninstall", danger: true, onSelect: () => uninstall(app.id) });
+    }
+    return items;
+  }
+
+  function AppRow({ app, showHint }: { app: AppDefinition; showHint: boolean }) {
+    return (
+      <div
+        className="launcher-item"
+        data-active={showHint}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenu({ x: e.clientX, y: e.clientY, app });
+        }}
+      >
+        <button className="launcher-item-main" onClick={() => launch(app.id)}>
+          <IconTile name={app.icon as IconName} size={34} />
+          {app.title}
+          {showHint && <span className="launcher-item-hint">↵</span>}
+        </button>
+      </div>
+    );
+  }
+
   const hasQuery = query.trim().length > 0;
 
   return (
@@ -129,53 +225,39 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
             autoFocus
             placeholder="Search apps, files and settings…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setLetterJumpOpen(false);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && appResults[0]) launch(appResults[0].id);
               if (e.key === "Escape") onClose();
             }}
           />
         </div>
-        <div className="launcher-results">
-          {appResults.map((app, i) => {
-            const isPinned = pinned.includes(app.id);
-            const isOnDesktop = desktopPinned.includes(app.id);
-            return (
-              <div key={app.id} className="launcher-item" data-active={i === 0}>
-                <button className="launcher-item-main" onClick={() => launch(app.id)}>
-                  <IconTile name={app.icon as IconName} size={34} />
-                  {app.title}
-                  {i === 0 && <span className="launcher-item-hint">↵</span>}
-                </button>
-                <button
-                  className="launcher-item-pin"
-                  data-pinned={isOnDesktop}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isOnDesktop) unpinFromDesktop(app.id);
-                    else pinToDesktop(app.id);
+        <div className="launcher-results" ref={resultsRef}>
+          {!hasQuery ? (
+            <>
+              {JUMP_LETTERS.filter((l) => groupedApps.has(l)).map((letter, sectionIndex) => (
+                <div
+                  key={letter}
+                  ref={(el) => {
+                    if (el) sectionRefs.current.set(letter, el);
+                    else sectionRefs.current.delete(letter);
                   }}
-                  aria-label={isOnDesktop ? `Remove ${app.title} from desktop` : `Add ${app.title} to desktop`}
-                  title={isOnDesktop ? "Remove from desktop" : "Add to desktop"}
                 >
-                  <Icon name="desktop" size={14} />
-                </button>
-                <button
-                  className="launcher-item-pin"
-                  data-pinned={isPinned}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isPinned) unpin(app.id);
-                    else pin(app.id);
-                  }}
-                  aria-label={isPinned ? `Unpin ${app.title}` : `Pin ${app.title} to taskbar`}
-                  title={isPinned ? "Unpin from taskbar" : "Pin to taskbar"}
-                >
-                  <Icon name="pin" size={14} />
-                </button>
-              </div>
-            );
-          })}
+                  <button className="launcher-letter-header" onClick={() => setLetterJumpOpen((v) => !v)}>
+                    {letter}
+                  </button>
+                  {groupedApps.get(letter)!.map((app, i) => (
+                    <AppRow key={app.id} app={app} showHint={sectionIndex === 0 && i === 0} />
+                  ))}
+                </div>
+              ))}
+            </>
+          ) : (
+            appResults.map((app, i) => <AppRow key={app.id} app={app} showHint={i === 0} />)
+          )}
 
           {hasQuery && settingResults.length > 0 && (
             <>
@@ -208,6 +290,21 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
           {hasQuery && appResults.length === 0 && settingResults.length === 0 && fileResults.length === 0 && (
             <div style={{ padding: 16, fontSize: 13, color: "var(--anchoran-text-secondary)" }}>No results.</div>
           )}
+
+          {letterJumpOpen && (
+            <div className="launcher-jump-overlay">
+              {JUMP_LETTERS.map((letter) => (
+                <button
+                  key={letter}
+                  className="launcher-jump-letter"
+                  disabled={!groupedApps.has(letter)}
+                  onClick={() => scrollToLetter(letter)}
+                >
+                  {letter}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="launcher-footer">
           <button
@@ -228,6 +325,26 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
           </button>
         </div>
       </div>
+
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={contextItemsFor(menu.app)}
+          onClose={() => setMenu(null)}
+        />
+      )}
+
+      {adminPinPrompt && (
+        <AdminPinPrompt
+          onCancel={() => setAdminPinPrompt(false)}
+          onSuccess={() => {
+            setAdminPinPrompt(false);
+            onClose();
+            openApp("terminal", { startAdmin: true });
+          }}
+        />
+      )}
     </div>
   );
 }
