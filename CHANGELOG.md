@@ -5,6 +5,15 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.1.9] - 2026-09-11
+
+### Changed
+
+- **Photo Viewer and Zip Tool now install by default** — they're the
+  only two Webstore apps (besides Notes and Media Player, already
+  default) that actually open a specific real file type from disk
+  (images, and .zip archives).
+
 ## [2.1.8] - 2026-09-11
 
 ### Added
