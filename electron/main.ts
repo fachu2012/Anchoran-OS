@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, clipboard, desktopCapturer, dialog, globalSho
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
+import https from "node:https";
 import { execFile, spawn } from "node:child_process";
 import Store from "electron-store";
 import { autoUpdater } from "electron-updater";
@@ -1232,6 +1233,98 @@ ipcMain.on("anchoran:quit-and-install-update", () => {
   // relaunches afterward even though this app isn't built with NSIS's
   // own "run after finish" option checked.
   autoUpdater.quitAndInstall(true, true);
+});
+
+/**
+ * "changeto" (the Administrator Terminal's `anchoran changeto vX.Y.Z`
+ * command): switches straight to any specific installable release —
+ * forward OR backward — rather than only the newest one electron-
+ * updater's own feed knows about. Since that's outside what
+ * electron-updater is designed for, this bypasses it entirely and
+ * drives the same NSIS installer by hand: download that exact
+ * release's update package from its GitHub Release, then run it
+ * silently (/S) and quit, the same way quitAndInstall above does.
+ */
+type ChangeToStatus =
+  | { state: "downloading"; percent: number }
+  | { state: "installing" }
+  | { state: "error"; message: string };
+
+function sendChangeToStatus(status: ChangeToStatus) {
+  mainWindow?.webContents.send("anchoran:changeto-status", status);
+}
+
+function downloadToFile(url: string, destPath: string, onProgress: (percent: number) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    function request(currentUrl: string, redirectsLeft: number) {
+      https
+        .get(currentUrl, { headers: { "User-Agent": "AnchoranOS" } }, (res) => {
+          const status = res.statusCode ?? 0;
+          if (status >= 300 && status < 400 && res.headers.location) {
+            res.resume();
+            if (redirectsLeft <= 0) {
+              reject(new Error("Too many redirects."));
+              return;
+            }
+            request(res.headers.location, redirectsLeft - 1);
+            return;
+          }
+          if (status !== 200) {
+            res.resume();
+            reject(new Error(`Download failed (HTTP ${status}). That version may not have a Windows installer attached.`));
+            return;
+          }
+          const total = Number(res.headers["content-length"] ?? 0);
+          let downloaded = 0;
+          const fileStream = fs.createWriteStream(destPath);
+          res.on("data", (chunk: Buffer) => {
+            downloaded += chunk.length;
+            if (total > 0) onProgress(Math.round((downloaded / total) * 100));
+          });
+          res.pipe(fileStream);
+          fileStream.on("finish", () => fileStream.close(() => resolve()));
+          fileStream.on("error", reject);
+          res.on("error", reject);
+        })
+        .on("error", reject);
+    }
+    request(url, 5);
+  });
+}
+
+ipcMain.handle("anchoran:change-to-version", async (_event, rawVersion: string) => {
+  if (isDev) return { success: false, error: "Not available in development mode." };
+  const version = String(rawVersion).replace(/^v/i, "");
+  if (!/^\d+\.\d+\.\d+(-[\w.]+)?$/.test(version)) {
+    return { success: false, error: "Invalid version." };
+  }
+
+  const assetUrl = `https://github.com/fachu2012/Anchoran-OS/releases/download/v${version}/AnchoranOS-UpdatePackage-${version}.exe`;
+  const destPath = path.join(app.getPath("temp"), `AnchoranOS-UpdatePackage-${version}.exe`);
+
+  try {
+    sendChangeToStatus({ state: "downloading", percent: 0 });
+    await downloadToFile(assetUrl, destPath, (percent) => sendChangeToStatus({ state: "downloading", percent }));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    sendChangeToStatus({ state: "error", message });
+    return { success: false, error: message };
+  }
+
+  isQuittingConfirmed = true;
+  configStore.set("pendingUpdateVersion", version);
+  sendChangeToStatus({ state: "installing" });
+  try {
+    spawn(destPath, ["/S"], { detached: true, stdio: "ignore" }).unref();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    sendChangeToStatus({ state: "error", message });
+    return { success: false, error: message };
+  }
+  // A short delay so the installer has actually launched before this
+  // process (and the files it might be holding open) goes away.
+  setTimeout(() => app.quit(), 500);
+  return { success: true };
 });
 
 /**

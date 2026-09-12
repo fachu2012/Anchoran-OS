@@ -5,6 +5,29 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.7] - 2026-09-12
+
+### Added
+
+- `anchoran changeto [vX.Y.Z]` in the Administrator Terminal is now
+  actually wired up: listed alone it shows every installable release,
+  and given a version it asks "Change to vX.Y.Z? [y/n]" and, on yes,
+  downloads that release's installer and runs it silently — works for
+  upgrading OR downgrading to any past installable release, not just
+  the newest one. Moved out from being its own bare command to live
+  under the `anchoran` namespace, matching every other Anchoran-
+  specific command.
+
+### Fixed
+
+- Magnifier: "Start magnifier" no longer fails forever after a single
+  failed attempt — it was reusing one `<video>` element for the app's
+  whole lifetime, and once that element's source errors it stays
+  broken until reloaded, so one bad first attempt made every later
+  click fail too. Each attempt now gets a fresh element (matching how
+  Screenshot already did it), and a failure now shows the real
+  underlying error instead of a generic message.
+
 ## [2.6.6] - 2026-09-12
 
 ### Fixed

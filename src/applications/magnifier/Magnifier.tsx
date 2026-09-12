@@ -6,12 +6,26 @@ const ZOOM_LEVELS = [2, 3, 4];
 
 export function MagnifierApp() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(document.createElement("video"));
+  // A fresh <video> element per attempt, not one reused for the whole
+  // component's lifetime — once an HTMLMediaElement's source errors,
+  // it stays in that error state until reloaded, so reusing the same
+  // element meant a single failed attempt (e.g. a transient capture
+  // error right after opening) made every later "Start" click fail
+  // forever with no way to recover short of closing and reopening the
+  // app. Screenshot never hit this because it already creates a new
+  // <video> per capture — Magnifier now does the same.
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouse = useRef({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(2);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState(false);
+
+  function stopCurrentStream() {
+    const stream = videoRef.current?.srcObject as MediaStream | null;
+    stream?.getTracks().forEach((t) => t.stop());
+    videoRef.current = null;
+  }
 
   async function start() {
     setError(null);
@@ -19,19 +33,25 @@ export function MagnifierApp() {
       setError("The Magnifier needs the Anchoran desktop app to capture the screen.");
       return;
     }
+    stopCurrentStream();
     try {
       const sources = await window.anchoran.getCaptureSources();
-      if (sources.length === 0) throw new Error("no sources");
+      if (sources.length === 0) {
+        setError("No capturable screens found.");
+        return;
+      }
       const constraints = {
         audio: false,
         video: { mandatory: { chromeMediaSource: "desktop", chromeMediaSourceId: sources[0].id } },
       } as unknown as MediaStreamConstraints;
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      await video.play();
+      videoRef.current = video;
       setActive(true);
-    } catch {
-      setError("Couldn't start screen capture.");
+    } catch (err) {
+      setError(`Couldn't start screen capture${err instanceof Error && err.message ? `: ${err.message}` : "."}`);
     }
   }
 
@@ -42,7 +62,7 @@ export function MagnifierApp() {
       const canvas = canvasRef.current;
       const video = videoRef.current;
       const container = containerRef.current;
-      if (canvas && video.videoWidth && container) {
+      if (canvas && video && video.videoWidth && container) {
         const ctx = canvas.getContext("2d")!;
         const rect = container.getBoundingClientRect();
         const scaleX = video.videoWidth / window.innerWidth;
@@ -61,13 +81,7 @@ export function MagnifierApp() {
     return () => cancelAnimationFrame(raf);
   }, [active, zoom]);
 
-  useEffect(
-    () => () => {
-      const stream = videoRef.current.srcObject as MediaStream | null;
-      stream?.getTracks().forEach((t) => t.stop());
-    },
-    []
-  );
+  useEffect(() => stopCurrentStream, []);
 
   // Anchoran itself fills the whole screen, so window-level coordinates
   // already are real desktop coordinates — tracked here instead of on

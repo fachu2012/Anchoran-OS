@@ -95,6 +95,8 @@ export function TerminalConsole({
   const uninstallApp = useInstalledAppsStore((s) => s.uninstall);
   const deleteProfile = useProfilesStore((s) => s.deleteProfile);
   const awaitingUpdate = useRef(false);
+  const awaitingChangeTo = useRef(false);
+  const pendingChangeTo = useRef<string | null>(null);
 
   useEffect(() => {
     window.anchoran?.fsSpecialFolders().then((folders) => setCwd(folders.home));
@@ -125,6 +127,24 @@ export function TerminalConsole({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    window.anchoran?.onChangeToStatus((status) => {
+      if (!awaitingChangeTo.current) return;
+      if (status.state === "downloading") {
+        // Printed sparingly (every 20%) rather than on every tick —
+        // this is a live download, not a log.
+        if (status.percent % 20 === 0) print(`Downloading… ${status.percent}%`);
+      } else if (status.state === "installing") {
+        print("Installing — Anchoran will restart shortly to finish.");
+        awaitingChangeTo.current = false;
+      } else if (status.state === "error") {
+        print(`changeto: ${status.message}`);
+        awaitingChangeTo.current = false;
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function completeTab() {
     if (!window.anchoran) return;
     const lastSpace = input.lastIndexOf(" ");
@@ -150,6 +170,30 @@ export function TerminalConsole({
     const line = raw.trim();
     print(`${isAdmin ? "root@anchoran:~#" : "user@anchoran:~$"} ${raw}`);
     if (!line) return;
+
+    // A "changeto" confirmation is pending — this line answers it
+    // instead of being parsed as a new command.
+    if (pendingChangeTo.current) {
+      const version = pendingChangeTo.current;
+      pendingChangeTo.current = null;
+      const answer = line.toLowerCase();
+      if (answer === "y" || answer === "yes" || answer === "s" || answer === "si" || answer === "sí") {
+        if (!window.anchoran) {
+          print("changeto: not available outside the Anchoran desktop app.");
+          return;
+        }
+        awaitingChangeTo.current = true;
+        print(`Downloading v${version}…`);
+        const result = await window.anchoran.changeToVersion(version);
+        if (!result.success) {
+          awaitingChangeTo.current = false;
+          print(`changeto: ${result.error ?? "failed."}`);
+        }
+      } else {
+        print("changeto: cancelled.");
+      }
+      return;
+    }
 
     const [cmd, ...args] = line.split(/\s+/);
     const rest = args.join(" ");
@@ -184,7 +228,7 @@ export function TerminalConsole({
                   "  startup, startup remove <name>, systemmode on|off",
                   "  df, du <path>, emptyrecyclebin, clearcache, backup, restore, wipe --confirm",
                   "  theme light|dark, wallpaper <name>, accent <hex>, scale <value>",
-                  "  logs, logs --errors, crashinfo, exportlogs, changeto [vX.Y.Z]",
+                  "  logs, logs --errors, crashinfo, exportlogs, anchoran changeto [vX.Y.Z]",
                   "  shutdown, restart, sleep, resetpin --confirm",
                   "  listprofiles, delprofile <id>, regquery <key>",
                   "  netcheck, ping <host>, myip",
@@ -388,8 +432,47 @@ export function TerminalConsole({
             matches.forEach((w) => closeWindow(w.windowId));
             print(matches.length > 0 ? `Closed ${matches.length} window(s) for ${app.title}.` : `${app.title} isn't open.`);
           }
+        } else if (sub === "changeto") {
+          if (!isAdmin) {
+            print("anchoran changeto: administrator required. Run \"sudo\" first.");
+            break;
+          }
+          if (!window.anchoran) {
+            print("anchoran changeto: not available outside the Anchoran desktop app.");
+            break;
+          }
+          print("Fetching available releases…");
+          try {
+            const res = await fetch("https://api.github.com/repos/fachu2012/Anchoran-OS/releases?per_page=100");
+            const data: { tag_name: string; body: string | null; draft: boolean; prerelease: boolean }[] = await res.json();
+            const installable = data
+              .filter((r) => !r.draft && !r.prerelease && typeof r.body === "string" && !r.body.includes("installation option has been disabled"))
+              .map((r) => r.tag_name.replace(/^v/i, ""));
+            if (!subArgs[0]) {
+              print(
+                installable.length > 0
+                  ? installable.map((v) => `  ${v}${v === ANCHORAN_VERSION ? " (current)" : ""}`).join("\n")
+                  : "Couldn't fetch the release list."
+              );
+            } else {
+              const target = subArgs[0].replace(/^v/i, "");
+              if (!installable.includes(target)) {
+                print(`anchoran changeto: v${target} isn't an installable release. Run "anchoran changeto" with no arguments to see the list.`);
+              } else if (target === ANCHORAN_VERSION) {
+                print(`anchoran changeto: v${target} is already the version running.`);
+              } else {
+                pendingChangeTo.current = target;
+                print(`Change to v${target}? Anchoran will close and reopen on that version. [y/n]`);
+              }
+            }
+          } catch {
+            print("anchoran changeto: couldn't reach GitHub.");
+          }
         } else {
-          print("anchoran: unknown subcommand. Try: system, version, settings, update, uptime, changelog, restart, lock, apps, install, uninstall, open, kill");
+          print(
+            "anchoran: unknown subcommand. Try: system, version, settings, update, uptime, changelog, restart, lock, apps, install, uninstall, open, kill" +
+              (isAdmin ? ", changeto" : "")
+          );
         }
         break;
       }
@@ -607,41 +690,6 @@ export function TerminalConsole({
         }
         const lastCrash = lines.find((l) => l.includes("renderer:react"));
         print(lastCrash ? lastCrash : "No crash recorded since Anchoran's log started.");
-        break;
-      }
-      case "changeto": {
-        if (!isAdmin) break;
-        if (!window.anchoran) {
-          print("changeto: not available outside the Anchoran desktop app.");
-          break;
-        }
-        print("Fetching available releases…");
-        try {
-          const res = await fetch("https://api.github.com/repos/fachu2012/Anchoran-OS/releases?per_page=100");
-          const data: { tag_name: string; body: string | null; draft: boolean; prerelease: boolean }[] = await res.json();
-          const installable = data
-            .filter((r) => !r.draft && !r.prerelease && typeof r.body === "string" && !r.body.includes("installation option has been disabled"))
-            .map((r) => r.tag_name.replace(/^v/i, ""));
-          if (!args[0]) {
-            print(
-              installable.length > 0
-                ? installable.map((v) => `  ${v}${v === ANCHORAN_VERSION ? " (current)" : ""}`).join("\n")
-                : "Couldn't fetch the release list."
-            );
-          } else {
-            const target = args[0].replace(/^v/i, "");
-            if (!installable.includes(target)) {
-              print(`changeto: v${target} isn't an installable release. Run "changeto" with no arguments to see the list.`);
-            } else {
-              print(
-                `changeto: switching versions isn't wired up to actually install yet in this build — ` +
-                  `v${target} is a valid, installable release though. Download it manually from the Releases page for now.`
-              );
-            }
-          }
-        } catch {
-          print("changeto: couldn't reach GitHub.");
-        }
         break;
       }
       case "exportlogs": {

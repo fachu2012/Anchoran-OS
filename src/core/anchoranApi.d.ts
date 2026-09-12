@@ -86,6 +86,9 @@ declare global {
     quitAndInstallUpdate: () => void;
     consumePendingUpdate: () => Promise<string | null>;
 
+    changeToVersion: (version: string) => Promise<{ success: boolean; error?: string }>;
+    onChangeToStatus: (callback: (status: AnchoranChangeToStatus) => void) => void;
+
     systemModeStart: () => Promise<{ success: boolean; error?: string }>;
     systemModeStop: () => Promise<{ success: boolean }>;
     systemModeStatus: () => Promise<{ running: boolean; supported: boolean }>;
@@ -129,6 +132,11 @@ declare global {
     | { state: "not-available" }
     | { state: "downloading"; percent: number }
     | { state: "downloaded"; version: string }
+    | { state: "error"; message: string };
+
+  type AnchoranChangeToStatus =
+    | { state: "downloading"; percent: number }
+    | { state: "installing" }
     | { state: "error"; message: string };
 
   interface Window {
