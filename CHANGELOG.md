@@ -5,6 +5,22 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.11] - 2026-09-12
+
+### Security
+
+- Removed the Terminal's secret `sudo` command — it granted a full
+  Administrator Terminal instantly with no authentication at all,
+  which defeated the whole point of the PIN-gated "Run as
+  Administrator" flow added earlier. The only way into an
+  Administrator Terminal now is that PIN check.
+
+### Changed
+
+- Settings → Users no longer has a "Switch to" button on other
+  profiles — switching between profiles now only happens from the
+  lock screen, not from inside a session.
+
 ## [2.6.10] - 2026-09-12
 
 ### Changed

@@ -471,7 +471,6 @@ function UsersSection() {
   const activeProfileId = useProfilesStore((s) => s.activeProfileId);
   const createProfile = useProfilesStore((s) => s.createProfile);
   const deleteProfile = useProfilesStore((s) => s.deleteProfile);
-  const switchProfile = useProfilesStore((s) => s.switchProfile);
   const setProfileAdmin = useProfilesStore((s) => s.setProfileAdmin);
   const [newProfileName, setNewProfileName] = useState("");
   const [newProfileAdmin, setNewProfileAdmin] = useState(false);
@@ -494,7 +493,8 @@ function UsersSection() {
           <div className="settings-row-desc">
             Each profile has its own name, avatar, PIN and appearance (accent color, wallpaper, theme). App data —
             Notes, Files, and every other app — is shared across profiles. You can only edit your own profile's
-            details below; only this PC's owner admin can grant or revoke admin status on other profiles.
+            details below; only this PC's owner admin can grant or revoke admin status on other profiles. Switching
+            to a different profile is only done from the lock screen, not from here.
           </div>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, width: "100%" }}>
@@ -519,11 +519,6 @@ function UsersSection() {
               ) : null}
               {p.id === activeProfileId && (
                 <span style={{ fontSize: 10.5, color: "var(--anchoran-accent)" }}>Active</span>
-              )}
-              {p.id !== activeProfileId && (
-                <button className="app-toolbar-btn" onClick={() => switchProfile(p.id)}>
-                  Switch to
-                </button>
               )}
               {isOwner && !p.isOwner && (
                 <button className="app-toolbar-btn" onClick={() => setProfileAdmin(p.id, !p.isAdmin)}>

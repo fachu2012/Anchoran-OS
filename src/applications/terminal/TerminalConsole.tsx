@@ -55,20 +55,21 @@ function findApp(query: string) {
 /**
  * The actual terminal console — history, input, and every command.
  * Rendered two ways: as Anchoran's normal windowed Terminal app (see
- * Terminal.tsx, full window chrome, admin mode entered via the secret
- * "sudo" command), and raw with no window chrome at all inside the
- * crash screen (see core/ErrorBoundary.tsx), always already in admin
- * mode there since a crash is exactly when you'd need the deeper
- * commands and there's no normal desktop left to unlock it from.
+ * Terminal.tsx, full window chrome, admin mode only ever entered
+ * pre-elevated via "Run as Administrator" + a real admin PIN check —
+ * there is deliberately no in-terminal command that grants it, since
+ * that would be an admin shell with no authentication at all), and raw
+ * with no window chrome at all inside the crash screen (see
+ * core/ErrorBoundary.tsx), always already in admin mode there since a
+ * crash is exactly when you'd need the deeper commands and there's no
+ * normal desktop left to unlock it from.
  */
 export function TerminalConsole({
   admin,
-  onUnlockAdmin,
   canExitAdmin = true,
   greeting,
 }: {
   admin: boolean;
-  onUnlockAdmin?: () => void;
   canExitAdmin?: boolean;
   greeting?: string;
 }) {
@@ -213,18 +214,6 @@ export function TerminalConsole({
 
     const [cmd, ...args] = line.split(/\s+/);
     const rest = args.join(" ");
-
-    // The secret unlock — deliberately not listed in `help`.
-    if (cmd === "sudo") {
-      if (isAdmin) {
-        print("Already running as Administrator.");
-      } else {
-        setIsAdmin(true);
-        onUnlockAdmin?.();
-        print("Administrator Terminal unlocked. Type \"help\" to see the extra commands.");
-      }
-      return;
-    }
 
     switch (cmd) {
       case "help":
@@ -450,7 +439,7 @@ export function TerminalConsole({
           }
         } else if (sub === "changeto") {
           if (!isAdmin) {
-            print("anchoran changeto: administrator required. Run \"sudo\" first.");
+            print("anchoran changeto: administrator required. Reopen the Terminal via \"Run as Administrator\".");
             break;
           }
           if (!window.anchoran) {

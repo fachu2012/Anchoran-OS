@@ -9,5 +9,5 @@ installer/dist/
 .DS_Store
 Thumbs.db
 data/
-native/kioskhook/bin/
-native/kioskhook/obj/
+native/*/bin/
+native/*/obj/
