@@ -4,6 +4,8 @@ import { useNotificationStore } from "@/notifications/notificationStore";
 import { ContextMenu, type ContextMenuItem } from "@/desktop/ContextMenu";
 import { printTextAsPdf } from "@/core/print";
 import { QuickLook } from "./QuickLook";
+import JSZip from "jszip";
+import { addPathToZip, extractZipTo } from "@/core/zipHelpers";
 import "@/applications/apps.css";
 
 const THIS_PC = "This PC";
@@ -127,7 +129,7 @@ export function FilesApp() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [sortMode, setSortMode] = useState<SortMode>("name-asc");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [clipboard, setClipboard] = useState<Clipboard>(null);
@@ -295,6 +297,43 @@ export function FilesApp() {
     refresh();
   }
 
+  /** "Compress to .zip" — the same native-Explorer convenience, built on the same JSZip logic Zip Tool uses. */
+  async function compressPaths(paths: string[]) {
+    if (currentPath === THIS_PC) return;
+    pushNotification("Files", "Compressing…");
+    const zip = new JSZip();
+    for (const p of paths) {
+      const entry = entries.find((e) => e.path === p);
+      if (!entry) continue;
+      await addPathToZip(zip, entry.path, entry.name, entry.isDirectory);
+    }
+    const base64 = await zip.generateAsync({ type: "base64" });
+    const name = paths.length === 1 ? (entries.find((e) => e.path === paths[0])?.name ?? "Archive") : "Archive";
+    const result = await window.anchoran!.fsWriteDataUrl(currentPath, `${name}.zip`, `data:application/zip;base64,${base64}`);
+    if ("error" in result) pushNotification("Files", result.error);
+    else pushNotification("Files", `Created ${name}.zip`);
+    refresh();
+  }
+
+  /** "Extract here" — unpacks a .zip into a same-named subfolder of the current folder. */
+  async function extractZip(entry: Entry) {
+    const binResult = await window.anchoran!.fsReadBinary(entry.path);
+    if ("error" in binResult) {
+      pushNotification("Files", binResult.error);
+      return;
+    }
+    try {
+      const zip = await JSZip.loadAsync(binResult.base64, { base64: true });
+      const folderName = entry.name.replace(/\.zip$/i, "");
+      const result = await extractZipTo(zip, currentPath, folderName);
+      if ("error" in result) pushNotification("Files", result.error);
+      else pushNotification("Files", `Extracted to ${folderName}`);
+      refresh();
+    } catch {
+      pushNotification("Files", "Couldn't read this archive.");
+    }
+  }
+
   async function onDrop(e: DragEvent, targetDir: string) {
     e.preventDefault();
     if (e.dataTransfer.files.length === 0) return;
@@ -343,12 +382,22 @@ export function FilesApp() {
       ...(!entry.isDirectory
         ? [
             { label: "Quick Look", onSelect: () => setQuickLookEntry(entry) },
-            { label: "Open with…", onSelect: () => window.anchoran!.fsOpenWith(entry.path) },
+            {
+              label: "Open with…",
+              onSelect: async () => {
+                const result = await window.anchoran!.fsOpenWith(entry.path);
+                if (!result.success) pushNotification("Files", result.error ?? "Couldn't open \"Open with\".");
+              },
+            },
           ]
         : []),
       { label: "Cut", onSelect: () => setClipboard({ paths, mode: "cut" }) },
       { label: "Copy", onSelect: () => setClipboard({ paths, mode: "copy" }) },
       ...(paths.length === 1 ? [{ label: "Rename", onSelect: () => startRename(entry) }] : []),
+      { label: "Compress to .zip", onSelect: () => compressPaths(paths) },
+      ...(!entry.isDirectory && entry.name.toLowerCase().endsWith(".zip")
+        ? [{ label: "Extract here", onSelect: () => extractZip(entry) }]
+        : []),
       { label: "Show in Explorer", onSelect: () => window.anchoran!.fsShowInExplorer(entry.path) },
       { label: paths.length > 1 ? `Delete ${paths.length} items` : "Delete", onSelect: () => deletePaths(paths) },
     ];

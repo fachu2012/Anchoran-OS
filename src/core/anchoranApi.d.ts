@@ -22,6 +22,7 @@ declare global {
     restart: () => void;
     onRequestExitConfirmation: (callback: () => void) => void;
     onToggleLauncher: (callback: () => void) => void;
+    onTriggerScreenshot: (callback: () => void) => void;
     onShortcutStatus: (callback: (status: { superRegistered: boolean; fallbackRegistered: boolean }) => void) => void;
     getSystemInfo: () => Promise<AnchoranSystemInfo>;
     configGet: (key: string) => Promise<unknown>;
@@ -41,6 +42,18 @@ declare global {
     getCaptureSources: () => Promise<{ id: string; name: string; thumbnailDataUrl: string }[]>;
     pickZipFile: () => Promise<{ base64: string; fileName: string } | { error: string } | null>;
     pickFolder: (title: string) => Promise<string | null>;
+
+    openRecycleBin: () => void;
+    openOsk: () => void;
+    openNarrator: () => void;
+    listStartupItems: () => Promise<{ name: string; command: string }[]>;
+    removeStartupItem: (name: string) => Promise<{ success: boolean; error?: string }>;
+    listProcesses: () => Promise<{ pid: number; parentPid: number; name: string }[]>;
+    killProcess: (pid: number) => Promise<{ success: boolean; error?: string }>;
+    getDiskUsage: () => Promise<{ drives: { caption: string; free: number; total: number }[] }>;
+    getFolderSizes: (
+      paths: { label: string; path: string }[]
+    ) => Promise<{ label: string; path: string; size: number }[]>;
     showWebviewContextMenu: (
       webContentsId: number,
       x: number,
@@ -78,7 +91,7 @@ declare global {
     fsCopy: (sourcePaths: string[], destDir: string) => Promise<{ success: boolean; error?: string }>;
     fsMove: (sourcePaths: string[], destDir: string) => Promise<{ success: boolean; error?: string }>;
     fsOpenPath: (filePath: string) => Promise<{ success: boolean; error?: string }>;
-    fsOpenWith: (filePath: string) => void;
+    fsOpenWith: (filePath: string) => Promise<{ success: boolean; error?: string }>;
     fsShowInExplorer: (filePath: string) => void;
 
     pickOpenTextFile: () => Promise<{ path: string; content: string } | { error: string } | null>;

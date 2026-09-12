@@ -102,6 +102,21 @@ const APP_COMPONENTS: Record<AppId, React.LazyExoticComponent<() => JSX.Element>
   screenRecorder: lazy(() =>
     import("@/applications/screenrecorder/ScreenRecorder").then((m) => ({ default: m.ScreenRecorderApp }))
   ),
+  storageUsage: lazy(() =>
+    import("@/applications/storageusage/StorageUsage").then((m) => ({ default: m.StorageUsageApp }))
+  ),
+  startupApps: lazy(() =>
+    import("@/applications/startupapps/StartupApps").then((m) => ({ default: m.StartupAppsApp }))
+  ),
+  emojiPicker: lazy(() =>
+    import("@/applications/emojipicker/EmojiPicker").then((m) => ({ default: m.EmojiPickerApp }))
+  ),
+  // Recycle Bin, On-Screen Keyboard and Narrator never open a window —
+  // see windowStore.ts's openApp — these entries only exist to satisfy
+  // APP_COMPONENTS' type and are never rendered.
+  recycleBin: lazy(() => Promise.resolve({ default: () => <></> })),
+  onScreenKeyboard: lazy(() => Promise.resolve({ default: () => <></> })),
+  narrator: lazy(() => Promise.resolve({ default: () => <></> })),
 };
 
 function AppLoadingFallback() {

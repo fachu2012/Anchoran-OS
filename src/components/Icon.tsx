@@ -102,7 +102,13 @@ export type IconName =
   | "gameRom"
   | "certificate"
   | "shortcut"
-  | "subtitle";
+  | "subtitle"
+  | "storageUsage"
+  | "startupApps"
+  | "emojiPicker"
+  | "onScreenKeyboard"
+  | "narrator"
+  | "recycleBin";
 
 const PATHS: Record<IconName, string> = {
   files:
@@ -233,6 +239,12 @@ const PATHS: Record<IconName, string> = {
   certificate: "M12 3.5 5 6.5v5.5c0 4.5 3 7 7 8.5 4-1.5 7-4 7-8.5V6.5L12 3.5Zm-2.8 8.3 2 2 4-4.3",
   shortcut: "M7 3.5h7l4 4v13H7v-17Zm7 0v4h4M11 17.5l4-4M15 13.5v3.3h-3.3",
   subtitle: "M4.5 6.5h15v11h-15v-11Zm3 3h3M13.5 9.5H17M7.5 13h2.5M13.5 13h4",
+  storageUsage: "M4.5 20V6.5h6l2 2h7V20h-15Zm3-3.5V13m4 3.5v-6m4 6v-3",
+  startupApps: "M12 4v9.5M8 9.5 12 13.5 16 9.5M5.5 15v4.5h13V15",
+  emojiPicker: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm-3-9h.01M15 11h.01M8.5 14.5c1 1.3 2.2 2 3.5 2s2.5-.7 3.5-2",
+  onScreenKeyboard: "M4 6.5h16v11H4v-11Zm2.5 2.5h1.4M9.5 9h1.4M12.5 9h1.4M15.5 9h1.4M6.5 12h1.4M9.5 12h5M15.5 12h1.4M8 15h8",
+  narrator: "M12 4.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3ZM7 11v1.5a5 5 0 0 0 10 0V11M12 17.5v2.5M8 21h8",
+  recycleBin: "M6 7.5h12l-1 12.5H7L6 7.5Zm3-3h6l1 2H8l1-2ZM10 11v6M14 11v6",
 };
 
 export function Icon({

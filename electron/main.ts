@@ -178,6 +178,16 @@ function registerGlobalShortcuts() {
   const superRegistered = tryRegister("Super");
   const fallbackRegistered = tryRegister("CommandOrControl+Alt+L");
 
+  // Screenshot's own dedicated shortcut — PrintScreen is the real key
+  // Windows itself uses for this; Ctrl+Shift+S alongside it since not
+  // every keyboard has an easy PrintScreen key (laptops often need Fn).
+  try {
+    globalShortcut.register("PrintScreen", () => mainWindow?.webContents.send("anchoran:trigger-screenshot"));
+    globalShortcut.register("CommandOrControl+Shift+S", () => mainWindow?.webContents.send("anchoran:trigger-screenshot"));
+  } catch (err) {
+    logToDisk("main:shortcuts", `Registering the screenshot shortcut failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   if (!superRegistered) {
     logToDisk(
       "main:shortcuts",
@@ -591,18 +601,29 @@ ipcMain.handle("anchoran:fs-open-path", async (_event, filePath: string) => {
  * `rundll32 shell32.dll,OpenAs_RunDLL` is the standard, long-documented
  * way any desktop app invokes it; there's no other public API for it.
  */
-ipcMain.on("anchoran:fs-open-with", (_event, filePath: string) => {
-  if (process.platform !== "win32") return;
-  // Fully-qualified paths for both — resolving "rundll32.exe" and
-  // "shell32.dll" by bare name relies on the process's PATH/DLL search
-  // order being exactly what's expected; qualifying them removes that
-  // ambiguity. Logs on failure instead of failing silently, which is
-  // what made the previous version look like it "did nothing".
+/**
+ * The real Windows "How do you want to open this file?" picker.
+ * OpenWith.exe (System32, shipped since Windows Vista) is the modern,
+ * direct executable behind Explorer's own "Open with" — simpler and
+ * more reliable than the older rundll32 shell32.dll,OpenAs_RunDLL
+ * trick this used to call, which a real user reported doing nothing.
+ * Returns success/failure instead of firing-and-forgetting, so the UI
+ * can actually surface an error instead of silently doing nothing a
+ * second time if this fails too.
+ */
+ipcMain.handle("anchoran:fs-open-with", (_event, filePath: string) => {
+  if (process.platform !== "win32") return { success: false, error: "Only supported on Windows." };
   const systemRoot = process.env.SystemRoot || "C:\\Windows";
-  const rundll32 = path.join(systemRoot, "System32", "rundll32.exe");
-  const shell32 = path.join(systemRoot, "System32", "shell32.dll");
-  execFile(rundll32, [`${shell32},OpenAs_RunDLL`, filePath], (err) => {
-    if (err) logToDisk("fs-open-with", `Couldn't open "Open with" for ${filePath}: ${err.message}`);
+  const openWithExe = path.join(systemRoot, "System32", "OpenWith.exe");
+  return new Promise((resolve) => {
+    execFile(openWithExe, [filePath], (err) => {
+      if (err) {
+        logToDisk("fs-open-with", `OpenWith.exe failed for ${filePath}: ${err.message}`);
+        resolve({ success: false, error: err.message });
+      } else {
+        resolve({ success: true });
+      }
+    });
   });
 });
 
@@ -788,6 +809,138 @@ ipcMain.handle("anchoran:pick-zip-file", async () => {
     return { error: "Zip file is too large (max 50MB)." };
   }
   return { base64: buffer.toString("base64"), fileName: path.basename(filePath) };
+});
+
+/**
+ * Recycle Bin: rather than reimplementing Windows' own undocumented
+ * $Recycle.Bin storage format, this opens the real, actual Recycle
+ * Bin — the same window Explorer itself shows — via its shell
+ * namespace path. Anchoran already deletes into this exact place (see
+ * fs-delete's shell.trashItem above), so this is just giving it a
+ * front door instead of requiring a trip out to Explorer to see it.
+ */
+ipcMain.on("anchoran:open-recycle-bin", () => {
+  if (process.platform === "win32") execFile("explorer.exe", ["shell:RecycleBinFolder"]);
+});
+
+/**
+ * On-Screen Keyboard and Narrator: Windows already ships fully-working,
+ * properly localized, deeply OS-integrated versions of both — building
+ * a custom replacement would be a large undertaking for a strictly
+ * worse result. These just launch the real ones.
+ */
+ipcMain.on("anchoran:open-osk", () => {
+  if (process.platform === "win32") execFile("osk.exe");
+});
+ipcMain.on("anchoran:open-narrator", () => {
+  if (process.platform === "win32") execFile("narrator.exe");
+});
+
+/**
+ * Startup Apps: reads/manages the real per-user Windows "Run" startup
+ * entries (HKCU\...\Run) — the same list Windows' own Task Manager
+ * "Startup apps" tab shows. Reading and removing a value here needs no
+ * elevation and touches nothing Windows considers critical/recovery —
+ * it's exactly the same action a user could take themselves in Task
+ * Manager.
+ */
+const STARTUP_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+
+ipcMain.handle("anchoran:list-startup-items", async () => {
+  if (process.platform !== "win32") return [];
+  const { success, output } = await runReg(["query", STARTUP_KEY]);
+  if (!success) return [];
+  const items: { name: string; command: string }[] = [];
+  for (const line of output.split(/\r?\n/)) {
+    const match = line.match(/^\s{4}(\S.*?)\s{4}REG_\S+\s{4}(.*)$/);
+    if (match) items.push({ name: match[1], command: match[2].trim() });
+  }
+  return items;
+});
+
+ipcMain.handle("anchoran:remove-startup-item", async (_event, name: string) => {
+  const { success, output } = await runReg(["delete", STARTUP_KEY, "/v", name, "/f"]);
+  return success ? { success: true } : { success: false, error: output };
+});
+
+/**
+ * Real Windows process list, as a tree by parent process id — the
+ * same information Task Manager's own process view is built from.
+ * "End task" runs the same `taskkill` a user could run themselves; a
+ * confirmation in the UI is required before calling it, since unlike
+ * closing an Anchoran window, this can affect any real process on the
+ * system.
+ */
+ipcMain.handle("anchoran:list-processes", async () => {
+  if (process.platform !== "win32") return [];
+  const { stdout } = await new Promise<{ stdout: string }>((resolve) => {
+    execFile(
+      "wmic",
+      ["process", "get", "Name,ProcessId,ParentProcessId", "/format:csv"],
+      (_err, out) => resolve({ stdout: out ?? "" })
+    );
+  });
+  const lines = stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const processes: { pid: number; parentPid: number; name: string }[] = [];
+  for (const line of lines.slice(1)) {
+    const cols = line.split(",");
+    if (cols.length < 4) continue;
+    const [, name, parentPid, pid] = cols;
+    if (!name || Number.isNaN(Number(pid))) continue;
+    processes.push({ pid: Number(pid), parentPid: Number(parentPid), name });
+  }
+  return processes;
+});
+
+ipcMain.handle("anchoran:kill-process", async (_event, pid: number) => {
+  return new Promise((resolve) => {
+    execFile("taskkill", ["/PID", String(pid), "/F"], (err, _out, stderr) => {
+      resolve(err ? { success: false, error: stderr || err.message } : { success: true });
+    });
+  });
+});
+
+/** Storage usage: real per-drive free/total space, plus a size breakdown of the well-known folders. */
+ipcMain.handle("anchoran:get-disk-usage", async () => {
+  if (process.platform !== "win32") return { drives: [] };
+  const { stdout } = await new Promise<{ stdout: string }>((resolve) => {
+    execFile("wmic", ["logicaldisk", "get", "Caption,FreeSpace,Size", "/format:csv"], (_err, out) => resolve({ stdout: out ?? "" }));
+  });
+  const lines = stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const drives: { caption: string; free: number; total: number }[] = [];
+  for (const line of lines.slice(1)) {
+    const cols = line.split(",");
+    if (cols.length < 4) continue;
+    const [, caption, free, total] = cols;
+    if (!caption || !total) continue;
+    drives.push({ caption, free: Number(free) || 0, total: Number(total) || 0 });
+  }
+  return { drives };
+});
+
+function dirSize(dirPath: string, depth = 0): number {
+  if (depth > 6) return 0;
+  let total = 0;
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  for (const entry of entries) {
+    const full = path.join(dirPath, entry.name);
+    try {
+      if (entry.isDirectory()) total += dirSize(full, depth + 1);
+      else total += fs.statSync(full).size;
+    } catch {
+      // Unreadable entry — skip.
+    }
+  }
+  return total;
+}
+
+ipcMain.handle("anchoran:get-folder-sizes", (_event, paths: { label: string; path: string }[]) => {
+  return paths.map(({ label, path: p }) => ({ label, path: p, size: dirSize(p) }));
 });
 
 /**

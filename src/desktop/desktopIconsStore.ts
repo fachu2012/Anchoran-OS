@@ -16,7 +16,7 @@ import type { AppId } from "@/core/types";
 const PINNED_KEY = "desktopPinnedApps";
 const POSITIONS_KEY = "desktopIconPositions";
 
-const DEFAULT_PINNED: AppId[] = ["files", "terminal", "settings"];
+const DEFAULT_PINNED: AppId[] = ["files", "terminal", "settings", "recycleBin"];
 
 export type IconKey = `app:${string}` | `file:${string}`;
 

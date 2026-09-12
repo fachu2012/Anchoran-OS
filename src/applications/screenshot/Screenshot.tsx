@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { saveGeneratedFile } from "@/core/saveGenerated";
 import { useNotificationStore } from "@/notifications/notificationStore";
@@ -45,6 +45,18 @@ export function ScreenshotApp() {
   const [captured, setCaptured] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
+
+  // Triggered by App.tsx when the global PrintScreen / Ctrl+Shift+S
+  // shortcut opens this app — starts the capture immediately instead
+  // of making the user click Capture right after it opens.
+  useEffect(() => {
+    function onAutoCapture() {
+      startCapture();
+    }
+    window.addEventListener("anchoran-auto-capture", onAutoCapture);
+    return () => window.removeEventListener("anchoran-auto-capture", onAutoCapture);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function startCapture() {
     setError(null);

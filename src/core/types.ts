@@ -55,7 +55,13 @@ export type AppId =
   | "zipTool"
   | "spreadsheet"
   | "magnifier"
-  | "screenRecorder";
+  | "screenRecorder"
+  | "storageUsage"
+  | "startupApps"
+  | "emojiPicker"
+  | "onScreenKeyboard"
+  | "narrator"
+  | "recycleBin";
 
 export type AppCategory = "System" | "Productivity" | "Utilities" | "Internet" | "Games";
 

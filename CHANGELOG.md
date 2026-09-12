@@ -5,6 +5,44 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.1.12] - 2026-09-12
+
+### Fixed
+
+- **"Open with…" still did nothing in 2.1.11** — the `rundll32`/
+  `shell32.dll,OpenAs_RunDLL` trick never actually worked. Replaced with
+  the real `OpenWith.exe` (the same dialog Windows Explorer itself
+  opens), and it now reports a real error instead of silently doing
+  nothing if it ever fails again.
+
+### Added
+
+Ten features that a real OS ships with by default, now built in:
+
+- **Recycle Bin** — a real desktop icon that opens Windows' actual
+  Recycle Bin folder.
+- **Unified search** in the Launcher — search apps, Settings sections,
+  and real files (Desktop/Documents/Downloads/Pictures) from one box.
+- **Screenshot shortcut** — PrintScreen and Ctrl+Shift+S now open
+  Screenshot and start capturing immediately, system-wide.
+- **Compress/Extract in Files** — "Compress to .zip" on any
+  selection, and "Extract here" on any .zip file, right from the
+  right-click menu.
+- **On-Screen Keyboard** and **Narrator** — launch Windows' own
+  `osk.exe`/`narrator.exe`.
+- **Emoji Picker** — a click-to-copy emoji panel grouped by category.
+- **Storage Usage** — real per-drive used/free space, plus sizes for
+  your Desktop/Documents/Downloads/Pictures/Music/Videos folders.
+- **Startup Apps** — lists real Windows startup entries
+  (`HKCU...\Run`) with a Remove button.
+- **Real process tree** in System Monitor — toggle from Anchoran's own
+  windows to every real Windows process, expandable by parent/child,
+  with a confirmed "End task".
+
+### Changed
+
+- **Files now defaults to List view** instead of Grid.
+
 ## [2.1.11] - 2026-09-11
 
 ### Fixed

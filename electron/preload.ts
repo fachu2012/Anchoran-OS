@@ -28,6 +28,9 @@ contextBridge.exposeInMainWorld("anchoran", {
   onToggleLauncher: (callback: () => void): void => {
     ipcRenderer.on("anchoran:toggle-launcher", callback);
   },
+  onTriggerScreenshot: (callback: () => void): void => {
+    ipcRenderer.on("anchoran:trigger-screenshot", callback);
+  },
   onShortcutStatus: (callback: (status: { superRegistered: boolean; fallbackRegistered: boolean }) => void): void => {
     ipcRenderer.on("anchoran:shortcut-status", (_e, status) => callback(status));
   },
@@ -70,6 +73,28 @@ contextBridge.exposeInMainWorld("anchoran", {
   pickZipFile: (): Promise<{ base64: string; fileName: string } | { error: string } | null> =>
     ipcRenderer.invoke("anchoran:pick-zip-file"),
   pickFolder: (title: string): Promise<string | null> => ipcRenderer.invoke("anchoran:pick-folder", title),
+
+  openRecycleBin: (): void => {
+    ipcRenderer.send("anchoran:open-recycle-bin");
+  },
+  openOsk: (): void => {
+    ipcRenderer.send("anchoran:open-osk");
+  },
+  openNarrator: (): void => {
+    ipcRenderer.send("anchoran:open-narrator");
+  },
+  listStartupItems: (): Promise<{ name: string; command: string }[]> =>
+    ipcRenderer.invoke("anchoran:list-startup-items"),
+  removeStartupItem: (name: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:remove-startup-item", name),
+  listProcesses: (): Promise<{ pid: number; parentPid: number; name: string }[]> =>
+    ipcRenderer.invoke("anchoran:list-processes"),
+  killProcess: (pid: number): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:kill-process", pid),
+  getDiskUsage: (): Promise<{ drives: { caption: string; free: number; total: number }[] }> =>
+    ipcRenderer.invoke("anchoran:get-disk-usage"),
+  getFolderSizes: (paths: { label: string; path: string }[]): Promise<{ label: string; path: string; size: number }[]> =>
+    ipcRenderer.invoke("anchoran:get-folder-sizes", paths),
 
   showWebviewContextMenu: (
     webContentsId: number,
@@ -140,9 +165,8 @@ contextBridge.exposeInMainWorld("anchoran", {
     ipcRenderer.invoke("anchoran:fs-move", sourcePaths, destDir),
   fsOpenPath: (filePath: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("anchoran:fs-open-path", filePath),
-  fsOpenWith: (filePath: string): void => {
-    ipcRenderer.send("anchoran:fs-open-with", filePath);
-  },
+  fsOpenWith: (filePath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:fs-open-with", filePath),
   fsShowInExplorer: (filePath: string): void => {
     ipcRenderer.send("anchoran:fs-show-in-explorer", filePath);
   },

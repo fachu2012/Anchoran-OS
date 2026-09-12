@@ -1,0 +1,26 @@
+.startupapps-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.startupapps-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--anchoran-border);
+}
+
+.startupapps-name {
+  font-size: 13px;
+}
+
+.startupapps-command {
+  font-size: 11px;
+  color: var(--anchoran-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "Cascadia Code", "Consolas", monospace;
+}

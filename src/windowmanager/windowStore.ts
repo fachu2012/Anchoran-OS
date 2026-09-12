@@ -78,6 +78,21 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
   snapPreview: null,
 
   openApp: (appId) => {
+    // Some "apps" launch a real external Windows tool instead of
+    // opening an Anchoran window — Recycle Bin, On-Screen Keyboard and
+    // Narrator are all things Windows already does correctly, so
+    // Anchoran launches the genuine ones rather than reimplementing
+    // them (see the matching IPC handlers in electron/main.ts).
+    const externalLaunch: Partial<Record<AppId, () => void>> = {
+      recycleBin: () => window.anchoran?.openRecycleBin(),
+      onScreenKeyboard: () => window.anchoran?.openOsk(),
+      narrator: () => window.anchoran?.openNarrator(),
+    };
+    if (externalLaunch[appId]) {
+      externalLaunch[appId]!();
+      return "";
+    }
+
     const def = APP_REGISTRY[appId];
     const state = get();
 

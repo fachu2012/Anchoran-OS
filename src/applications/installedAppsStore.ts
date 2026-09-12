@@ -28,6 +28,13 @@ const DEFAULT_OPTIONAL_INSTALLED: AppId[] = [
   "magnifier",
   "photoViewer",
   "zipTool",
+  "screenshot",
+  "recycleBin",
+  "storageUsage",
+  "startupApps",
+  "onScreenKeyboard",
+  "narrator",
+  "emojiPicker",
 ];
 const DEFAULT_INSTALLED: AppId[] = [...CORE_APP_IDS, ...DEFAULT_OPTIONAL_INSTALLED];
 

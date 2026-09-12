@@ -54,6 +54,15 @@ export default function App() {
       else if (key === "ALTTAB") useWindowStore.getState().cycleFocus(1);
     });
 
+    // PrintScreen / Ctrl+Shift+S — opens Screenshot and starts the
+    // capture immediately (see Screenshot.tsx's "anchoran-auto-capture"
+    // listener); the short delay gives its lazily-loaded chunk time to
+    // mount before that event fires.
+    window.anchoran?.onTriggerScreenshot(() => {
+      useWindowStore.getState().openApp("screenshot");
+      setTimeout(() => window.dispatchEvent(new Event("anchoran-auto-capture")), 300);
+    });
+
     // Tells the user when neither shortcut could be registered at all
     // (some other app already owns both) instead of them silently not
     // working — the dock/taskbar Launcher button always still works.

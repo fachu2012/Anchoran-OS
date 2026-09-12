@@ -3,7 +3,58 @@ import { ANCHORAN_VERSION } from "@/core/version";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { APP_REGISTRY } from "@/applications/registry";
 import { Icon, type IconName } from "@/components/Icon";
+import { useNotificationStore } from "@/notifications/notificationStore";
 import "@/applications/apps.css";
+
+interface RealProcess {
+  pid: number;
+  parentPid: number;
+  name: string;
+}
+
+interface ProcessNode extends RealProcess {
+  children: ProcessNode[];
+}
+
+function buildProcessTree(processes: RealProcess[]): ProcessNode[] {
+  const byPid = new Map<number, ProcessNode>();
+  for (const p of processes) byPid.set(p.pid, { ...p, children: [] });
+  const roots: ProcessNode[] = [];
+  for (const node of byPid.values()) {
+    const parent = byPid.get(node.parentPid);
+    if (parent && parent.pid !== node.pid) parent.children.push(node);
+    else roots.push(node);
+  }
+  return roots.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function ProcessTreeRow({ node, depth, onKill }: { node: ProcessNode; depth: number; onKill: (pid: number, name: string) => void }) {
+  const [expanded, setExpanded] = useState(depth < 1);
+  return (
+    <>
+      <div className="sysmon-process-row" style={{ paddingLeft: depth * 16 }}>
+        {node.children.length > 0 ? (
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            style={{ border: "none", background: "transparent", color: "var(--anchoran-text-secondary)", cursor: "pointer", padding: 0 }}
+          >
+            <Icon name="chevronRight" size={11} style={{ transform: expanded ? "rotate(90deg)" : undefined }} />
+          </button>
+        ) : (
+          <span style={{ width: 11 }} />
+        )}
+        <span className="sysmon-process-title" style={{ cursor: "default" }}>
+          {node.name}
+        </span>
+        <span className="sysmon-process-tag">PID {node.pid}</span>
+        <button className="app-toolbar-btn" onClick={() => onKill(node.pid, node.name)}>
+          End task
+        </button>
+      </div>
+      {expanded && node.children.map((child) => <ProcessTreeRow key={child.pid} node={child} depth={depth + 1} onKill={onKill} />)}
+    </>
+  );
+}
 
 interface SystemInfo {
   platform: string;
@@ -28,6 +79,25 @@ export function SystemMonitorApp() {
   const windows = useWindowStore((s) => s.windows);
   const closeWindow = useWindowStore((s) => s.closeWindow);
   const focusWindow = useWindowStore((s) => s.focusWindow);
+  const pushNotification = useNotificationStore((s) => s.push);
+  const [view, setView] = useState<"apps" | "processes">("apps");
+  const [processes, setProcesses] = useState<RealProcess[] | null>(null);
+
+  async function loadProcesses() {
+    if (!window.anchoran) return;
+    setProcesses(await window.anchoran.listProcesses());
+  }
+
+  useEffect(() => {
+    if (view === "processes") loadProcesses();
+  }, [view]);
+
+  async function killRealProcess(pid: number, name: string) {
+    if (!window.confirm(`End "${name}" (PID ${pid})? This affects the real system, not just Anchoran.`)) return;
+    const result = await window.anchoran!.killProcess(pid);
+    if (!result.success) pushNotification("System Monitor", result.error ?? "Couldn't end that process.");
+    loadProcesses();
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -56,24 +126,46 @@ export function SystemMonitorApp() {
     <div className="app-root">
       <div className="app-content">
         <div className="sysmon-processes">
-          <div className="sysmon-card-label" style={{ marginBottom: 8 }}>
-            Running Apps ({windows.length})
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <button className="app-toolbar-btn" data-op={view === "apps"} onClick={() => setView("apps")}>
+              Anchoran Apps ({windows.length})
+            </button>
+            <button className="app-toolbar-btn" data-op={view === "processes"} onClick={() => setView("processes")}>
+              All Processes {processes ? `(${processes.length})` : ""}
+            </button>
+            {view === "processes" && (
+              <button className="app-toolbar-btn" onClick={loadProcesses} style={{ marginLeft: "auto" }}>
+                <Icon name="restart" size={12} /> Refresh
+              </button>
+            )}
           </div>
-          {windows.length === 0 ? (
-            <div style={{ color: "var(--anchoran-text-secondary)", fontSize: 12.5 }}>No apps are running.</div>
+          {view === "apps" ? (
+            windows.length === 0 ? (
+              <div style={{ color: "var(--anchoran-text-secondary)", fontSize: 12.5 }}>No apps are running.</div>
+            ) : (
+              <div className="sysmon-process-list">
+                {windows.map((w) => (
+                  <div key={w.windowId} className="sysmon-process-row">
+                    <Icon name={APP_REGISTRY[w.appId].icon as IconName} size={15} />
+                    <span className="sysmon-process-title" onClick={() => focusWindow(w.windowId)}>
+                      {w.title}
+                    </span>
+                    {w.isMinimized && <span className="sysmon-process-tag">Minimized</span>}
+                    <button className="app-toolbar-btn" onClick={() => closeWindow(w.windowId)}>
+                      End task
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : processes === null ? (
+            <div style={{ color: "var(--anchoran-text-secondary)", fontSize: 12.5 }}>
+              Only available inside the Anchoran desktop app.
+            </div>
           ) : (
-            <div className="sysmon-process-list">
-              {windows.map((w) => (
-                <div key={w.windowId} className="sysmon-process-row">
-                  <Icon name={APP_REGISTRY[w.appId].icon as IconName} size={15} />
-                  <span className="sysmon-process-title" onClick={() => focusWindow(w.windowId)}>
-                    {w.title}
-                  </span>
-                  {w.isMinimized && <span className="sysmon-process-tag">Minimized</span>}
-                  <button className="app-toolbar-btn" onClick={() => closeWindow(w.windowId)}>
-                    End task
-                  </button>
-                </div>
+            <div className="sysmon-process-list" style={{ maxHeight: 260, overflowY: "auto" }}>
+              {buildProcessTree(processes).map((node) => (
+                <ProcessTreeRow key={node.pid} node={node} depth={0} onKill={killRealProcess} />
               ))}
             </div>
           )}
