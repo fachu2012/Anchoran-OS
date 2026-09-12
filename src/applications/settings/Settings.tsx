@@ -957,7 +957,12 @@ function AboutSection() {
           Check for updates
         </button>
         {downloadedVersion && (
-          <button className="app-toolbar-btn" onClick={() => window.anchoran?.quitAndInstallUpdate()}>
+          <button
+            className="app-toolbar-btn"
+            onClick={() =>
+              window.dispatchEvent(new CustomEvent("anchoran-request-update-theater", { detail: downloadedVersion }))
+            }
+          >
             Restart & install v{downloadedVersion}
           </button>
         )}

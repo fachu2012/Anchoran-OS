@@ -97,13 +97,31 @@ export function TerminalConsole({
   const awaitingUpdate = useRef(false);
   const awaitingChangeTo = useRef(false);
   const pendingChangeTo = useRef<string | null>(null);
+  // The line currently being live-updated in place (a download's
+  // percent ticking up) rather than appended as a new line each time —
+  // set while one is in progress, cleared once it's done so the next
+  // printed line (or the next download) starts fresh.
+  const progressLineId = useRef<number | null>(null);
 
   useEffect(() => {
     window.anchoran?.fsSpecialFolders().then((folders) => setCwd(folders.home));
   }, []);
 
   function print(text: string) {
+    progressLineId.current = null;
     setHistory((h) => [...h, { id: entryId++, text }]);
+  }
+
+  /** Like print(), but keeps rewriting the same line instead of appending a new one, for live progress (a download's percent, …). */
+  function printProgress(text: string) {
+    setHistory((h) => {
+      if (progressLineId.current !== null) {
+        return h.map((e) => (e.id === progressLineId.current ? { ...e, text } : e));
+      }
+      const id = entryId++;
+      progressLineId.current = id;
+      return [...h, { id, text }];
+    });
   }
 
   useEffect(() => {
@@ -115,7 +133,7 @@ export function TerminalConsole({
         print("Anchoran is up to date.");
         awaitingUpdate.current = false;
       } else if (status.state === "downloading") {
-        print(`Downloading update… ${status.percent}%`);
+        printProgress(`Downloading update… ${status.percent}%`);
       } else if (status.state === "downloaded") {
         print(`Update v${status.version} downloaded. Restart Anchoran to install it (Power menu → Restart Anchoran).`);
         awaitingUpdate.current = false;
@@ -131,9 +149,7 @@ export function TerminalConsole({
     window.anchoran?.onChangeToStatus((status) => {
       if (!awaitingChangeTo.current) return;
       if (status.state === "downloading") {
-        // Printed sparingly (every 20%) rather than on every tick —
-        // this is a live download, not a log.
-        if (status.percent % 20 === 0) print(`Downloading… ${status.percent}%`);
+        printProgress(`Downloading… ${status.percent}%`);
       } else if (status.state === "installing") {
         print("Installing — Anchoran will restart shortly to finish.");
         awaitingChangeTo.current = false;

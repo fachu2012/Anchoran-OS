@@ -5,6 +5,20 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.9] - 2026-09-12
+
+### Fixed
+
+- Terminal: a live download's progress (`anchoran update`, `anchoran
+  changeto`) now rewrites a single line in place as the percent ticks
+  up, instead of printing a brand new line for every update and
+  flooding the scrollback.
+- Settings → About's "Restart & install vX" button now opens the same
+  fullscreen update cinematic every other update path uses, instead of
+  silently installing and restarting in place — this was the gap that
+  let an update slip past the cinematic: check for updates, click
+  "Later" on the prompt that follows, then use that button instead.
+
 ## [2.6.8] - 2026-09-12
 
 ### Added

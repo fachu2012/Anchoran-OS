@@ -143,15 +143,29 @@ export default function App() {
     function onRequestSleep() {
       if (booted) setExitMode("sleep");
     }
+    // Settings' "Restart & install vX" button (About section) asks for
+    // the same fullscreen update cinematic instead of quitting and
+    // installing silently in place — see UpdateTheater below and its
+    // onComplete, which is the only thing that's actually allowed to
+    // call quitAndInstallUpdate().
+    function onRequestUpdateTheater(e: Event) {
+      const version = (e as CustomEvent<string>).detail;
+      if (booted && version) {
+        setUpdateReadyVersion(null);
+        setUpdateTheaterVersion(version);
+      }
+    }
     window.addEventListener("anchoran-request-lock", onRequestLock);
     window.addEventListener("anchoran-request-restart", onRequestRestart);
     window.addEventListener("anchoran-request-shutdown", onRequestShutdown);
     window.addEventListener("anchoran-request-sleep", onRequestSleep);
+    window.addEventListener("anchoran-request-update-theater", onRequestUpdateTheater);
     return () => {
       window.removeEventListener("anchoran-request-lock", onRequestLock);
       window.removeEventListener("anchoran-request-restart", onRequestRestart);
       window.removeEventListener("anchoran-request-shutdown", onRequestShutdown);
       window.removeEventListener("anchoran-request-sleep", onRequestSleep);
+      window.removeEventListener("anchoran-request-update-theater", onRequestUpdateTheater);
     };
   }, [booted]);
 
