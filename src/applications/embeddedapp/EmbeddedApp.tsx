@@ -35,6 +35,7 @@ export function EmbeddedApp({ windowId, embedPath }: { windowId?: string; embedP
     if (!embedPath || !windowId || !window.anchoran) return;
     let cancelled = false;
     setStatus("launching");
+    setErrorMessage(null);
     window.anchoran.embedStart(windowId, embedPath).then((result) => {
       if (cancelled) return;
       if (!result.success) {
@@ -42,8 +43,21 @@ export function EmbeddedApp({ windowId, embedPath }: { windowId?: string; embedP
         setErrorMessage(result.error ?? "Couldn't start this app.");
       }
     });
+    // A safety net independent of whatever happens on the native side:
+    // if nothing (embedded/error/closed) has been heard back after a
+    // generous timeout, stop sitting on "Starting…" forever — the app
+    // still opened as a normal separate window either way, this just
+    // stops pretending Anchoran is still doing something about it.
+    const timeout = setTimeout(() => {
+      setStatus((s) => {
+        if (s !== "launching") return s;
+        setErrorMessage("Timed out waiting to embed this app — it may have opened as a normal window instead.");
+        return "error";
+      });
+    }, 20000);
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
       window.anchoran?.embedStop(windowId);
     };
   }, [embedPath, windowId]);

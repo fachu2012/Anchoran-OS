@@ -1537,8 +1537,25 @@ ipcMain.handle("anchoran:embed-start", (_event, windowId: string, exePath: strin
       }
     });
 
-    child.on("exit", () => {
-      if (embedProcesses.get(windowId) === child) embedProcesses.delete(windowId);
+    child.on("exit", (code, signal) => {
+      // The helper reports every expected outcome (embedded/closed/
+      // error) as its own stdout line before exiting, so this only
+      // fires unexpectedly — the helper crashed, was killed (some
+      // games' anti-cheat kills processes that touch their window via
+      // SetParent/SetWindowLong), or exited without a final flushed
+      // line. Left unhandled, the renderer would just sit on
+      // "Starting…" forever with no way to know anything went wrong.
+      if (embedProcesses.get(windowId) === child) {
+        embedProcesses.delete(windowId);
+        mainWindow?.webContents.send("anchoran:embed-status", {
+          windowId,
+          state: "error",
+          message:
+            signal
+              ? `The embedding helper was terminated (${signal}) — some games' anti-cheat blocks this.`
+              : `The embedding helper exited unexpectedly (code ${code}).`,
+        });
+      }
     });
     child.on("error", (err) => {
       logToDisk("windowembed", `Helper process error: ${err.message}`);

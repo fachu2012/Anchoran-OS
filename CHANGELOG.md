@@ -5,6 +5,18 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.15] - 2026-09-12
+
+### Fixed
+
+- Embedding an external app could get stuck on "Starting…" forever
+  with no explanation if the native helper died without reporting
+  anything first — which real games readily trigger, since a lot of
+  anti-cheat software kills any process that touches their window via
+  SetParent/SetWindowLong. Now surfaces a real error either way: main
+  process reports an unexpected helper exit, and the window itself
+  gives up with a clear message after 20s regardless.
+
 ## [2.6.14] - 2026-09-12
 
 ### Added
