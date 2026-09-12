@@ -3,7 +3,7 @@ import { Icon, type IconName } from "@/components/Icon";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useDefaultAppsStore } from "@/core/defaultAppsStore";
-import { ContextMenu, type ContextMenuItem } from "@/desktop/ContextMenu";
+import { ContextMenu, type ContextMenuEntry } from "@/desktop/ContextMenu";
 import { QuickLook } from "./QuickLook";
 import { FileProperties } from "./FileProperties";
 import JSZip from "jszip";
@@ -408,7 +408,7 @@ export function FilesApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, clipboard, renamingPath, currentPath, quickLookEntry, entries]);
 
-  function entryMenuItems(entry: Entry): ContextMenuItem[] {
+  function entryMenuItems(entry: Entry): ContextMenuEntry[] {
     const paths = selected.has(entry.path) && selected.size > 1 ? Array.from(selected) : [entry.path];
     return [
       { label: "Open", onSelect: () => openEntry(entry) },
@@ -432,14 +432,15 @@ export function FilesApp() {
         ? [{ label: "Extract here", onSelect: () => extractZip(entry) }]
         : []),
       { label: "Show in Explorer", onSelect: () => window.anchoran!.fsShowInExplorer(entry.path) },
-      { label: paths.length > 1 ? `Delete ${paths.length} items` : "Delete", onSelect: () => deletePaths(paths) },
+      { separator: true },
+      { label: paths.length > 1 ? `Delete ${paths.length} items` : "Delete", onSelect: () => deletePaths(paths), danger: true },
       ...(paths.length === 1 ? [{ label: "Properties", onSelect: () => setPropertiesEntry(entry) }] : []),
     ];
   }
 
-  function emptySpaceMenuItems(): ContextMenuItem[] {
+  function emptySpaceMenuItems(): ContextMenuEntry[] {
     if (currentPath === THIS_PC) return [];
-    const items: ContextMenuItem[] = [
+    const items: ContextMenuEntry[] = [
       { label: "New Folder", onSelect: newFolder },
       { label: "New File", onSelect: newFile },
     ];

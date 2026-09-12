@@ -281,3 +281,23 @@
 .context-menu-item:hover {
   background: var(--anchoran-border);
 }
+
+.context-menu-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
+.context-menu-item[data-danger="true"] {
+  color: #E5484D;
+}
+
+.context-menu-item[data-danger="true"]:hover {
+  background: rgba(229, 72, 77, 0.12);
+}
+
+.context-menu-separator {
+  height: 1px;
+  margin: 5px 6px;
+  background: var(--anchoran-border);
+}

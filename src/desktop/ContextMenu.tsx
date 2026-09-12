@@ -7,6 +7,16 @@ export interface ContextMenuItem {
   danger?: boolean;
 }
 
+export interface ContextMenuSeparator {
+  separator: true;
+}
+
+export type ContextMenuEntry = ContextMenuItem | ContextMenuSeparator;
+
+function isSeparator(entry: ContextMenuEntry): entry is ContextMenuSeparator {
+  return "separator" in entry;
+}
+
 export function ContextMenu({
   x,
   y,
@@ -15,7 +25,7 @@ export function ContextMenu({
 }: {
   x: number;
   y: number;
-  items: ContextMenuItem[];
+  items: ContextMenuEntry[];
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -37,21 +47,25 @@ export function ContextMenu({
 
   return (
     <div ref={ref} className="context-menu" style={{ left: x, top: y }}>
-      {items.map((item) => (
-        <button
-          key={item.label}
-          className="context-menu-item"
-          data-danger={item.danger || undefined}
-          disabled={item.disabled}
-          onClick={() => {
-            if (item.disabled) return;
-            item.onSelect();
-            onClose();
-          }}
-        >
-          {item.label}
-        </button>
-      ))}
+      {items.map((entry, i) =>
+        isSeparator(entry) ? (
+          <div key={`sep-${i}`} className="context-menu-separator" />
+        ) : (
+          <button
+            key={entry.label}
+            className="context-menu-item"
+            data-danger={entry.danger || undefined}
+            disabled={entry.disabled}
+            onClick={() => {
+              if (entry.disabled) return;
+              entry.onSelect();
+              onClose();
+            }}
+          >
+            {entry.label}
+          </button>
+        )
+      )}
     </div>
   );
 }

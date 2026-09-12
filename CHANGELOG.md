@@ -5,6 +5,17 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.5.1] - 2026-09-12
+
+### Added
+
+- Custom scrollbars across the whole OS instead of the browser
+  default, and visible focus rings for real keyboard navigation
+  (absent on a plain mouse click, same as any modern OS).
+- Context menus now support separators and a "danger" (red) style for
+  destructive actions — Files' "Delete" uses it now, with a separator
+  before it.
+
 ## [2.5.0] - 2026-09-12
 
 ### Fixed
