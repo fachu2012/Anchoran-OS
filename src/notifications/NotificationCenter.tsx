@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNotificationStore } from "./notificationStore";
 import { Icon } from "@/components/Icon";
 import "./notifications.css";
@@ -15,23 +15,39 @@ export function NotificationToasts() {
   const notifications = useNotificationStore((s) => s.notifications);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
+  // One independent countdown per toast, keyed by id — re-keying this
+  // off `[notifications.length]` used to restart every still-visible
+  // toast's whole 6s countdown from zero each time a new notification
+  // arrived, so a steady stream of them meant none ever auto-hid.
+  const timeoutsRef = useRef<Map<string, number>>(new Map());
 
   const visible = notifications.filter((n) => !hiddenIds.has(n.id) && !n.silent).slice(0, 4);
 
   useEffect(() => {
-    const timers = visible.map((n) =>
-      setTimeout(() => {
+    for (const n of visible) {
+      if (timeoutsRef.current.has(n.id)) continue;
+      const id = window.setTimeout(() => {
         setLeavingIds((prev) => new Set(prev).add(n.id));
-        setTimeout(() => {
-          setHiddenIds((prev) => new Set(prev).add(n.id));
-        }, 170);
-      }, AUTO_HIDE_MS)
-    );
-    return () => timers.forEach(clearTimeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notifications.length]);
+        setTimeout(() => setHiddenIds((prev) => new Set(prev).add(n.id)), 170);
+        timeoutsRef.current.delete(n.id);
+      }, AUTO_HIDE_MS);
+      timeoutsRef.current.set(n.id, id);
+    }
+  });
+
+  useEffect(() => {
+    const timeouts = timeoutsRef.current;
+    return () => {
+      timeouts.forEach((id) => clearTimeout(id));
+    };
+  }, []);
 
   function dismiss(id: string) {
+    const scheduled = timeoutsRef.current.get(id);
+    if (scheduled) {
+      clearTimeout(scheduled);
+      timeoutsRef.current.delete(id);
+    }
     setLeavingIds((prev) => new Set(prev).add(id));
     setTimeout(() => setHiddenIds((prev) => new Set(prev).add(id)), 170);
   }

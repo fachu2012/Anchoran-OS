@@ -5,6 +5,17 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.5.2] - 2026-09-12
+
+### Fixed
+
+- **Notification toasts could end up never auto-hiding**: each toast's
+  6-second countdown was tied to the whole notification list's length,
+  so every new notification arriving reset the timer on every toast
+  already on screen — a steady stream of notifications meant none of
+  them ever disappeared on their own. Each toast now counts down
+  independently from when it actually appeared.
+
 ## [2.5.1] - 2026-09-12
 
 ### Added
