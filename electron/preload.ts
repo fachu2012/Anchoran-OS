@@ -101,6 +101,29 @@ contextBridge.exposeInMainWorld("anchoran", {
   ): void => {
     ipcRenderer.send("anchoran:webview-context-menu", webContentsId, x, y, params);
   },
+  onSetImageAsWallpaper: (callback: (dataUrl: string) => void): void => {
+    ipcRenderer.on("anchoran:set-image-as-wallpaper", (_e, dataUrl) => callback(dataUrl));
+  },
+  onSaveImageFromBrowser: (callback: (payload: { dataUrl: string; name: string }) => void): void => {
+    ipcRenderer.on("anchoran:save-image-from-browser", (_e, payload) => callback(payload));
+  },
+
+  onDownloadUpdate: (
+    callback: (record: { id: string; fileName: string; path: string; receivedBytes: number; totalBytes: number; state: string }) => void
+  ): void => {
+    ipcRenderer.on("anchoran:download-update", (_e, record) => callback(record));
+  },
+  openDownload: (filePath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:open-download", filePath),
+  showDownloadInExplorer: (filePath: string): void => {
+    ipcRenderer.send("anchoran:show-download-in-explorer", filePath);
+  },
+  setTrackerBlock: (enabled: boolean): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("anchoran:set-tracker-block", enabled),
+  fetchImageAsDataUrl: (url: string): Promise<{ dataUrl: string } | { error: string }> =>
+    ipcRenderer.invoke("anchoran:fetch-image-as-data-url", url),
+  clearBrowserData: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:clear-browser-data"),
 
   readLog: (): Promise<string[]> => ipcRenderer.invoke("anchoran:read-log"),
 

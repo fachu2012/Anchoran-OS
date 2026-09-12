@@ -15,6 +15,7 @@ import { usePreferencesStore } from "@/theme/preferencesStore";
 import { Onboarding } from "@/onboarding/Onboarding";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useSystemModeStore } from "@/desktop/systemModeStore";
+import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 
 const WELCOMED_KEY = "welcomed";
 
@@ -31,6 +32,7 @@ export default function App() {
   // with the wrong (generic) status stages before this resolves.
   const [finishingUpdateVersion, setFinishingUpdateVersion] = useState<string | null | undefined>(undefined);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [pendingSaveImage, setPendingSaveImage] = useState<{ dataUrl: string; name: string } | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
 
   useEffect(() => {
@@ -61,6 +63,18 @@ export default function App() {
     window.anchoran?.onTriggerScreenshot(() => {
       useWindowStore.getState().openApp("screenshot");
       setTimeout(() => window.dispatchEvent(new Event("anchoran-auto-capture")), 300);
+    });
+
+    // Browser's right-click → "Set as Wallpaper" / "Save Image As…" —
+    // the actual image bytes are fetched in the main process (see
+    // electron/main.ts), the renderer just applies/saves them.
+    window.anchoran?.onSetImageAsWallpaper((dataUrl) => {
+      usePreferencesStore.getState().setCustomWallpaper(dataUrl);
+      usePreferencesStore.getState().setWallpaper("custom");
+      pushNotification("Browser", "Applied as your desktop wallpaper.");
+    });
+    window.anchoran?.onSaveImageFromBrowser(({ dataUrl, name }) => {
+      setPendingSaveImage({ dataUrl, name });
     });
 
     // Tells the user when neither shortcut could be registered at all
@@ -208,6 +222,21 @@ export default function App() {
             onExit={() => {
               setExitDialogOpen(false);
               setExitMode("shutdown");
+            }}
+          />
+        )}
+        {pendingSaveImage && (
+          <AnchoranFilePicker
+            mode="save"
+            title="Save Image As"
+            defaultName={pendingSaveImage.name}
+            onCancel={() => setPendingSaveImage(null)}
+            onConfirm={async (result) => {
+              const image = pendingSaveImage;
+              setPendingSaveImage(null);
+              if (!("dir" in result) || !image || !window.anchoran) return;
+              const write = await window.anchoran.fsWriteDataUrl(result.dir, result.name, image.dataUrl);
+              pushNotification("Browser", "error" in write ? write.error : "Image saved.");
             }}
           />
         )}

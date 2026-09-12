@@ -57,6 +57,24 @@ declare global {
       y: number,
       params: { isEditable: boolean; selectionText: string; linkURL: string; srcURL: string; hasImageContents: boolean }
     ) => void;
+    onSetImageAsWallpaper: (callback: (dataUrl: string) => void) => void;
+    onSaveImageFromBrowser: (callback: (payload: { dataUrl: string; name: string }) => void) => void;
+
+    onDownloadUpdate: (
+      callback: (record: {
+        id: string;
+        fileName: string;
+        path: string;
+        receivedBytes: number;
+        totalBytes: number;
+        state: "progressing" | "completed" | "cancelled" | "interrupted";
+      }) => void
+    ) => void;
+    openDownload: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+    showDownloadInExplorer: (filePath: string) => void;
+    setTrackerBlock: (enabled: boolean) => Promise<{ success: boolean }>;
+    fetchImageAsDataUrl: (url: string) => Promise<{ dataUrl: string } | { error: string }>;
+    clearBrowserData: () => Promise<{ success: boolean; error?: string }>;
     readLog: () => Promise<string[]>;
 
     checkForUpdates: () => void;

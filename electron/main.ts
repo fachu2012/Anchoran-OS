@@ -378,9 +378,22 @@ ipcMain.handle("anchoran:reset-data", () => {
  * filesystem" IPC section below), so Browser downloads go straight
  * into the user's actual Downloads folder like any normal browser —
  * no more capturing them into an isolated virtual store first. This
- * just picks a non-clashing filename (Windows' own "name (1).ext"
- * convention) and lets the download proceed normally to disk.
+ * picks a non-clashing filename (Windows' own "name (1).ext"
+ * convention), lets the download proceed normally to disk, and
+ * forwards its whole lifecycle (progress, completion, failure) to the
+ * renderer so the Browser app can show a real downloads list instead
+ * of downloads happening invisibly in the background.
  */
+interface DownloadRecord {
+  id: string;
+  fileName: string;
+  path: string;
+  receivedBytes: number;
+  totalBytes: number;
+  state: "progressing" | "completed" | "cancelled" | "interrupted";
+}
+let downloadCounter = 0;
+
 function interceptWebviewDownloads() {
   session.defaultSession.on("will-download", (_event, item) => {
     const downloadsDir = app.getPath("downloads");
@@ -394,8 +407,121 @@ function interceptWebviewDownloads() {
       n++;
     }
     item.setSavePath(finalPath);
+
+    const id = `dl-${++downloadCounter}`;
+    const send = (record: DownloadRecord) => mainWindow?.webContents.send("anchoran:download-update", record);
+    send({ id, fileName: path.basename(finalPath), path: finalPath, receivedBytes: 0, totalBytes: item.getTotalBytes(), state: "progressing" });
+
+    item.on("updated", (_e, state) => {
+      if (state === "progressing") {
+        send({
+          id,
+          fileName: path.basename(finalPath),
+          path: finalPath,
+          receivedBytes: item.getReceivedBytes(),
+          totalBytes: item.getTotalBytes(),
+          state: "progressing",
+        });
+      }
+    });
+    item.once("done", (_e, state) => {
+      send({
+        id,
+        fileName: path.basename(finalPath),
+        path: finalPath,
+        receivedBytes: item.getReceivedBytes(),
+        totalBytes: item.getTotalBytes(),
+        state: state === "completed" ? "completed" : state === "cancelled" ? "cancelled" : "interrupted",
+      });
+    });
   });
 }
+
+/**
+ * A small, honest ad/tracker block — a short hardcoded list of the
+ * most common ad/analytics domains, not a maintained filter-list
+ * subscription. Toggled from Settings; off by default changes nothing
+ * about how sites behave.
+ */
+const TRACKER_HOSTS = [
+  "doubleclick.net",
+  "googlesyndication.com",
+  "googleadservices.com",
+  "google-analytics.com",
+  "googletagmanager.com",
+  "googletagservices.com",
+  "facebook.com/tr",
+  "connect.facebook.net",
+  "adnxs.com",
+  "scorecardresearch.com",
+  "outbrain.com",
+  "taboola.com",
+  "criteo.com",
+  "adsrvr.org",
+];
+let trackerBlockEnabled = false;
+
+function setupTrackerBlocking() {
+  session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+    if (trackerBlockEnabled && TRACKER_HOSTS.some((host) => details.url.includes(host))) {
+      callback({ cancel: true });
+    } else {
+      callback({ cancel: false });
+    }
+  });
+}
+
+ipcMain.handle("anchoran:set-tracker-block", (_event, enabled: boolean) => {
+  trackerBlockEnabled = enabled;
+  return { success: true };
+});
+
+/**
+ * Default browser permission policy — camera/mic/location denied
+ * automatically (a webview page has no real UI of its own to ask the
+ * user directly), notifications allowed since they're harmless and
+ * surface through Anchoran's own notification center instead of a
+ * native OS one.
+ */
+function setupPermissionPolicy() {
+  const DENIED_PERMISSIONS = new Set(["camera", "microphone", "geolocation", "media"]);
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(!DENIED_PERMISSIONS.has(permission));
+  });
+}
+
+/** Browser: fetches an image URL from a page (e.g. right-click → "Set as wallpaper") and returns it as a data URL, since the renderer's webview guest can't be trusted to read cross-origin image bytes itself. */
+ipcMain.handle("anchoran:fetch-image-as-data-url", async (_event, url: string) => {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return { error: `Request failed (${res.status})` };
+    const contentType = res.headers.get("content-type") ?? "image/png";
+    if (!contentType.startsWith("image/")) return { error: "Not an image." };
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.byteLength > 15 * 1024 * 1024) return { error: "Image is too large (max 15MB)." };
+    return { dataUrl: `data:${contentType};base64,${buffer.toString("base64")}` };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+/** Browser: lists/manages the downloads tracked this session (Anchoran doesn't persist a download history across restarts, matching what "will-download" above can actually see). */
+ipcMain.handle("anchoran:open-download", async (_event, filePath: string) => {
+  const err = await shell.openPath(filePath);
+  return { success: !err, error: err || undefined };
+});
+ipcMain.on("anchoran:show-download-in-explorer", (_event, filePath: string) => shell.showItemInFolder(filePath));
+
+/** Browser: "Clear browsing data" — cookies/cache/site storage for the browser's own persistent session (bookmarks/history themselves live in Anchoran's own data store and are cleared separately from the Browser's own UI). */
+ipcMain.handle("anchoran:clear-browser-data", async () => {
+  try {
+    await session.fromPartition("persist:anchoran-browser").clearStorageData();
+    await session.fromPartition("persist:anchoran-browser").clearCache();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
 
 /**
  * Real filesystem access for the Files app, Notes, and every app that
@@ -678,7 +804,40 @@ ipcMain.on(
 
     if (params.hasImageContents) {
       items.push({ label: "Copy Image", click: () => guest.copyImageAt(x, y) });
-      if (params.srcURL) items.push({ label: "Copy Image Address", click: () => clipboard.writeText(params.srcURL) });
+      if (params.srcURL) {
+        items.push({ label: "Copy Image Address", click: () => clipboard.writeText(params.srcURL) });
+        items.push({
+          label: "Set as Wallpaper",
+          click: async () => {
+            try {
+              const res = await fetch(params.srcURL);
+              const contentType = res.headers.get("content-type") ?? "image/png";
+              if (!res.ok || !contentType.startsWith("image/")) return;
+              const buffer = Buffer.from(await res.arrayBuffer());
+              const dataUrl = `data:${contentType};base64,${buffer.toString("base64")}`;
+              mainWindow?.webContents.send("anchoran:set-image-as-wallpaper", dataUrl);
+            } catch {
+              // Silently ignored — the renderer has no error surface for this menu action.
+            }
+          },
+        });
+        items.push({
+          label: "Save Image As…",
+          click: async () => {
+            try {
+              const res = await fetch(params.srcURL);
+              const contentType = res.headers.get("content-type") ?? "image/png";
+              if (!res.ok || !contentType.startsWith("image/")) return;
+              const buffer = Buffer.from(await res.arrayBuffer());
+              const dataUrl = `data:${contentType};base64,${buffer.toString("base64")}`;
+              const name = params.srcURL.split("/").pop()?.split("?")[0] || "image.png";
+              mainWindow?.webContents.send("anchoran:save-image-from-browser", { dataUrl, name });
+            } catch {
+              // Silently ignored — the renderer has no error surface for this menu action.
+            }
+          },
+        });
+      }
     }
     if (params.linkURL) {
       items.push({ label: "Copy Link Address", click: () => clipboard.writeText(params.linkURL) });
@@ -1141,6 +1300,8 @@ app.whenReady().then(() => {
   createMainWindow();
   registerGlobalShortcuts();
   interceptWebviewDownloads();
+  setupTrackerBlocking();
+  setupPermissionPolicy();
   setInterval(sampleCpuUsage, 1000);
   if (!isDev) {
     autoUpdater.checkForUpdates().catch((err) => {

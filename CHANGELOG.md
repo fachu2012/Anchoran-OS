@@ -5,6 +5,53 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.4.0] - 2026-09-12
+
+### Added
+
+A major rebuild of the Browser app, real tabs and all:
+
+- **Tabs**: new/close/duplicate/close others/close tabs to the right/
+  reopen the last closed tab, plus a dedicated incognito tab (its own
+  throwaway session — no history or bookmarks recorded).
+- **Real navigation**: back/forward/reload with a loading spinner and
+  favicon per tab.
+- **Address bar**: typing a bare word searches the web, a domain goes
+  straight there, and it autocompletes from your own history and
+  bookmarks as you type.
+- **Bookmarks and History**: a star to bookmark the current page, and
+  panels to browse, search, and clear either — reusing Anchoran's own
+  shared data store like every other app.
+- **Downloads**: a real downloads panel with live progress, and a
+  notification when one finishes — downloads still land straight in
+  your real Downloads folder.
+- **Find in page** (Ctrl+F), **zoom** (Ctrl +/−/0), **print**, and
+  **save the current page as a real PDF**.
+- **New Tab page** with a search box, your top bookmarks, and (if
+  you've searched a city in the Weather app before) a small current-
+  temperature widget.
+- **Popups open as a new tab** instead of a separate window — the
+  practical way this browser avoids intrusive popups.
+- **A basic ad/tracker block** (a short list of common ad/analytics
+  domains) toggleable from the toolbar, and a per-page **forced dark
+  mode** toggle.
+- **Right-click on an image** now offers "Set as Wallpaper" and "Save
+  Image As…", both going through Anchoran's own picker, no Windows
+  dialog involved.
+- **Clear browsing data** (cookies/cache) from the status bar.
+- Camera/microphone/location permission requests are denied by
+  default instead of silently hanging.
+
+Some of what was discussed didn't make this pass — a few conflict with
+how Anchoran is built (an always-on-top tab isn't meaningful in a
+single fullscreen shell window; the browser's own UI zoom is already
+covered by Settings → Display → Interface scale; per-profile bookmarks
+would break the existing rule that app data is shared across
+profiles), and a few need infrastructure this build doesn't have yet
+(live search suggestions, reader mode, page translation, a true
+extension system, drag-to-reorder tabs, tab groups, and a real
+full-page — not just viewport — screenshot).
+
 ## [2.3.0] - 2026-09-12
 
 ### Fixed
