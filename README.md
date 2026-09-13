@@ -75,18 +75,20 @@ asset the updater reads to label what kind of update it is.
 Every version ships in two stages, both from `version.json` left at the
 same plain version number (e.g. `2.9.9`) throughout:
 
-1. **Insider Preview Update (I.P.U.)** — tag `v2.9.9-ipu.1` (bump the `.N`
-   for a respin of the same version). The release workflow ships this as a
-   GitHub *prerelease* named `v2.9.9 I.P.U`; `electron-updater`'s
+1. **Insider Preview Update (I.P.U.)** — tag `v2.9.9-IPU`. A respin of the
+   same version (a bug found and fixed before the stable cut) bumps
+   `version.json` forward instead of reusing the tag — tags are never
+   deleted/recreated, see the versioning rules above. The release workflow
+   ships this as a GitHub *prerelease* named `v2.9.9-IPU`; `electron-updater`'s
    `allowPrerelease` (toggled by Settings → About → "Insider Preview
    updates") means only devices opted into that offer it automatically.
 2. **Stable release** — once the I.P.U. build is confirmed bug-free, tag
-   the exact same version plainly (`v2.9.9`, no `-ipu` suffix). This ships
+   the exact same version plainly (`v2.9.9`, no `-IPU` suffix). This ships
    as a normal release and becomes the repo's Latest, available to
    everyone.
 
 See the "Determine release channel" step in
-`.github/workflows/release.yml` for how a tag's `-ipu` suffix changes the
+`.github/workflows/release.yml` for how a tag's `-IPU` suffix changes the
 release's name/prerelease flag.
 
 ## Development

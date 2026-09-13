@@ -3,7 +3,7 @@ name: Release
 # Builds AnchoranOS.exe and attaches it to a GitHub Release whenever a
 # version tag (v1.0.0, v1.0.0-alpha.1, …) is pushed. Tag the same
 # version that is in /version.json — see the versioning rules in
-# README.md. A tag containing "-ipu" (e.g. v2.9.9-ipu.1) ships as an
+# README.md. A tag containing "-IPU" (e.g. v2.9.9-IPU) ships as an
 # Insider Preview Update — a GitHub prerelease, offered only to devices
 # with Insider Preview updates enabled — instead of a normal release;
 # see the "Determine release channel" step below.
@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # Every update ships in two stages: first as an Insider Preview
-      # Update (a tag like v2.9.9-ipu.1), a GitHub prerelease that only
+      # Update (a tag like v2.9.9-IPU), a GitHub prerelease that only
       # devices with Insider Preview updates enabled (Settings → About
       # — see the betaChannel/allowPrerelease wiring in electron/main.ts)
       # are offered automatically. Once that build is confirmed bug-free,
@@ -39,10 +39,13 @@ jobs:
         run: |
           REF="${GITHUB_REF_NAME}"
           VERSION="${REF#v}"
-          if [[ "$VERSION" == *-ipu* ]]; then
+          if echo "$VERSION" | grep -qi -- '-ipu'; then
             IS_IPU=true
-            BASE_VERSION="${VERSION%%-ipu*}"
-            RELEASE_NAME="v${BASE_VERSION} I.P.U"
+            BASE_VERSION=$(echo "$VERSION" | sed -E 's/-[Ii][Pp][Uu].*$//')
+            # The git tag itself stays dot-free (v2.9.9-IPU — a ref can't
+            # end in a literal "."), but the release's own display name
+            # isn't a ref, so it spells the abbreviation out properly.
+            RELEASE_NAME="v${BASE_VERSION}-I.P.U."
           else
             IS_IPU=false
             BASE_VERSION="$VERSION"
