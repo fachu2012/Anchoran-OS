@@ -129,7 +129,7 @@ jobs:
       # payload AnchoranSetup bundles for a first install.
       # An I.P.U. build's OWN version.json gets a real semver prerelease
       # suffix appended here — never committed to the repo, just baked
-      # into this specific build — so e.g. "3.0.0" becomes "3.0.0-IPU"
+      # into this specific build — so e.g. "3.0.0" becomes "3.0.0-beta"
       # for the build only. This isn't cosmetic: semver defines a
       # prerelease version as always LOWER precedence than the same
       # X.Y.Z without one, so electron-updater's real version comparison
@@ -137,9 +137,21 @@ jobs:
       # actually offers it — without this, both builds carry the exact
       # same version number and compare as equal, silently stranding an
       # Insider Preview device on that build forever (no update ever
-      # detected). src/core/buildChannel.ts also derives BUILD_CHANNEL
-      # straight from this same suffix at runtime, so Anchover's
-      # "Insider Preview build" badge needs no separate marker file.
+      # detected). The identifier is "-beta", not "-IPU" as the tag/
+      # display name say — electron-updater's own allowPrerelease logic
+      # (GitHubProvider.getLatestVersion) only ever treats "alpha" and
+      # "beta" as real prerelease *channels* it can walk forward from
+      # into the next stable release; any other identifier (like "IPU")
+      # is treated as an unrecognized "custom channel" that it will only
+      # ever match against another release of that exact same custom
+      # channel, never against a plain stable release — so an insider
+      # device would check forever and always see only its own current
+      # build, never the stable release that supersedes it. "-beta" is
+      # purely this internal, load-bearing detail; nothing user-facing
+      # (the git tag, the release name, "Insider Preview build") changes
+      # — src/core/buildChannel.ts derives BUILD_CHANNEL from this same
+      # suffix at runtime, so Anchover's badge needs no separate marker
+      # file, it just now checks for "-beta" instead of "-IPU".
       - name: Set I.P.U. version suffix
         if: steps.channel.outputs.is_ipu == 'true'
         shell: bash
@@ -148,7 +160,7 @@ jobs:
             const fs = require('fs');
             const f = 'version.json';
             const v = JSON.parse(fs.readFileSync(f, 'utf-8'));
-            v.version = v.version + '-IPU';
+            v.version = v.version + '-beta';
             fs.writeFileSync(f, JSON.stringify(v, null, 2) + '\n');
             console.log('version.json ->', v.version);
           "

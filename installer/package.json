@@ -1,7 +1,7 @@
 {
   "name": "anchoran-setup",
   "productName": "Anchoran Setup",
-  "version": "3.0.4",
+  "version": "3.1.2",
   "description": "Fullscreen branded installer for Anchoran OS.",
   "author": "Anchoran",
   "private": true,

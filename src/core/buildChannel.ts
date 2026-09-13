@@ -10,16 +10,20 @@ export type BuildChannel = "stable" | "insider";
  * forward).
  *
  * Derived directly from ANCHORAN_VERSION itself: an I.P.U. build's
- * version carries a real semver prerelease suffix (e.g. "3.0.0-IPU")
- * that its later stable release of the same base version doesn't
- * ("3.0.0") — the release workflow's "Set I.P.U. version suffix" step
- * bakes that into version.json right before building. That real
- * semver difference is what makes electron-updater's own comparison
- * correctly treat the stable release as newer and actually offer it,
- * instead of the two versions comparing as equal and silently
- * stranding an Insider Preview device on that build forever (see the
- * README's versioning section) — the version string doing double duty
- * as both "what to compare" and "which channel this is" is the whole
- * point, not an earlier, separate build-time marker file.
+ * version carries a real semver prerelease suffix — specifically
+ * "-beta" (e.g. "3.0.0-beta"), not "-IPU" as the tag/display name say
+ * — that its later stable release of the same base version doesn't
+ * ("3.0.0"). The release workflow's "Set I.P.U. version suffix" step
+ * bakes that into version.json right before building. "-beta" (rather
+ * than a literal "-IPU") is load-bearing: electron-updater's own
+ * allowPrerelease logic only recognizes "alpha"/"beta" as prerelease
+ * channels it can walk forward from into the next stable release —
+ * any other identifier is treated as an unrecognized custom channel
+ * that only ever matches another release of that exact same channel,
+ * never a stable one, silently stranding a device on that build
+ * forever even with updates enabled. See the "Set I.P.U. version
+ * suffix" step in .github/workflows/release.yml for the full story.
+ * Purely internal: nothing user-facing (the git tag, the release
+ * name, "Insider Preview build") reads this string directly.
  */
-export const BUILD_CHANNEL: BuildChannel = /-ipu/i.test(ANCHORAN_VERSION) ? "insider" : "stable";
+export const BUILD_CHANNEL: BuildChannel = /-beta/i.test(ANCHORAN_VERSION) ? "insider" : "stable";

@@ -90,7 +90,8 @@ export function usesOldVersionStyle(version: string): boolean {
  * channel separately just to pass it in here.
  */
 export function versionLabelFor(version: string, channel?: "stable" | "insider" | null): string {
-  const resolvedChannel = channel ?? (/-ipu/i.test(version) ? "insider" : "stable");
+  // The real internal suffix is "-beta", not "-IPU" — see buildChannel.ts for why.
+  const resolvedChannel = channel ?? (/-beta/i.test(version) ? "insider" : "stable");
   const major = baseVersion(version).split(".")[0];
   const base = usesOldVersionStyle(version) ? `v${baseVersion(version)}` : `Version ${major} | Build ${buildNumberFor(version)}`;
   return resolvedChannel === "insider" ? `${base} I.P.U.` : base;
@@ -105,7 +106,8 @@ export function versionLabelFor(version: string, channel?: "stable" | "insider" 
  * an equivalent of anyway.
  */
 export function shortLabelFor(version: string, channel?: "stable" | "insider" | null): string {
-  const resolvedChannel = channel ?? (/-ipu/i.test(version) ? "insider" : "stable");
+  // The real internal suffix is "-beta", not "-IPU" — see buildChannel.ts for why.
+  const resolvedChannel = channel ?? (/-beta/i.test(version) ? "insider" : "stable");
   const base = usesOldVersionStyle(version) ? `v${baseVersion(version)}` : `Build ${buildNumberFor(version)}`;
   return resolvedChannel === "insider" ? `${base} I.P.U.` : base;
 }

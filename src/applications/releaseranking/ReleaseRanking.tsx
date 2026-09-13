@@ -70,7 +70,7 @@ export function ReleaseRankingApp() {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, margin: "22px 0" }}>
           {[
             { k: "Best of the whole history", v: "2.6.13 — 10/10", d: "zero documented open bugs, and the (still shaky) app embed doesn't exist yet" },
-            { k: "Best recommendation today", v: "3.0.3 — 8/10", d: "the newest with no known severe bug — just a power-user-scoped changeto limitation" },
+            { k: "Best recommendation today", v: "3.0.4 — 7/10", d: "the newest stable — one known, workaroundable bug (toggle off Insider Preview updates to detect it), real fix in v3.1.2" },
             { k: "Avoid at all costs", v: "2.8.9 → 2.9.1", d: "6 versions in a row with a real boot crash — disabled on GitHub" },
             { k: "Rock bottom (tie)", v: "alpha.5 & 2.8.9–2.9.1", d: "1/10 · Settings broken + non-silent updates, or an app that just doesn't boot" },
           ].map((s) => (

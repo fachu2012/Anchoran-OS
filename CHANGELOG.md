@@ -5,6 +5,32 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.1.2] - 2026-09-13
+
+**Update type:** critical
+
+### Fixed
+- **A device on an I.P.U. build with Insider Preview updates enabled
+  could never actually detect the stable release that superseded it**
+  — turning the toggle off (switching to the stable-only check) found
+  it correctly, which is what actually exposed this. The real cause:
+  electron-updater's own update-checking logic only recognizes "alpha"
+  and "beta" as real prerelease *channels* it can walk forward from
+  into the next stable release; any other identifier — including the
+  "-IPU" this project used internally — is treated as an unrecognized
+  custom channel that only ever matches another release of that exact
+  same channel, never a plain stable one, so an Insider Preview device
+  would check forever and always see only its own current build. The
+  real semver suffix baked into an I.P.U. build's own version.json
+  (see v3.0.1) is now "-beta" instead of "-IPU" — purely an internal
+  implementation detail electron-updater's logic actually recognizes;
+  nothing user-facing changes (the git tag, the release name, "Insider
+  Preview build" badge all stay exactly as before). This fix can only
+  take effect starting with this version — anyone already stuck on an
+  older I.P.U. build should download the matching stable installer
+  directly rather than waiting for a check that build's older code can
+  never resolve.
+
 ## [3.0.4] - 2026-09-13
 
 **Update type:** feature
