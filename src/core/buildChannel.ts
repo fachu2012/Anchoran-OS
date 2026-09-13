@@ -16,4 +16,6 @@ import buildChannelData from "./buildChannel.json";
  * binary is actually running. See Anchover.tsx, the one place this is
  * shown.
  */
-export const BUILD_CHANNEL: "stable" | "insider" = buildChannelData.channel === "insider" ? "insider" : "stable";
+export type BuildChannel = "stable" | "insider";
+
+export const BUILD_CHANNEL: BuildChannel = buildChannelData.channel === "insider" ? "insider" : "stable";

@@ -9,7 +9,7 @@ import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import { APP_LIST } from "@/applications/registry";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { ANCHORAN_VERSION } from "@/core/version";
-import { buildNumberFor } from "@/core/buildNumber";
+import { versionLabelFor } from "@/core/buildNumber";
 import { getAppUptimeSeconds } from "@/core/appUptime";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import type { AppId } from "@/core/types";
@@ -651,11 +651,14 @@ export function TerminalConsole({
             // cosmetic display title, never the tag itself, so matching
             // and installing by version number works identically for
             // every release regardless of which style it shipped under.
+            // versionLabelFor() shows each one the way it actually
+            // shipped (old-style for v3.0.0 and earlier, new-style
+            // after) rather than relabeling history in the new style.
             if (!subArgs[0]) {
               print(
                 installable.length > 0
                   ? installable
-                      .map((v) => `  v${v} (Build ${buildNumberFor(v)})${v === ANCHORAN_VERSION ? " (current)" : ""}`)
+                      .map((v) => `  ${versionLabelFor(v)}${v === ANCHORAN_VERSION ? " (current)" : ""}`)
                       .join("\n")
                   : "Couldn't fetch the release list."
               );
@@ -667,7 +670,7 @@ export function TerminalConsole({
                 print(`anchoran changeto: v${target} is already the version running.`);
               } else {
                 pendingChangeTo.current = target;
-                print(`Change to v${target} (Build ${buildNumberFor(target)})? Anchoran will close and reopen on that version. [y/n]`);
+                print(`Change to ${versionLabelFor(target)}? Anchoran will close and reopen on that version. [y/n]`);
               }
             }
           } catch {

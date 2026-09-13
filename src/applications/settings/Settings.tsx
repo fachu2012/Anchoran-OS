@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { usePreferencesStore, DEFAULT_PREFERENCES } from "@/theme/preferencesStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { ANCHORAN_VERSION } from "@/core/version";
-import { ANCHORAN_DISPLAY_VERSION, buildNumberFor } from "@/core/buildNumber";
+import { ANCHORAN_DISPLAY_VERSION, versionLabelFor } from "@/core/buildNumber";
 import { WALLPAPERS, getWallpaper } from "@/desktop/wallpapers";
 import { playNotificationSound } from "@/core/sound";
 import { useUpdateHistoryStore } from "@/core/updateHistory";
@@ -1539,7 +1539,7 @@ function AboutSection() {
       const marker = `## [${ANCHORAN_VERSION}]`;
       const start = text.indexOf(marker);
       if (start === -1) {
-        setReleaseNotes(`No changelog entry found for v${ANCHORAN_VERSION}.`);
+        setReleaseNotes(`No changelog entry found for ${ANCHORAN_DISPLAY_VERSION}.`);
         return;
       }
       // Insider Preview Updates can chain (2.9.9-IPU, 3.0.0-IPU, …) with
@@ -1597,12 +1597,12 @@ function AboutSection() {
     window.anchoran?.onUpdateStatus((status) => {
       if (status.state === "checking") setUpdateStatus("Checking for updates…");
       else if (status.state === "available") {
-        setUpdateStatus(`Update available: Build ${buildNumberFor(status.version)}. Downloading…`);
+        setUpdateStatus(`Update available: ${versionLabelFor(status.version)}. Downloading…`);
         fetchUpdateInfo(status.version).then((info) => setUpdateLabel(info?.label ?? null));
       } else if (status.state === "not-available") setUpdateStatus("Anchoran OS is up to date.");
       else if (status.state === "downloading") setUpdateStatus(`Downloading… ${status.percent}%`);
       else if (status.state === "downloaded") {
-        setUpdateStatus(`Update Build ${buildNumberFor(status.version)} ready to install.`);
+        setUpdateStatus(`Update ${versionLabelFor(status.version)} ready to install.`);
         setDownloadedVersion(status.version);
         fetchUpdateInfo(status.version).then((info) => setUpdateLabel(info?.label ?? null));
       } else if (status.state === "error") setUpdateStatus(`Couldn't check for updates: ${status.message}`);
@@ -1635,7 +1635,7 @@ function AboutSection() {
               window.dispatchEvent(new CustomEvent("anchoran-request-update-theater", { detail: downloadedVersion }))
             }
           >
-            Restart & install Build {buildNumberFor(downloadedVersion)}
+            Restart & install {versionLabelFor(downloadedVersion)}
           </button>
         )}
         <button className="app-toolbar-btn" onClick={() => setDiagnosticsPicker(true)}>
@@ -1725,7 +1725,9 @@ function UpdateHistoryList() {
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {history.map((entry, i) => (
           <div key={i} style={{ fontSize: 12, color: "var(--anchoran-text-secondary)" }}>
-            {entry.fromVersion} → {entry.toVersion} · {new Date(entry.installedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
+            {entry.fromVersion ? versionLabelFor(entry.fromVersion, entry.fromChannel) : "?"} →{" "}
+            {versionLabelFor(entry.toVersion, entry.toChannel)} ·{" "}
+            {new Date(entry.installedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
           </div>
         ))}
       </div>

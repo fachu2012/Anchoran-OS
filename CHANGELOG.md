@@ -37,6 +37,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.M
   (`anchoran changeto`, `anchoran version`) all keep using real SemVer
   forever, so the update mechanism itself is unaffected either way.
 
+### Fixed
+- The Update history list (Settings → About) could show a transition
+  like "v3.0.0 → v3.0.0" — no visible change at all — for exactly the
+  one case that's expected to happen a lot: going from the v3.0.0
+  Insider Preview build to the v3.0.0 stable release, which share an
+  identical version number by design. It's now tracked by build
+  channel as well as version, and shown as "v3.0.0 I.P.U. → v3.0.0".
+  The same fix applies everywhere else a specific version gets named —
+  `anchoran changeto`'s list, "Update available"/"ready to install" —
+  which also now show each version the way it actually shipped (old
+  "vX.Y.Z" style up through v3.0.0, the new style after) instead of
+  applying the new style retroactively to versions that predate it.
+
 ## [2.9.9] - 2026-09-13
 
 **Update type:** feature
