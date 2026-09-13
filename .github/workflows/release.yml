@@ -222,9 +222,16 @@ jobs:
           IS_IPU: ${{ steps.channel.outputs.is_ipu }}
           VERSION: ${{ steps.channel.outputs.base_version }}
           PREV_VERSION: ${{ steps.prev.outputs.prev_version }}
+          # Same label as the release's own title (steps.channel.outputs.
+          # release_name) — "v3.0.0" for the last old-style release,
+          # "Version # | Build #H#.#[ I.P.U.]" for every one after it.
+          # Never the plain dotted version on its own once the new
+          # convention applies — that's the one thing that must never
+          # leak back in here.
+          DISPLAY_LABEL: ${{ steps.channel.outputs.release_name }}
         run: |
           {
-            echo "**Anchoran OS** \`v$VERSION\` is available for installation and update."
+            echo "**Anchoran OS** $DISPLAY_LABEL is available for installation and update."
             echo
             if [ "$IS_IPU" = "true" ]; then
               echo "⚠️ **This is an Insider Preview Update (I.P.U.)** — a pre-release build for testing before it ships to everyone. Only devices with Insider Preview updates enabled (Settings → About) receive it automatically."

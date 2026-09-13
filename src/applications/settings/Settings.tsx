@@ -1578,7 +1578,7 @@ function AboutSection() {
     ]);
     const report = [
       `Anchoran OS diagnostics — ${new Date().toLocaleString()}`,
-      `Version: ${ANCHORAN_VERSION}`,
+      `Version: ${ANCHORAN_DISPLAY_VERSION} (${ANCHORAN_VERSION})`,
       sysInfo ? `Platform: ${sysInfo.platform} ${sysInfo.arch}` : "",
       sysInfo ? `CPU: ${sysInfo.cpuModel} (${sysInfo.cpuCores} cores) — ${sysInfo.cpuUsagePercent}%` : "",
       sysInfo ? `Memory: ${sysInfo.totalMemMB - sysInfo.freeMemMB} / ${sysInfo.totalMemMB} MB` : "",
@@ -1599,7 +1599,17 @@ function AboutSection() {
       else if (status.state === "available") {
         setUpdateStatus(`Update available: ${versionLabelFor(status.version)}. Downloading…`);
         fetchUpdateInfo(status.version).then((info) => setUpdateLabel(info?.label ?? null));
-      } else if (status.state === "not-available") setUpdateStatus("Anchoran OS is up to date.");
+      } else if (status.state === "not-available") {
+        setUpdateStatus("Anchoran OS is up to date.");
+        // A previously downloaded build (e.g. an I.P.U. one, before
+        // toggling Insider Preview updates off) is no longer what
+        // should be offered once a fresh check says nothing newer
+        // exists — otherwise "Restart & install" could keep dangling
+        // here right next to "up to date", which reads as a
+        // contradiction.
+        setDownloadedVersion(null);
+        setUpdateLabel(null);
+      }
       else if (status.state === "downloading") setUpdateStatus(`Downloading… ${status.percent}%`);
       else if (status.state === "downloaded") {
         setUpdateStatus(`Update ${versionLabelFor(status.version)} ready to install.`);

@@ -9,7 +9,7 @@ import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import { APP_LIST } from "@/applications/registry";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { ANCHORAN_VERSION } from "@/core/version";
-import { versionLabelFor, baseVersion } from "@/core/buildNumber";
+import { versionLabelFor, baseVersion, ANCHORAN_DISPLAY_VERSION } from "@/core/buildNumber";
 import { getAppUptimeSeconds } from "@/core/appUptime";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import type { AppId } from "@/core/types";
@@ -413,10 +413,10 @@ export function TerminalConsole({
         setHistory([]);
         break;
       case "about":
-        print(`Anchoran OS ${ANCHORAN_VERSION} — a minimal, focused desktop environment.${isAdmin ? " (Administrator Terminal)" : ""}`);
+        print(`Anchoran OS — ${ANCHORAN_DISPLAY_VERSION} — a minimal, focused desktop environment.${isAdmin ? " (Administrator Terminal)" : ""}`);
         break;
       case "system":
-        print(`Anchoran OS ${ANCHORAN_VERSION}\nPlatform: ${navigator.platform}`);
+        print(`Anchoran OS — ${ANCHORAN_DISPLAY_VERSION}\nPlatform: ${navigator.platform}`);
         break;
       case "date":
         print(new Date().toString());
@@ -563,7 +563,7 @@ export function TerminalConsole({
         const sub = args[0];
         const subArgs = args.slice(1);
         const subRest = subArgs.join(" ");
-        if (sub === "system") print(`Anchoran OS ${ANCHORAN_VERSION}`);
+        if (sub === "system") print(`Anchoran OS — ${ANCHORAN_DISPLAY_VERSION}`);
         else if (sub === "version") print(ANCHORAN_VERSION);
         else if (sub === "settings") {
           openApp("settings");

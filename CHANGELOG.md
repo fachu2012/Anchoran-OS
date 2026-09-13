@@ -5,6 +5,26 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.0.3] - 2026-09-13
+
+**Update type:** stability
+
+### Fixed
+- A downloaded update's "ready to install" prompt (the fullscreen
+  screen, and Settings → About's own "Restart & install" button) could
+  stay stuck showing forever, even after a later check said "Anchoran
+  OS is up to date" — most visibly after toggling Insider Preview
+  updates off right after downloading an I.P.U. build, since a
+  subsequent check finding no newer *stable* release never cleared the
+  earlier "downloaded" state. A fresh "not-available" result now
+  clears it, so the two messages can't contradict each other anymore.
+- The GitHub release description's opening line still spelled out the
+  plain "v3.0.2"-style version even for releases after v3.0.0, instead
+  of the new display convention used everywhere else. Also extended
+  the new convention to a few Terminal banners (`about`, `system`) that
+  hadn't been switched over yet, and diagnostics exports now show both
+  the new label and the underlying real version for reference.
+
 ## [3.0.2] - 2026-09-13
 
 **Update type:** stability

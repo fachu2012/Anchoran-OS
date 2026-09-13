@@ -137,6 +137,16 @@ export default function App() {
     // check was started from.
     window.anchoran?.onUpdateStatus((status) => {
       if (status.state === "downloaded") setUpdateReadyVersion(status.version);
+      // A later check coming back "not-available" (e.g. after toggling
+      // Insider Preview updates off, when the previously downloaded
+      // build was an I.P.U. one and no newer stable release exists)
+      // means whatever was downloaded before is no longer the right
+      // thing to offer — without this, the fullscreen "ready to
+      // install" prompt and its taskbar/Settings counterpart could keep
+      // showing a stale update indefinitely alongside a fresh "up to
+      // date" message, which is exactly the contradiction it looks
+      // like.
+      else if (status.state === "not-available") setUpdateReadyVersion(null);
       // Keeps a persistent taskbar indicator in sync with the real
       // updater lifecycle, regardless of which screen triggered the
       // check — see updateAvailableStore.ts / Taskbar.tsx.
