@@ -44,8 +44,9 @@ jobs:
             BASE_VERSION=$(echo "$VERSION" | sed -E 's/-[Ii][Pp][Uu].*$//')
             # The git tag itself stays dot-free (v2.9.9-IPU — a ref can't
             # end in a literal "."), but the release's own display name
-            # isn't a ref, so it spells the abbreviation out properly.
-            RELEASE_NAME="v${BASE_VERSION}-I.P.U."
+            # isn't a ref, so it spells the abbreviation out properly,
+            # space-separated: "v2.9.9 I.P.U.".
+            RELEASE_NAME="v${BASE_VERSION} I.P.U."
           else
             IS_IPU=false
             BASE_VERSION="$VERSION"
