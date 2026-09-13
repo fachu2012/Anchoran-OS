@@ -29,8 +29,22 @@ export function renderMarkdown(source: string): string {
   let html = "";
   let inList = false;
   let inCode = false;
+  // Plain text lines accumulate here until a blank line or a block-level
+  // marker ends the paragraph — matching real markdown's "soft wrap"
+  // convention, where consecutive non-blank lines are one paragraph, not
+  // one each. Without this, hand-wrapped prose (like CHANGELOG.md, wrapped
+  // at ~72 columns for plain-text/diff readability) rendered as a separate
+  // `<p>` per source line, turning every paragraph into a tall stack of
+  // one-line blocks.
+  let paragraph: string[] = [];
+  function flushParagraph() {
+    if (paragraph.length === 0) return;
+    html += `<p>${renderInline(escapeHtml(paragraph.join(" ")))}</p>`;
+    paragraph = [];
+  }
   for (const raw of lines) {
     if (raw.trim().startsWith("```")) {
+      flushParagraph();
       inCode = !inCode;
       html += inCode ? "<pre><code>" : "</code></pre>";
       continue;
@@ -41,6 +55,7 @@ export function renderMarkdown(source: string): string {
     }
     const heading = raw.match(/^(#{1,6})\s+(.*)/);
     if (heading) {
+      flushParagraph();
       if (inList) {
         html += "</ul>";
         inList = false;
@@ -50,10 +65,12 @@ export function renderMarkdown(source: string): string {
       continue;
     }
     if (/^\s*>\s?/.test(raw)) {
+      flushParagraph();
       html += `<blockquote>${renderInline(escapeHtml(raw.replace(/^\s*>\s?/, "")))}</blockquote>`;
       continue;
     }
     if (/^\s*([-*+])\s+/.test(raw)) {
+      flushParagraph();
       if (!inList) {
         html += "<ul>";
         inList = true;
@@ -66,11 +83,17 @@ export function renderMarkdown(source: string): string {
       inList = false;
     }
     if (/^\s*(-{3,}|\*{3,})\s*$/.test(raw)) {
+      flushParagraph();
       html += "<hr/>";
       continue;
     }
-    html += raw.trim() === "" ? "<br/>" : `<p>${renderInline(escapeHtml(raw))}</p>`;
+    if (raw.trim() === "") {
+      flushParagraph();
+    } else {
+      paragraph.push(raw.trim());
+    }
   }
+  flushParagraph();
   if (inList) html += "</ul>";
   if (inCode) html += "</code></pre>";
   return html;

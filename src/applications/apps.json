@@ -550,7 +550,7 @@
     "title": "Recycle Bin",
     "icon": "recycleBin",
     "category": "System",
-    "description": "Opens the real Windows Recycle Bin — restore or permanently delete what you've removed.",
+    "description": "Opens Anchoran's own Trash — restore or permanently delete what you've removed.",
     "defaultSize": { "width": 400, "height": 300 },
     "minSize": { "width": 320, "height": 260 }
   },
@@ -563,5 +563,16 @@
     "allowMultipleInstances": true,
     "defaultSize": { "width": 760, "height": 520 },
     "minSize": { "width": 360, "height": 260 }
+  },
+  {
+    "id": "anchover",
+    "title": "Anchover",
+    "icon": "info",
+    "category": "System",
+    "description": "Shows which build of Anchoran OS is installed — like Windows' own \"winver\". Not listed anywhere; open it by searching its exact name.",
+    "core": true,
+    "hiddenFromLauncher": true,
+    "defaultSize": { "width": 380, "height": 340 },
+    "minSize": { "width": 380, "height": 340 }
   }
 ]

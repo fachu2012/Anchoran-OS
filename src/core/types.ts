@@ -62,7 +62,8 @@ export type AppId =
   | "onScreenKeyboard"
   | "narrator"
   | "recycleBin"
-  | "embeddedApp";
+  | "embeddedApp"
+  | "anchover";
 
 export type AppCategory = "System" | "Productivity" | "Utilities" | "Internet" | "Games";
 
@@ -79,6 +80,8 @@ export interface AppDefinition {
   core?: boolean;
   /** Whether this app can have more than one open window at once. */
   allowMultipleInstances?: boolean;
+  /** Never listed in the Launcher's app grid/browse-all or the Start search's fuzzy/partial matching — only found by typing its exact, full title, same as Windows' "winver" isn't pinned anywhere and only turns up if you type its exact name. Still a real, installed app otherwise: it opens normally, shows up in the taskbar, etc. */
+  hiddenFromLauncher?: boolean;
   defaultSize: { width: number; height: number };
   minSize?: { width: number; height: number };
 }

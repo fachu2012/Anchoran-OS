@@ -215,15 +215,26 @@ export function Launcher({
   // here, so both the plain search results and the "browse all,
   // grouped by letter" view (see JUMP_LETTERS) share the same order.
   const sortedApps = useMemo(
-    () => APP_LIST.filter((a) => installed.has(a.id)).sort((a, b) => a.title.localeCompare(b.title)),
+    () =>
+      APP_LIST.filter((a) => installed.has(a.id) && !a.hiddenFromLauncher).sort((a, b) =>
+        a.title.localeCompare(b.title)
+      ),
     [installed]
   );
 
+  // Apps flagged hiddenFromLauncher (e.g. Anchover, the winver-style
+  // build-info screen) are left out of sortedApps entirely — never in
+  // "browse all" or the letter-jump list — but can still be found here,
+  // and only by typing their exact full title, same as winver isn't
+  // pinned anywhere and only turns up if you type its exact name.
+  const allInstalledApps = useMemo(() => APP_LIST.filter((a) => installed.has(a.id)), [installed]);
   const appResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sortedApps;
-    return sortedApps.filter((a) => a.title.toLowerCase().includes(q));
-  }, [sortedApps, query]);
+    return allInstalledApps.filter((a) =>
+      a.hiddenFromLauncher ? a.title.toLowerCase() === q : a.title.toLowerCase().includes(q)
+    );
+  }, [sortedApps, allInstalledApps, query]);
 
   const groupedApps = useMemo(() => {
     const groups = new Map<string, AppDefinition[]>();

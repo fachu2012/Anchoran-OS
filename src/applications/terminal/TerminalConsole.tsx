@@ -598,7 +598,7 @@ export function TerminalConsole({
         } else if (sub === "lock") {
           window.dispatchEvent(new Event("anchoran-request-lock"));
         } else if (sub === "apps") {
-          const list = APP_LIST.filter((a) => installedApps.has(a.id)).map((a) => a.title);
+          const list = APP_LIST.filter((a) => installedApps.has(a.id) && !a.hiddenFromLauncher).map((a) => a.title);
           print(list.join("\n"));
         } else if (sub === "install" || sub === "uninstall") {
           const app = findApp(subRest);

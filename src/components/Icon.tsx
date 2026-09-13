@@ -113,7 +113,8 @@ export type IconName =
   | "recycleBin"
   | "desktop"
   | "taskView"
-  | "star";
+  | "star"
+  | "info";
 
 const PATHS: Record<IconName, string> = {
   files:
@@ -255,6 +256,7 @@ const PATHS: Record<IconName, string> = {
   desktop: "M4 5.5h16v10H4v-10Zm5.5 14h5M12 15.5v4",
   taskView: "M4 5h9v6.5H4V5Zm11 2.5h5V15h-5V7.5ZM4 14h9v5H4v-5Z",
   star: "M12 3.5l2.6 5.4 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.2 5.9-.8L12 3.5Z",
+  info: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-9.5v5M12 7.7h.01",
 };
 
 export function Icon({

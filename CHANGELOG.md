@@ -5,6 +5,30 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.9.7] - 2026-09-13
+
+### Fixed
+- The in-app "What's new" release notes rendered badly — CHANGELOG.md
+  is hand-wrapped at ~72 columns for plain-text readability, but the
+  markdown renderer turned every wrapped line into its own separate
+  `<p>`, so a single paragraph showed up as a tall stack of one-line
+  blocks. Consecutive lines now merge into one paragraph, like real
+  markdown's soft-wrap convention.
+
+### Changed
+- Settings → About's "Beta channel" toggle is now labeled "Insider
+  Preview updates", matching more familiar update-channel naming.
+
+### Added
+- **Anchover** — Anchoran's own `winver` equivalent: a small "what
+  build is this" screen (logo, "ANCHORAN OS" + major version, full
+  product name, version, licensing line). It's a real, ordinary app,
+  but deliberately not discoverable — it never appears in the
+  Launcher's browse-all list, the letter-jump index, the Webstore
+  catalog, or the Terminal's `anchoran apps` listing, and only turns
+  up in Launcher search when you type its exact full name, the same
+  way winver isn't pinned anywhere on a real Windows install.
+
 ## [2.9.6] - 2026-09-13
 
 Bug fixes and a Guest profile redesign, from live-testing the v2.9.2

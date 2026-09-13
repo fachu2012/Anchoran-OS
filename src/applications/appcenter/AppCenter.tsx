@@ -41,7 +41,7 @@ export function AppCenterApp() {
     });
   }, []);
 
-  const apps = catalog.filter((a) => a.id !== "appCenter");
+  const apps = catalog.filter((a) => a.id !== "appCenter" && !a.hiddenFromLauncher);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return apps.filter((a) => {

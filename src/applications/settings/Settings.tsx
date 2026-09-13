@@ -1461,7 +1461,9 @@ function StartupAppsRow() {
   const toggleMinimized = useAnchoranStartupAppsStore((s) => s.toggleMinimized);
   const installed = useInstalledAppsStore((s) => s.installed);
   const [addingAppId, setAddingAppId] = useState<AppId | "">("");
-  const candidates = APP_LIST.filter((a) => installed.has(a.id) && !items.some((i) => i.appId === a.id));
+  const candidates = APP_LIST.filter(
+    (a) => installed.has(a.id) && !a.hiddenFromLauncher && !items.some((i) => i.appId === a.id)
+  );
 
   return (
     <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
@@ -1630,10 +1632,10 @@ function AboutSection() {
       </div>
       <div className="settings-row">
         <div>
-          <div className="settings-row-label">Beta channel</div>
+          <div className="settings-row-label">Insider Preview updates</div>
           <div className="settings-row-desc">
             Also install pre-release updates, not just full releases. There's nothing on the
-            beta channel yet — this just gets you the first one the moment it exists.
+            Insider Preview channel yet — this just gets you the first one the moment it exists.
           </div>
         </div>
         <input type="checkbox" checked={betaChannel} onChange={(e) => toggleBetaChannel(e.target.checked)} />
