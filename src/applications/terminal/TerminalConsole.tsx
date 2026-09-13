@@ -9,7 +9,7 @@ import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import { APP_LIST } from "@/applications/registry";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { ANCHORAN_VERSION } from "@/core/version";
-import { versionLabelFor, shortLabelFor, resolveVersionTarget, baseVersion, needsDataWipeFor, ANCHORAN_DISPLAY_VERSION } from "@/core/buildNumber";
+import { simplifiedLabelFor, resolveVersionTarget, baseVersion, needsDataWipeFor, ANCHORAN_SIMPLIFIED_VERSION } from "@/core/buildNumber";
 import { getAppUptimeSeconds } from "@/core/appUptime";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import type { AppId } from "@/core/types";
@@ -450,10 +450,10 @@ export function TerminalConsole({
         setHistory([]);
         break;
       case "about":
-        print(`Anchoran OS — ${ANCHORAN_DISPLAY_VERSION} — a minimal, focused desktop environment.${isAdmin ? " (Administrator Terminal)" : ""}`);
+        print(`Anchoran OS — ${ANCHORAN_SIMPLIFIED_VERSION} — a minimal, focused desktop environment.${isAdmin ? " (Administrator Terminal)" : ""}`);
         break;
       case "system":
-        print(`Anchoran OS — ${ANCHORAN_DISPLAY_VERSION}\nPlatform: ${navigator.platform}`);
+        print(`Anchoran OS — ${ANCHORAN_SIMPLIFIED_VERSION}\nPlatform: ${navigator.platform}`);
         break;
       case "date":
         print(new Date().toString());
@@ -600,7 +600,7 @@ export function TerminalConsole({
         const sub = args[0];
         const subArgs = args.slice(1);
         const subRest = subArgs.join(" ");
-        if (sub === "system") print(`Anchoran OS — ${ANCHORAN_DISPLAY_VERSION}`);
+        if (sub === "system") print(`Anchoran OS — ${ANCHORAN_SIMPLIFIED_VERSION}`);
         else if (sub === "version") print(ANCHORAN_VERSION);
         else if (sub === "settings") {
           openApp("settings");
@@ -687,11 +687,13 @@ export function TerminalConsole({
             // display title, never the tag itself, so matching and
             // installing by version number works identically for every
             // release regardless of which style or channel it shipped
-            // under. shortLabelFor() shows each one the way it actually
-            // shipped (old-style for v3.0.0 and earlier, new-style
-            // after, " I.P.U." appended for a prerelease) rather than
-            // relabeling history, and without repeating "Version # | "
-            // on every line the way the full versionLabelFor() would.
+            // under. simplifiedLabelFor() shows each one the way it
+            // actually shipped (old-style for v3.0.0 and earlier,
+            // "Build-#H#.#" after, " I.P.U." appended for a prerelease)
+            // — the Terminal always uses the compact form, never the
+            // full "Version # | Build …" one (reserved for the GitHub
+            // release name, the update-ready screen's title, and
+            // Anchover only).
             const installable = data
               .filter((r) => !r.draft && typeof r.body === "string" && !r.body.includes("installation option has been disabled"))
               .map((r) => ({ tag: r.tag_name.replace(/^v/i, ""), isIPU: r.prerelease }));
@@ -701,7 +703,7 @@ export function TerminalConsole({
                   ? installable
                       .map(
                         (r) =>
-                          `  ${shortLabelFor(r.tag, r.isIPU ? "insider" : "stable")}${r.tag === ANCHORAN_VERSION ? " (current)" : ""}`
+                          `  ${simplifiedLabelFor(r.tag, r.isIPU ? "insider" : "stable")}${r.tag === ANCHORAN_VERSION ? " (current)" : ""}`
                       )
                       .join("\n")
                   : "Couldn't fetch the release list."
@@ -716,17 +718,17 @@ export function TerminalConsole({
                   `anchoran changeto: "${subRest}" isn't an installable release. Run "anchoran changeto" with no arguments to see the list.`
                 );
               } else if (target === ANCHORAN_VERSION) {
-                print(`anchoran changeto: ${versionLabelFor(target)} is already the version running.`);
+                print(`anchoran changeto: ${simplifiedLabelFor(target)} is already the version running.`);
               } else if (needsDataWipeFor(target)) {
                 pendingChangeToWipeTarget.current = target;
                 print(
-                  `⚠ ${versionLabelFor(target)} predates the v2.9.2 encryption fix. Your local Anchoran data is already encrypted, and that old version can't read it — it would fail to start.\n` +
-                    `Continuing will PERMANENTLY DELETE your local Anchoran data (preferences, the files list, everything Anchoran itself stores — not your real files) before installing ${versionLabelFor(target)}.\n` +
+                  `⚠ ${simplifiedLabelFor(target)} predates the v2.9.2 encryption fix. Your local Anchoran data is already encrypted, and that old version can't read it — it would fail to start.\n` +
+                    `Continuing will PERMANENTLY DELETE your local Anchoran data (preferences, the files list, everything Anchoran itself stores — not your real files) before installing ${simplifiedLabelFor(target)}.\n` +
                     `Type "delete" to confirm, or anything else to cancel.`
                 );
               } else {
                 pendingChangeTo.current = target;
-                print(`Change to ${versionLabelFor(target)}? Anchoran will close and reopen on that version. [y/n]`);
+                print(`Change to ${simplifiedLabelFor(target)}? Anchoran will close and reopen on that version. [y/n]`);
               }
             }
           } catch {

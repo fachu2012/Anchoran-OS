@@ -61,6 +61,10 @@ jobs:
             else
               RELEASE_NAME="v${BASE_VERSION}"
             fi
+            # Old-style versions never had a build-number form — the
+            # simplified label used in release body text is the same
+            # "vX.Y.Z" either way for these.
+            SIMPLIFIED_LABEL="$RELEASE_NAME"
           else
             MAJOR=$(echo "$BASE_VERSION" | cut -d. -f1)
             MINOR=$(echo "$BASE_VERSION" | cut -d. -f2)
@@ -68,14 +72,22 @@ jobs:
             BUILD="${MAJOR}H${MINOR}.${PATCH}"
             if [ "$IS_IPU" = "true" ]; then
               RELEASE_NAME="Version ${MAJOR} | Build ${BUILD} I.P.U."
+              SIMPLIFIED_LABEL="Build-${BUILD} I.P.U."
             else
               RELEASE_NAME="Version ${MAJOR} | Build ${BUILD}"
+              SIMPLIFIED_LABEL="Build-${BUILD}"
             fi
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "base_version=$BASE_VERSION" >> "$GITHUB_OUTPUT"
           echo "is_ipu=$IS_IPU" >> "$GITHUB_OUTPUT"
+          # RELEASE_NAME (the full "Version # | Build …" form) is reserved
+          # for exactly three places: this — the GitHub release's own
+          # title — the update-ready screen's title, and Anchover.
+          # Everywhere else that names a version, including the release
+          # BODY text below, uses the compact SIMPLIFIED_LABEL instead.
           echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
+          echo "simplified_label=$SIMPLIFIED_LABEL" >> "$GITHUB_OUTPUT"
 
       # I.P.U. builds can chain: 2.9.9-IPU, 3.0.0-IPU, 3.0.1-IPU, …, each
       # one superseding the last, with no stable release cut in between —
@@ -234,13 +246,11 @@ jobs:
           IS_IPU: ${{ steps.channel.outputs.is_ipu }}
           VERSION: ${{ steps.channel.outputs.base_version }}
           PREV_VERSION: ${{ steps.prev.outputs.prev_version }}
-          # Same label as the release's own title (steps.channel.outputs.
-          # release_name) — "v3.0.0" for the last old-style release,
-          # "Version # | Build #H#.#[ I.P.U.]" for every one after it.
-          # Never the plain dotted version on its own once the new
-          # convention applies — that's the one thing that must never
-          # leak back in here.
-          DISPLAY_LABEL: ${{ steps.channel.outputs.release_name }}
+          # The compact form ("Build-#H#.#[ I.P.U.]", or "vX.Y.Z" for the
+          # old-style era) — the release body isn't one of the three
+          # places (the release's own title, the update-ready screen,
+          # Anchover) that use the full "Version # | Build …" form.
+          DISPLAY_LABEL: ${{ steps.channel.outputs.simplified_label }}
         run: |
           {
             echo "**Anchoran OS** $DISPLAY_LABEL is available for installation and update."

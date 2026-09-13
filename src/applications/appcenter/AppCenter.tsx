@@ -8,7 +8,7 @@ import { useWindowStore } from "@/windowmanager/windowStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { AdminPinPrompt } from "@/core/AdminPinPrompt";
 import type { AppCategory, AppId, AppDefinition } from "@/core/types";
-import { ANCHORAN_DISPLAY_VERSION } from "@/core/buildNumber";
+import { ANCHORAN_SIMPLIFIED_VERSION } from "@/core/buildNumber";
 import "@/applications/apps.css";
 import "./webstore.css";
 
@@ -81,7 +81,7 @@ export function AppCenterApp() {
         ))}
         <div className="webstore-catalog-note">
           {isRemoteCatalog
-            ? `Catalog for Anchoran ${ANCHORAN_DISPLAY_VERSION}`
+            ? `Catalog for Anchoran ${ANCHORAN_SIMPLIFIED_VERSION}`
             : "Offline — showing this build's bundled catalog"}
         </div>
       </div>

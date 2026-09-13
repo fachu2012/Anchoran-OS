@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { usePreferencesStore, DEFAULT_PREFERENCES } from "@/theme/preferencesStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { ANCHORAN_VERSION } from "@/core/version";
-import { ANCHORAN_DISPLAY_VERSION, versionLabelFor, baseVersion } from "@/core/buildNumber";
+import { ANCHORAN_SIMPLIFIED_VERSION, simplifiedLabelFor, baseVersion } from "@/core/buildNumber";
 import { WALLPAPERS, getWallpaper } from "@/desktop/wallpapers";
 import { playNotificationSound } from "@/core/sound";
 import { useUpdateHistoryStore } from "@/core/updateHistory";
@@ -1402,7 +1402,7 @@ function SystemSection() {
   return (
     <>
       <p style={{ color: "var(--anchoran-text-secondary)", fontSize: 12.5 }}>
-        Anchoran OS — {ANCHORAN_DISPLAY_VERSION} — running as a shell application on top of Windows.
+        Anchoran OS — {ANCHORAN_SIMPLIFIED_VERSION} — running as a shell application on top of Windows.
       </p>
       {info && (
         <>
@@ -1539,7 +1539,7 @@ function AboutSection() {
       const marker = `## [${baseVersion(ANCHORAN_VERSION)}]`;
       const start = text.indexOf(marker);
       if (start === -1) {
-        setReleaseNotes(`No changelog entry found for ${ANCHORAN_DISPLAY_VERSION}.`);
+        setReleaseNotes(`No changelog entry found for ${ANCHORAN_SIMPLIFIED_VERSION}.`);
         return;
       }
       // Insider Preview Updates can chain (2.9.9-IPU, 3.0.0-IPU, …) with
@@ -1578,7 +1578,7 @@ function AboutSection() {
     ]);
     const report = [
       `Anchoran OS diagnostics — ${new Date().toLocaleString()}`,
-      `Version: ${ANCHORAN_DISPLAY_VERSION} (${ANCHORAN_VERSION})`,
+      `Version: ${ANCHORAN_SIMPLIFIED_VERSION} (${ANCHORAN_VERSION})`,
       sysInfo ? `Platform: ${sysInfo.platform} ${sysInfo.arch}` : "",
       sysInfo ? `CPU: ${sysInfo.cpuModel} (${sysInfo.cpuCores} cores) — ${sysInfo.cpuUsagePercent}%` : "",
       sysInfo ? `Memory: ${sysInfo.totalMemMB - sysInfo.freeMemMB} / ${sysInfo.totalMemMB} MB` : "",
@@ -1597,7 +1597,7 @@ function AboutSection() {
     window.anchoran?.onUpdateStatus((status) => {
       if (status.state === "checking") setUpdateStatus("Checking for updates…");
       else if (status.state === "available") {
-        setUpdateStatus(`Update available: ${versionLabelFor(status.version)}. Downloading…`);
+        setUpdateStatus(`Update available: ${simplifiedLabelFor(status.version)}. Downloading…`);
         fetchUpdateInfo(status.version).then((info) => setUpdateLabel(info?.label ?? null));
       } else if (status.state === "not-available") {
         setUpdateStatus("Anchoran OS is up to date.");
@@ -1612,7 +1612,7 @@ function AboutSection() {
       }
       else if (status.state === "downloading") setUpdateStatus(`Downloading… ${status.percent}%`);
       else if (status.state === "downloaded") {
-        setUpdateStatus(`Update ${versionLabelFor(status.version)} ready to install.`);
+        setUpdateStatus(`Update ${simplifiedLabelFor(status.version)} ready to install.`);
         setDownloadedVersion(status.version);
         fetchUpdateInfo(status.version).then((info) => setUpdateLabel(info?.label ?? null));
       } else if (status.state === "error") setUpdateStatus(`Couldn't check for updates: ${status.message}`);
@@ -1623,7 +1623,7 @@ function AboutSection() {
     <div>
       <AnchoranLogo size={56} color="var(--anchoran-accent)" style={{ marginBottom: 14 }} />
       <h2 style={{ margin: "0 0 4px", fontWeight: 500 }}>Anchoran OS</h2>
-      <p style={{ color: "var(--anchoran-text-secondary)", marginTop: 0 }}>{ANCHORAN_DISPLAY_VERSION}</p>
+      <p style={{ color: "var(--anchoran-text-secondary)", marginTop: 0 }}>{ANCHORAN_SIMPLIFIED_VERSION}</p>
       <div style={{ display: "flex", gap: 8 }}>
         <button
           className="app-toolbar-btn"
@@ -1645,7 +1645,7 @@ function AboutSection() {
               window.dispatchEvent(new CustomEvent("anchoran-request-update-theater", { detail: downloadedVersion }))
             }
           >
-            Restart & install {versionLabelFor(downloadedVersion)}
+            Restart & install {simplifiedLabelFor(downloadedVersion)}
           </button>
         )}
         <button className="app-toolbar-btn" onClick={() => setDiagnosticsPicker(true)}>
@@ -1735,8 +1735,8 @@ function UpdateHistoryList() {
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {history.map((entry, i) => (
           <div key={i} style={{ fontSize: 12, color: "var(--anchoran-text-secondary)" }}>
-            {entry.fromVersion ? versionLabelFor(entry.fromVersion, entry.fromChannel) : "?"} →{" "}
-            {versionLabelFor(entry.toVersion, entry.toChannel)} ·{" "}
+            {entry.fromVersion ? simplifiedLabelFor(entry.fromVersion, entry.fromChannel) : "?"} →{" "}
+            {simplifiedLabelFor(entry.toVersion, entry.toChannel)} ·{" "}
             {new Date(entry.installedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
           </div>
         ))}

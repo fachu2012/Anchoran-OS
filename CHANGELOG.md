@@ -31,6 +31,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.M
   directly rather than waiting for a check that build's older code can
   never resolve.
 
+### Changed
+- **Two display conventions instead of one, by where they're read.**
+  The full "Version # | Build #H#.#" form is now reserved for exactly
+  three places: the GitHub release name, the update-ready screen's
+  title, and Anchover. Every other place that names a version — the
+  Terminal (`about`, `system`, `anchoran version`'s banners, `anchoran
+  changeto`'s list and prompts), the boot screen, the taskbar, Settings
+  → About (including the update-history list), the App Center, and
+  diagnostics exports — now uses a compact "Build-#H#.#" form instead
+  (old-style versions, v3.0.0 and earlier, still show as "vX.Y.Z"
+  either way, and " I.P.U." still gets appended for an Insider Preview
+  build in both forms).
+
 ## [3.0.4] - 2026-09-13
 
 **Update type:** feature

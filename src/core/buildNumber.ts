@@ -30,8 +30,15 @@ export function buildNumberFor(version: string): string {
 
 export const ANCHORAN_MAJOR_VERSION = baseVersion(ANCHORAN_VERSION).split(".")[0];
 export const ANCHORAN_BUILD_NUMBER = buildNumberFor(ANCHORAN_VERSION);
-/** "Version 3 | Build 3H0.0" — the standard full display string for the version currently running. */
+/**
+ * "Version 3 | Build 3H0.0" — the full display string, reserved for
+ * exactly three places: the GitHub release name, the update-ready
+ * screen's title, and Anchover. Everywhere else that names the
+ * currently-running version uses ANCHORAN_SIMPLIFIED_VERSION instead.
+ */
 export const ANCHORAN_DISPLAY_VERSION = `Version ${ANCHORAN_MAJOR_VERSION} | Build ${ANCHORAN_BUILD_NUMBER}`;
+/** "Build-3H0.0" — the compact display string used everywhere else (Terminal, boot screen, taskbar, Settings, …) instead of the full "Version # | Build …" one. */
+export const ANCHORAN_SIMPLIFIED_VERSION = `Build-${ANCHORAN_BUILD_NUMBER}`;
 
 /** v3.0.0 is the newest version that was ever actually released under the old "vX.Y.Z" naming — everything after it only ever existed under the new one. */
 const OLD_STYLE_CUTOFF = "3.0.0";
@@ -72,22 +79,23 @@ export function usesOldVersionStyle(version: string): boolean {
 }
 
 /**
- * The correct display label for naming one specific, possibly
- * historical, version — e.g. a past entry in the update history, one
- * of the releases `anchoran changeto` lists, or an update being
- * offered/installed — as opposed to ANCHORAN_DISPLAY_VERSION above,
- * which is always for the version currently running. Picks old
- * ("v2.9.7") or new ("Version 3 | Build 3H0.1") style based on when
- * that version actually shipped, and appends " I.P.U." for an Insider
- * Preview build rather than a stable one — e.g. distinguishing the
- * v3.0.0 I.P.U. build from the v3.0.0 stable release, an update
- * history transition that would otherwise misleadingly read as
- * "v3.0.0 → v3.0.0", as if nothing happened. Defaults to reading the
- * channel straight off `version`'s own "-IPU" suffix when `channel`
- * isn't passed explicitly, since that suffix is real (see
- * buildChannel.ts) — most callers naming a specific version string
- * (already-suffixed if it's an I.P.U. one) don't need to track the
- * channel separately just to pass it in here.
+ * The full display label ("Version 3 | Build 3H0.1") for naming one
+ * specific, possibly historical, version — reserved for the same three
+ * places as ANCHORAN_DISPLAY_VERSION: the GitHub release name, the
+ * update-ready screen's title, and Anchover. Everywhere else that
+ * names a specific version (an update-history entry, `anchoran
+ * changeto`'s list, a taskbar tooltip, …) uses simplifiedLabelFor
+ * instead. Picks old style ("v2.9.7") for anything at or before v3.0.0
+ * regardless, since those genuinely only ever shipped under that
+ * naming, and appends " I.P.U." for an Insider Preview build rather
+ * than a stable one — e.g. distinguishing the v3.0.0 I.P.U. build from
+ * the v3.0.0 stable release, an update-history transition that would
+ * otherwise misleadingly read as "v3.0.0 → v3.0.0", as if nothing
+ * happened. Defaults to reading the channel straight off `version`'s
+ * own "-beta" suffix when `channel` isn't passed explicitly, since
+ * that suffix is real (see buildChannel.ts) — most callers naming a
+ * specific version string (already-suffixed if it's an I.P.U. one)
+ * don't need to track the channel separately just to pass it in here.
  */
 export function versionLabelFor(version: string, channel?: "stable" | "insider" | null): string {
   // The real internal suffix is "-beta", not "-IPU" — see buildChannel.ts for why.
@@ -98,17 +106,18 @@ export function versionLabelFor(version: string, channel?: "stable" | "insider" 
 }
 
 /**
- * Same idea as versionLabelFor, but compact — drops the "Version # | "
- * part for a new-style version, leaving just "Build #H#.#[ I.P.U.]".
- * Used where every entry is already understood to be an Anchoran OS
- * release and repeating "Version 3 | " on each line (`anchoran
- * changeto`'s list) would just be noise old-style entries don't have
- * an equivalent of anyway.
+ * The compact display label ("Build-3H0.1") for naming one specific,
+ * possibly historical, version — the default everywhere a version
+ * needs naming, since the full "Version # | Build …" form is reserved
+ * for just three places (see versionLabelFor's own doc comment). Old-
+ * style versions (v3.0.0 and earlier) still show as "vX.Y.Z" — they
+ * never had a build-number form to begin with — with " I.P.U."
+ * appended the same way versionLabelFor does.
  */
-export function shortLabelFor(version: string, channel?: "stable" | "insider" | null): string {
+export function simplifiedLabelFor(version: string, channel?: "stable" | "insider" | null): string {
   // The real internal suffix is "-beta", not "-IPU" — see buildChannel.ts for why.
   const resolvedChannel = channel ?? (/-beta/i.test(version) ? "insider" : "stable");
-  const base = usesOldVersionStyle(version) ? `v${baseVersion(version)}` : `Build ${buildNumberFor(version)}`;
+  const base = usesOldVersionStyle(version) ? `v${baseVersion(version)}` : `Build-${buildNumberFor(version)}`;
   return resolvedChannel === "insider" ? `${base} I.P.U.` : base;
 }
 
