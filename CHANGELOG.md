@@ -93,6 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.M
   protocol. Not wired into any UI yet — no way to trigger it from
   Anchoran in this release.
 
+## [2.6.12] - 2026-09-12
+
 ### Fixed
 
 - Found the real cause of an update sometimes installing with no
