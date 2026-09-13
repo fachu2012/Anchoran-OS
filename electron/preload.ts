@@ -221,6 +221,11 @@ contextBridge.exposeInMainWorld("anchoran", {
   fsReadImageFile: (filePath: string): Promise<{ dataUrl: string } | { error: string }> =>
     ipcRenderer.invoke("anchoran:fs-read-image-file", filePath),
   fsIsTextFile: (filePath: string): Promise<boolean> => ipcRenderer.invoke("anchoran:fs-is-text-file", filePath),
+  runCode: (
+    filePath: string
+  ): Promise<
+    { stdout: string; stderr: string; exitCode: number | null; timedOut: boolean } | { unsupported: true } | { error: string }
+  > => ipcRenderer.invoke("anchoran:run-code", filePath),
   trashMove: (paths: string[]): Promise<{ success: boolean; error?: string; ids: string[] }> =>
     ipcRenderer.invoke("anchoran:trash-move", paths),
   trashList: (): Promise<

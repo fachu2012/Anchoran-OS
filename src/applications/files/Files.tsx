@@ -8,7 +8,7 @@ import { useDefaultAppsStore } from "@/core/defaultAppsStore";
 import { ContextMenu, type ContextMenuEntry } from "@/desktop/ContextMenu";
 import { QuickLook } from "./QuickLook";
 import { FileProperties } from "./FileProperties";
-import { iconForFile } from "./fileTypes";
+import { iconForFile, isCodeFile } from "./fileTypes";
 import { useRecentFilesStore } from "./recentFilesStore";
 import { useFavoritesStore } from "./favoritesStore";
 import { useFileTagsStore, TAG_COLOR_HEX } from "./fileTagsStore";
@@ -316,6 +316,11 @@ export function FilesApp({ openPath }: { openPath?: string } = {}) {
       else openApp("mediaPlayer", { openPath: entry.path });
       return;
     }
+    if (isCodeFile(entry.name)) {
+      if (defaultApps.code === "external") await openExternally();
+      else openApp("codeRunner", { openPath: entry.path });
+      return;
+    }
     const isText = await window.anchoran!.fsIsTextFile(entry.path);
     if (isText) {
       if (defaultApps.text === "external") await openExternally();
@@ -513,6 +518,9 @@ export function FilesApp({ openPath }: { openPath?: string } = {}) {
     const paths = selected.has(entry.path) && selected.size > 1 ? Array.from(selected) : [entry.path];
     return [
       { label: "Open", onSelect: () => openEntry(entry) },
+      ...(!entry.isDirectory && isCodeFile(entry.name)
+        ? [{ label: "Edit as Text", onSelect: () => openApp("notes", { openPath: entry.path }) }]
+        : []),
       ...(!entry.isDirectory
         ? [
             { label: "Quick Look", onSelect: () => setQuickLookEntry(entry) },

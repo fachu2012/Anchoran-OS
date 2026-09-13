@@ -855,6 +855,94 @@ ipcMain.handle("anchoran:fs-read-image-file", (_event, filePath: string) => {
 
 ipcMain.handle("anchoran:fs-is-text-file", (_event, filePath: string) => isLikelyTextFile(filePath));
 
+/**
+ * Runs a code file with whatever matching interpreter is on this PC's
+ * own PATH and reports its output — the Code Runner app's whole job
+ * (see src/applications/coderunner/CodeRunner.tsx), and why clicking a
+ * code file in Files runs it instead of opening it for editing. Only
+ * covers file types with a real, single-command way to run them
+ * without a build step; anything else (JSON/CSS/config formats,
+ * compiled languages needing their own toolchain, TypeScript/JSX
+ * needing a bundler) comes back as `{ unsupported: true }` so the app
+ * can say so plainly instead of pretending to run it.
+ */
+const CODE_RUNNERS: Record<string, { cmd: string; altCmd?: string; args: (file: string) => string[] }> = {
+  ".js": { cmd: "node", args: (f) => [f] },
+  ".mjs": { cmd: "node", args: (f) => [f] },
+  ".cjs": { cmd: "node", args: (f) => [f] },
+  ".py": { cmd: "python", altCmd: "python3", args: (f) => [f] },
+  ".rb": { cmd: "ruby", args: (f) => [f] },
+  ".php": { cmd: "php", args: (f) => [f] },
+  ".go": { cmd: "go", args: (f) => ["run", f] },
+  ".java": { cmd: "java", args: (f) => [f] }, // JDK 11+ single-file source launch
+  ".ps1": { cmd: "powershell.exe", args: (f) => ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", f] },
+  ".bat": { cmd: "cmd.exe", args: (f) => ["/c", f] },
+  ".sh": { cmd: "bash", args: (f) => [f] },
+};
+
+const CODE_RUN_TIMEOUT_MS = 15_000;
+const CODE_RUN_MAX_OUTPUT = 200_000;
+
+function runCodeWithCommand(
+  cmd: string,
+  args: string[],
+  cwd: string
+): Promise<{ code: number | null; stdout: string; stderr: string; timedOut: boolean } | { spawnError: string }> {
+  return new Promise((resolve) => {
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn(cmd, args, { cwd });
+    } catch (err) {
+      resolve({ spawnError: err instanceof Error ? err.message : String(err) });
+      return;
+    }
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    let settled = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, CODE_RUN_TIMEOUT_MS);
+    child.stdout?.on("data", (d) => {
+      if (stdout.length < CODE_RUN_MAX_OUTPUT) stdout += d.toString();
+    });
+    child.stderr?.on("data", (d) => {
+      if (stderr.length < CODE_RUN_MAX_OUTPUT) stderr += d.toString();
+    });
+    child.on("error", (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ spawnError: err instanceof Error ? err.message : String(err) });
+    });
+    child.on("close", (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ code, stdout, stderr, timedOut });
+    });
+  });
+}
+
+ipcMain.handle("anchoran:run-code", async (_event, filePath: string) => {
+  const ext = path.extname(filePath).toLowerCase();
+  const runner = CODE_RUNNERS[ext];
+  if (!runner) return { unsupported: true };
+
+  const cwd = path.dirname(filePath);
+  let result = await runCodeWithCommand(runner.cmd, runner.args(filePath), cwd);
+  if ("spawnError" in result && runner.altCmd) {
+    result = await runCodeWithCommand(runner.altCmd, runner.args(filePath), cwd);
+  }
+  if ("spawnError" in result) {
+    return {
+      error: `Couldn't find "${runner.cmd}"${runner.altCmd ? ` or "${runner.altCmd}"` : ""} installed on this PC's PATH — install it to run ${ext} files.`,
+    };
+  }
+  return { stdout: result.stdout, stderr: result.stderr, exitCode: result.code, timedOut: result.timedOut };
+});
+
 /** Generic raw-bytes reader for Quick Look's archive inspector (peeking inside a .zip without extracting it). */
 ipcMain.handle("anchoran:fs-read-binary", (_event, filePath: string) => {
   try {

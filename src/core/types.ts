@@ -65,7 +65,8 @@ export type AppId =
   | "embeddedApp"
   | "anchover"
   | "releaseRanking"
-  | "pluginHost";
+  | "pluginHost"
+  | "codeRunner";
 
 export type AppCategory = "System" | "Productivity" | "Utilities" | "Internet" | "Games";
 

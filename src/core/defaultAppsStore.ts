@@ -15,13 +15,21 @@ export interface DefaultAppsState {
   text: "notes" | "external";
   audioVideo: "mediaPlayer" | "external";
   zip: "quickLook" | "external";
+  /**
+   * Code files (see fileTypes.ts's CODE_EXT) open into the Code Runner
+   * by default — clicking runs the file instead of opening it for
+   * editing, the same way a real IDE's "Run" button works. Editing is
+   * still one right-click away via "Edit as Text" regardless of this
+   * setting; this only controls what a plain click/double-click does.
+   */
+  code: "codeRunner" | "external";
   hydrated: boolean;
-  setDefault: <K extends "images" | "text" | "audioVideo" | "zip">(category: K, value: DefaultAppsState[K]) => void;
+  setDefault: <K extends "images" | "text" | "audioVideo" | "zip" | "code">(category: K, value: DefaultAppsState[K]) => void;
 }
 
 const STORAGE_KEY = "defaultApps";
 
-function persist(state: Pick<DefaultAppsState, "images" | "text" | "audioVideo" | "zip">) {
+function persist(state: Pick<DefaultAppsState, "images" | "text" | "audioVideo" | "zip" | "code">) {
   persistSet("config", STORAGE_KEY, state);
 }
 
@@ -30,20 +38,22 @@ export const useDefaultAppsStore = create<DefaultAppsState>((set, get) => ({
   text: "notes",
   audioVideo: "mediaPlayer",
   zip: "quickLook",
+  code: "codeRunner",
   hydrated: false,
 
   setDefault: (category, value) => {
     set({ [category]: value } as Partial<DefaultAppsState>);
-    const { images, text, audioVideo, zip } = get();
-    persist({ images, text, audioVideo, zip, ...{ [category]: value } });
+    const { images, text, audioVideo, zip, code } = get();
+    persist({ images, text, audioVideo, zip, code, ...{ [category]: value } });
   },
 }));
 
-persistGet<Pick<DefaultAppsState, "images" | "text" | "audioVideo" | "zip">>("config", STORAGE_KEY, {
+persistGet<Pick<DefaultAppsState, "images" | "text" | "audioVideo" | "zip" | "code">>("config", STORAGE_KEY, {
   images: "photoViewer",
   text: "notes",
   audioVideo: "mediaPlayer",
   zip: "quickLook",
+  code: "codeRunner",
 }).then((loaded) => {
   useDefaultAppsStore.setState({ ...loaded, hydrated: true });
 });

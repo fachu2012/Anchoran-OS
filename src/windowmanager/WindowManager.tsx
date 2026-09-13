@@ -120,6 +120,9 @@ export const APP_COMPONENTS: Record<
   emojiPicker: lazy(() =>
     import("@/applications/emojipicker/EmojiPicker").then((m) => ({ default: m.EmojiPickerApp }))
   ),
+  codeRunner: lazy(() =>
+    import("@/applications/coderunner/CodeRunner").then((m) => ({ default: m.CodeRunnerApp }))
+  ),
   // Recycle Bin, On-Screen Keyboard and Narrator never open a window —
   // see windowStore.ts's openApp — these entries only exist to satisfy
   // APP_COMPONENTS' type and are never rendered.

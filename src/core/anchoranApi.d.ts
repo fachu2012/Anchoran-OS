@@ -128,6 +128,13 @@ declare global {
     fsReadTextFile: (filePath: string) => Promise<{ content: string } | { error: string }>;
     fsReadImageFile: (filePath: string) => Promise<{ dataUrl: string } | { error: string }>;
     fsIsTextFile: (filePath: string) => Promise<boolean>;
+    runCode: (
+      filePath: string
+    ) => Promise<
+      | { stdout: string; stderr: string; exitCode: number | null; timedOut: boolean }
+      | { unsupported: true }
+      | { error: string }
+    >;
     onDriveConnected: (callback: (drive: string) => void) => void;
     onDriveDisconnected: (callback: (drive: string) => void) => void;
     trashMove: (paths: string[]) => Promise<{ success: boolean; error?: string; ids: string[] }>;

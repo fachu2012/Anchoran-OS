@@ -1429,10 +1429,11 @@ function SystemSection() {
       </div>
       {(
         [
-          { key: "images", label: "Images", appLabel: "Photo Viewer" },
-          { key: "text", label: "Text files", appLabel: "Notes" },
-          { key: "audioVideo", label: "Audio & video", appLabel: "Media Player" },
-          { key: "zip", label: "Zip archives", appLabel: "Quick Look" },
+          { key: "images", label: "Images", appLabel: "Photo Viewer", value: "photoViewer" },
+          { key: "text", label: "Text files", appLabel: "Notes", value: "notes" },
+          { key: "audioVideo", label: "Audio & video", appLabel: "Media Player", value: "mediaPlayer" },
+          { key: "zip", label: "Zip archives", appLabel: "Quick Look", value: "quickLook" },
+          { key: "code", label: "Code files", appLabel: "Code Runner", value: "codeRunner" },
         ] as const
       ).map((row) => (
         <div className="settings-row" key={row.key}>
@@ -1442,13 +1443,14 @@ function SystemSection() {
             onChange={(e) => defaultApps.setDefault(row.key, e.target.value as never)}
             style={inputStyle}
           >
-            <option value={row.key === "zip" ? "quickLook" : row.key === "images" ? "photoViewer" : row.key === "text" ? "notes" : "mediaPlayer"}>
-              {row.appLabel} (Anchoran)
-            </option>
+            <option value={row.value}>{row.appLabel} (Anchoran)</option>
             <option value="external">Windows default app</option>
           </select>
         </div>
       ))}
+      <div className="settings-row-desc" style={{ padding: "0 0 8px" }}>
+        Code files always show an extra "Edit as Text" option in their right-click menu, regardless of this setting.
+      </div>
 
       <StartupAppsRow />
     </>

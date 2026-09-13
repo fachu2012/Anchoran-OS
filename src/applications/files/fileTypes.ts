@@ -27,6 +27,11 @@ const SHORTCUT_EXT = new Set([".lnk", ".url", ".alias"]);
 const SUBTITLE_EXT = new Set([".srt", ".ass"]);
 const CODE_EXT = new Set([".js", ".ts", ".tsx", ".jsx", ".json", ".xml", ".html", ".htm", ".css", ".py", ".java", ".c", ".cpp", ".cs", ".sh", ".bat", ".ps1", ".rb", ".go", ".rs", ".swift", ".sql", ".yaml", ".yml", ".ini", ".config", ".env", ".sass", ".scss", ".vue", ".asp", ".aspx", ".pl", ".kt", ".dart", ".lua", ".asm", ".h", ".php"]);
 
+/** Whether Files should hand this file to the Code Runner (run it) instead of a text editor (edit it) by default. */
+export function isCodeFile(name: string): boolean {
+  return CODE_EXT.has(extOf(name));
+}
+
 function extOf(name: string): string {
   const dot = name.lastIndexOf(".");
   return dot < 0 ? "" : name.slice(dot).toLowerCase();

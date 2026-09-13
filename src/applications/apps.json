@@ -596,5 +596,17 @@
     "allowMultipleInstances": true,
     "defaultSize": { "width": 640, "height": 480 },
     "minSize": { "width": 360, "height": 260 }
+  },
+  {
+    "id": "codeRunner",
+    "title": "Code Runner",
+    "icon": "jsonFormatter",
+    "category": "Utilities",
+    "description": "Runs a code file with the matching interpreter installed on this PC and shows its output — Files' default for opening code files, instead of opening them for editing.",
+    "core": true,
+    "hiddenFromLauncher": true,
+    "allowMultipleInstances": true,
+    "defaultSize": { "width": 640, "height": 480 },
+    "minSize": { "width": 400, "height": 300 }
   }
 ]
