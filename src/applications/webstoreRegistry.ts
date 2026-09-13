@@ -1,5 +1,6 @@
 import type { AppDefinition } from "@/core/types";
 import { ANCHORAN_VERSION } from "@/core/version";
+import { releaseTagFor } from "@/core/buildNumber";
 import { APP_LIST } from "./registry";
 
 const OWNER = "fachu2012";
@@ -23,7 +24,7 @@ const REGISTRY_ASSET_NAME = "webstore-registry.json";
 export async function fetchWebstoreCatalog(): Promise<{ apps: AppDefinition[]; isRemote: boolean }> {
   try {
     const releaseRes = await fetch(
-      `https://api.github.com/repos/${OWNER}/${REPO}/releases/tags/v${ANCHORAN_VERSION}`
+      `https://api.github.com/repos/${OWNER}/${REPO}/releases/tags/v${releaseTagFor(ANCHORAN_VERSION)}`
     );
     if (!releaseRes.ok) throw new Error(`Release lookup failed: ${releaseRes.status}`);
     const release = await releaseRes.json();

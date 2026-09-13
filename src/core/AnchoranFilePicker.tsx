@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { FileThumbnail } from "@/components/FileThumbnail";
 import "./filepicker.css";
 
 type Mode = "open" | "save" | "folder";
+
+const PREVIEWABLE_IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]);
+
+function isPreviewableImage(name: string): boolean {
+  const ext = name.slice(name.lastIndexOf(".")).toLowerCase();
+  return PREVIEWABLE_IMAGE_EXT.has(ext);
+}
 
 interface QuickLink {
   key: keyof Awaited<ReturnType<NonNullable<typeof window.anchoran>["fsSpecialFolders"]>>;
@@ -61,6 +69,7 @@ export function AnchoranFilePicker({
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [saveName, setSaveName] = useState(defaultName ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!window.anchoran) return;
@@ -88,6 +97,29 @@ export function AnchoranFilePicker({
       }
     });
   }, [currentPath]);
+
+  // Lets someone actually see the picture before committing to
+  // "Import…" — no reason to trust a filename alone when the real
+  // pixels are one IPC call away, and the whole point of the request
+  // was catching a wrong file before it becomes the new avatar/wallpaper/etc.
+  useEffect(() => {
+    if (!selectedFile || !window.anchoran) {
+      setPreviewDataUrl(null);
+      return;
+    }
+    const entry = (entries ?? []).find((e) => e.path === selectedFile);
+    if (!entry || entry.isDirectory || !isPreviewableImage(entry.name)) {
+      setPreviewDataUrl(null);
+      return;
+    }
+    let cancelled = false;
+    window.anchoran.fsReadImageFile(selectedFile).then((result) => {
+      if (!cancelled && "dataUrl" in result) setPreviewDataUrl(result.dataUrl);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedFile, entries]);
 
   function goToThisPC() {
     setCurrentPath(null);
@@ -195,7 +227,14 @@ export function AnchoranFilePicker({
                     onClick={() => openEntry(entry)}
                     onDoubleClick={() => confirmDoubleClick(entry)}
                   >
-                    <Icon name={entry.isDirectory ? "folder" : "file"} size={15} />
+                    <FileThumbnail
+                      name={entry.name}
+                      path={entry.path}
+                      isDirectory={entry.isDirectory}
+                      fallbackIcon="file"
+                      size={18}
+                      glyphScale={0.65}
+                    />
                     <span>{entry.name}</span>
                   </div>
                 ))}
@@ -215,6 +254,16 @@ export function AnchoranFilePicker({
               </div>
             )}
           </div>
+          {mode === "open" && previewDataUrl && (
+            <div className="filepicker-preview">
+              <div className="filepicker-preview-frame">
+                <img src={previewDataUrl} alt="" />
+              </div>
+              <span className="filepicker-preview-name">
+                {(entries ?? []).find((e) => e.path === selectedFile)?.name}
+              </span>
+            </div>
+          )}
         </div>
         <div className="filepicker-footer">
           <button className="app-toolbar-btn" onClick={onCancel}>

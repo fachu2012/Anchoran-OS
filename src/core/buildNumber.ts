@@ -122,6 +122,24 @@ export function simplifiedLabelFor(version: string, channel?: "stable" | "inside
 }
 
 /**
+ * The real git tag / GitHub release tag this running build was
+ * published under — as opposed to `ANCHORAN_VERSION` itself, which for
+ * an Insider Preview build carries the internal "-beta" suffix
+ * (load-bearing for electron-updater, see buildChannel.ts) instead of
+ * the "-IPU" suffix the actual tag uses. Anything that needs to look up
+ * *this exact release* on GitHub (e.g. webstoreRegistry.ts fetching the
+ * catalog snapshot attached to the release matching the running
+ * version) must go through this instead of building the tag straight
+ * from ANCHORAN_VERSION, or it 404s on every Insider Preview build and
+ * silently falls back to "offline" behavior.
+ */
+export function releaseTagFor(version: string, channel?: "stable" | "insider" | null): string {
+  const resolvedChannel = channel ?? (/-beta/i.test(version) ? "insider" : "stable");
+  const base = baseVersion(version);
+  return resolvedChannel === "insider" ? `${base}-IPU` : base;
+}
+
+/**
  * Resolves what a person typed at `anchoran changeto` against the real
  * list of installable release tags. Accepts the exact tag as-is
  * (however it's spelled — "3.0.3", "v3.0.3", "3.0.3-IPU", "v3.0.3-

@@ -1,6 +1,7 @@
 import { useEffect, useState, type DragEvent } from "react";
 import { Icon } from "@/components/Icon";
 import { IconTile } from "@/components/IconTile";
+import { FileThumbnail } from "@/components/FileThumbnail";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useDefaultAppsStore } from "@/core/defaultAppsStore";
@@ -843,7 +844,7 @@ export function FilesApp({ openPath }: { openPath?: string } = {}) {
                       }}
                     >
                       {fileTags[e.path] && <span className="files-tag-dot" style={{ background: TAG_COLOR_HEX[fileTags[e.path]] }} />}
-                      <IconTile name={e.isDirectory ? "folder" : iconForFile(e.name)} size={18} glyphScale={0.6} />
+                      <FileThumbnail name={e.name} path={e.path} isDirectory={e.isDirectory} fallbackIcon={iconForFile(e.name)} size={18} glyphScale={0.6} />
                       <span>{e.name}</span>
                       {e.isDirectory && <Icon name="chevronRight" size={11} style={{ marginLeft: "auto", flexShrink: 0, opacity: 0.5 }} />}
                     </button>
@@ -875,7 +876,7 @@ export function FilesApp({ openPath }: { openPath?: string } = {}) {
                 }}
               >
                 <div style={{ position: "relative" }}>
-                  <IconTile name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={38} glyphScale={0.56} />
+                  <FileThumbnail name={entry.name} path={entry.path} isDirectory={entry.isDirectory} fallbackIcon={iconForFile(entry.name)} size={38} glyphScale={0.56} />
                   {favoritePaths.has(entry.path) && (
                     <span className="files-favorite-badge">
                       <IconTile name="star" size={14} glyphScale={0.75} />
@@ -935,7 +936,7 @@ export function FilesApp({ openPath }: { openPath?: string } = {}) {
                 >
                   <td style={{ padding: "7px 8px", display: "flex", alignItems: "center", gap: 8 }}>
                     {fileTags[entry.path] && <span className="files-tag-dot" style={{ background: TAG_COLOR_HEX[fileTags[entry.path]] }} />}
-                    <IconTile name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={20} glyphScale={0.6} />
+                    <FileThumbnail name={entry.name} path={entry.path} isDirectory={entry.isDirectory} fallbackIcon={iconForFile(entry.name)} size={20} glyphScale={0.6} />
                     {renamingPath === entry.path ? (
                       <input
                         ref={(el) => selectBaseNameOnRename(el, entry)}
@@ -1008,7 +1009,7 @@ export function FilesApp({ openPath }: { openPath?: string } = {}) {
                   if (!result.success) pushNotification("Files", result.error ?? `Couldn't open ${f.name}.`);
                 }}
               >
-                <IconTile name={iconForFile(f.name)} size={22} glyphScale={0.58} />
+                <FileThumbnail name={f.name} path={f.path} isDirectory={false} fallbackIcon={iconForFile(f.name)} size={22} glyphScale={0.58} />
                 <span style={{ marginLeft: 8, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
               </div>
             ))}
