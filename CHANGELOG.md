@@ -5,6 +5,33 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.9.2] - 2026-09-13
+
+**Critical fix — v2.9.1's fix was itself incomplete; the app could
+still crash on every second launch.** The real, complete root cause,
+found from a full stack trace this time: the *placeholder* stores
+created at module load — `let configStore = new Store({ name:
+"preferences", cwd: configDir })`, before `app.whenReady()` and
+before any of v2.9.1's own protections — pointed at the exact same
+file as the real encrypted store, with no encryption key. electron-
+store's `Conf` constructor reads and `JSON.parse`s whatever's already
+on disk immediately, synchronously, in the constructor itself. Once a
+session had legitimately finished encrypting that file, every
+subsequent launch hit the placeholder trying to parse encrypted
+binary as plain JSON — crashing before `app.whenReady()` (and v2.9.1's
+try/catch inside it) ever ran. Not a rare corruption edge case: a
+guaranteed crash on the second launch of any session onward.
+
+### Fixed
+- The placeholder stores now point at names that are never the real
+  data files (`preferences-boot-placeholder` /
+  `filesystem-boot-placeholder`), so they can never collide with
+  content that might already be encrypted. They're fully replaced by
+  the real, correctly-keyed stores at the very start of
+  `app.whenReady()`, before anything else runs.
+- `anchoran:config-set` / `anchoran:data-set` now catch and log a
+  write failure instead of letting one propagate uncaught.
+
 ## [2.9.1] - 2026-09-13
 
 **Critical fix — v2.9.0 could fail to start at all.** The encryption-

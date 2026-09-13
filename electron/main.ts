@@ -44,9 +44,18 @@ for (const dir of [configDir, dataDir, logsDir, cacheDir]) {
 
 // Placeholders — swapped for the real, encrypted stores once the app
 // is ready and safeStorage is available (see openEncryptedStore
-// below). Nothing reads or writes through these before then.
-let configStore = new Store({ name: "preferences", cwd: configDir });
-let dataStore = new Store({ name: "filesystem", cwd: dataDir });
+// below). Nothing reads or writes through these before then, and —
+// this is the actual point — they deliberately do NOT point at the
+// real "preferences"/"filesystem" files. electron-store's Conf
+// constructor reads and JSON.parses whatever's already on disk
+// synchronously, immediately, with no encryption key here; once a
+// prior session had already encrypted that file for real, every
+// subsequent launch hit that same real file with no key and crashed
+// on startup, before app.whenReady() (and its own try/catch below)
+// ever ran — an actual incident, not a hypothetical. Pointing these
+// at a name that's never the real data file sidesteps it entirely.
+let configStore = new Store({ name: "preferences-boot-placeholder", cwd: configDir });
+let dataStore = new Store({ name: "filesystem-boot-placeholder", cwd: dataDir });
 
 /**
  * Encrypts preferences/filesystem at rest (AES-256-CBC, via
@@ -374,14 +383,24 @@ ipcMain.handle("anchoran:get-system-info", () => ({
 
 ipcMain.handle("anchoran:config-get", (_event, key: string) => configStore.get(key));
 ipcMain.handle("anchoran:config-set", (_event, key: string, value: unknown) => {
-  configStore.set(key, value);
-  return true;
+  try {
+    configStore.set(key, value);
+    return true;
+  } catch (err) {
+    logToDisk("config-set", `Failed to persist "${key}": ${err instanceof Error ? err.message : String(err)}`);
+    return false;
+  }
 });
 
 ipcMain.handle("anchoran:data-get", (_event, key: string) => dataStore.get(key));
 ipcMain.handle("anchoran:data-set", (_event, key: string, value: unknown) => {
-  dataStore.set(key, value);
-  return true;
+  try {
+    dataStore.set(key, value);
+    return true;
+  } catch (err) {
+    logToDisk("data-set", `Failed to persist "${key}": ${err instanceof Error ? err.message : String(err)}`);
+    return false;
+  }
 });
 
 ipcMain.on("anchoran:log-error", (_event, scope: string, message: string) => {
