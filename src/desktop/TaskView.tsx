@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 import { IconTile } from "@/components/IconTile";
 import { APP_REGISTRY } from "@/applications/registry";
@@ -16,11 +17,23 @@ export function TaskView({ onClose }: { onClose: () => void }) {
   const focusWindow = useWindowStore((s) => s.focusWindow);
   const restoreWindow = useWindowStore((s) => s.restoreWindow);
   const closeWindow = useWindowStore((s) => s.closeWindow);
+  const savedLayouts = useWindowStore((s) => s.savedLayouts);
+  const saveLayout = useWindowStore((s) => s.saveLayout);
+  const restoreLayout = useWindowStore((s) => s.restoreLayout);
+  const deleteLayout = useWindowStore((s) => s.deleteLayout);
+  const [layoutName, setLayoutName] = useState("");
 
   function open(windowId: string, isMinimized: boolean) {
     if (isMinimized) restoreWindow(windowId);
     else focusWindow(windowId);
     onClose();
+  }
+
+  function onSaveLayout() {
+    const name = layoutName.trim();
+    if (!name) return;
+    saveLayout(name);
+    setLayoutName("");
   }
 
   return (
@@ -63,6 +76,36 @@ export function TaskView({ onClose }: { onClose: () => void }) {
             })}
           </div>
         )}
+        <div className="taskview-layouts">
+          <div className="taskview-layouts-save">
+            <input
+              placeholder="Save current layout as…"
+              value={layoutName}
+              onChange={(e) => setLayoutName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && onSaveLayout()}
+              disabled={windows.length === 0}
+            />
+            <button className="app-toolbar-btn" onClick={onSaveLayout} disabled={!layoutName.trim() || windows.length === 0}>
+              Save
+            </button>
+          </div>
+          {Object.keys(savedLayouts).length > 0 && (
+            <div className="taskview-layouts-list">
+              {Object.keys(savedLayouts).map((name) => (
+                <div key={name} className="taskview-layout-chip">
+                  <button onClick={() => (restoreLayout(name), onClose())}>{name}</button>
+                  <button
+                    className="taskview-layout-delete"
+                    aria-label={`Delete layout "${name}"`}
+                    onClick={() => deleteLayout(name)}
+                  >
+                    <Icon name="close" size={11} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

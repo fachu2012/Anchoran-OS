@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import { Icon } from "@/components/Icon";
 import { useWindowStore, type AnchoranWindow, type Bounds } from "./windowStore";
 import { APP_REGISTRY } from "@/applications/registry";
@@ -17,6 +17,9 @@ const SNAP_ZONE_PX = 24;
 const ALWAYS_ON_TOP_ZINDEX_OFFSET = 100000;
 
 type ResizeDirection = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+
+/** Lets the minimize animation's target point be set as inline CSS custom properties, which React's CSSProperties type doesn't otherwise allow. */
+type CSSPropertiesWithVars = CSSProperties & Record<`--${string}`, string>;
 
 const CORNER_ZONE_PX = 56;
 
@@ -61,6 +64,8 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
   const focusMode = useWindowStore((s) => s.focusMode);
   const toggleAlwaysOnTop = useWindowStore((s) => s.toggleAlwaysOnTop);
   const [exiting, setExiting] = useState<"closing" | "minimizing" | null>(null);
+  const [minimizeOffset, setMinimizeOffset] = useState<{ dx: number; dy: number } | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   // The component instance is reused across minimize <-> restore (it
   // stays mounted, just renders null while minimized — see below), so
@@ -68,7 +73,10 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
   // time and immediately replays that exit animation the moment the
   // window is restored, undoing the restore almost instantly.
   useEffect(() => {
-    if (!win.isMinimized) setExiting(null);
+    if (!win.isMinimized) {
+      setExiting(null);
+      setMinimizeOffset(null);
+    }
   }, [win.isMinimized]);
 
   const minSize = APP_REGISTRY[win.appId].minSize ?? { width: 320, height: 220 };
@@ -79,6 +87,22 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
   }
 
   function requestMinimize() {
+    // Aim the minimize animation at this window's own taskbar icon
+    // (falling back to straight down if it can't be found) instead of
+    // always sliding toward the same fixed spot regardless of which
+    // app it is.
+    const iconEl = document.querySelector(`[data-taskbar-app="${win.appId}"]`);
+    const windowEl = rootRef.current;
+    if (iconEl && windowEl) {
+      const iconRect = iconEl.getBoundingClientRect();
+      const windowRect = windowEl.getBoundingClientRect();
+      setMinimizeOffset({
+        dx: iconRect.left + iconRect.width / 2 - (windowRect.left + windowRect.width / 2),
+        dy: iconRect.top + iconRect.height / 2 - (windowRect.top + windowRect.height / 2),
+      });
+    } else {
+      setMinimizeOffset(null);
+    }
     setExiting("minimizing");
     setTimeout(() => minimizeWindow(win.windowId), EXIT_ANIMATION_MS);
   }
@@ -171,12 +195,18 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
   // reason to reserve space for it here the way snapping-to-an-edge
   // still does.
   const effectiveZIndex = win.alwaysOnTop ? win.zIndex + ALWAYS_ON_TOP_ZINDEX_OFFSET : win.zIndex;
-  const style = win.isMaximized
-    ? { left: 0, top: 0, width: "100%", height: "100%", zIndex: effectiveZIndex }
-    : { left: win.x, top: win.y, width: win.width, height: win.height, zIndex: effectiveZIndex };
+  const style = {
+    ...(win.isMaximized
+      ? { left: 0, top: 0, width: "100%", height: "100%", zIndex: effectiveZIndex }
+      : { left: win.x, top: win.y, width: win.width, height: win.height, zIndex: effectiveZIndex }),
+    ...(minimizeOffset
+      ? ({ "--wm-min-dx": `${minimizeOffset.dx}px`, "--wm-min-dy": `${minimizeOffset.dy}px` } as CSSPropertiesWithVars)
+      : {}),
+  };
 
   return (
     <div
+      ref={rootRef}
       className="wm-window"
       style={style}
       data-focused={isFocused}

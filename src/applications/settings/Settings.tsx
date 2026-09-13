@@ -8,6 +8,8 @@ import { useUpdateHistoryStore } from "@/core/updateHistory";
 import { useSystemModeStore } from "@/desktop/systemModeStore";
 import { useProfilesStore } from "@/core/profilesStore";
 import { usePinAttemptsStore } from "@/core/pinAttemptsStore";
+import { useAdminAuditStore } from "@/core/adminAuditStore";
+import { AdminPinPrompt } from "@/core/AdminPinPrompt";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 import { useDefaultAppsStore } from "@/core/defaultAppsStore";
@@ -701,7 +703,38 @@ function UsersSection() {
         </div>
       )}
       {isOwner && <FailedPinAttemptsRow />}
+      {isOwner && <AdminAuditLogRow />}
     </>
+  );
+}
+
+/** Owner-only: a real audit trail of admin-level actions on this PC — elevations and admin grants/revokes — not just failed attempts. */
+function AdminAuditLogRow() {
+  const entries = useAdminAuditStore((s) => s.entries);
+  const clear = useAdminAuditStore((s) => s.clear);
+  return (
+    <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
+      <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div className="settings-row-label">Admin audit log</div>
+          <div className="settings-row-desc">Every elevation and admin status change on this PC.</div>
+        </div>
+        {entries.length > 0 && (
+          <button className="app-toolbar-btn" onClick={clear}>
+            Clear
+          </button>
+        )}
+      </div>
+      {entries.length === 0 ? (
+        <div style={{ fontSize: 12, color: "var(--anchoran-text-secondary)" }}>No admin actions recorded.</div>
+      ) : (
+        <div style={{ maxHeight: 140, overflowY: "auto", width: "100%", fontSize: 12, color: "var(--anchoran-text-secondary)" }}>
+          {entries.map((e) => (
+            <div key={e.id}>{new Date(e.timestamp).toLocaleString()} — {e.action}</div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -746,6 +779,11 @@ const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: "Delete", action: "Delete the selected item(s) in Files (or delete permanently, in Trash)" },
   { keys: "Ctrl / Cmd + Click", action: "Multi-select items in Files" },
   { keys: "Drag to a screen edge", action: "Snap a window to a half or, near a corner, a quarter of the screen" },
+  { keys: "Ctrl + Alt + Left / Right", action: "Snap the focused window to a left/right third of the screen" },
+  { keys: "Ctrl + Alt + Down", action: "Snap the focused window to the center third of the screen" },
+  { keys: "Ctrl + Shift + Arrow", action: "Resize the focused window in fixed steps from the keyboard" },
+  { keys: "Ctrl + Alt + M", action: "Move the whole Anchoran window to the next connected monitor" },
+  { keys: "Ctrl + Alt + Page Up / Page Down", action: "Switch to the previous/next virtual desktop" },
   { keys: "Double-click a title bar", action: "Maximize or restore a window" },
   { keys: "Right-click the desktop", action: "New Folder, New File, Sort Icons, Change Wallpaper" },
   { keys: "Right-click a taskbar icon", action: "Pin or unpin an app" },
@@ -858,6 +896,7 @@ function SystemModeSection() {
 function PrivacySection() {
   const [status, setStatus] = useState<string | null>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
+  const [resetPinPrompt, setResetPinPrompt] = useState(false);
   const retentionMinutes = useClipboardHistoryStore((s) => s.retentionMinutes);
   const setRetentionMinutes = useClipboardHistoryStore((s) => s.setRetentionMinutes);
 
@@ -927,13 +966,22 @@ function PrivacySection() {
         ) : (
           <div style={{ display: "flex", gap: 8 }}>
             <button className="app-toolbar-btn" onClick={() => setConfirmingReset(false)}>Cancel</button>
-            <button className="app-toolbar-btn" style={{ color: "#D64545" }} onClick={onReset}>
+            <button className="app-toolbar-btn" style={{ color: "#D64545" }} onClick={() => setResetPinPrompt(true)}>
               Confirm reset
             </button>
           </div>
         )}
       </div>
       {status && <p style={{ fontSize: 12, color: "var(--anchoran-text-secondary)" }}>{status}</p>}
+      {resetPinPrompt && (
+        <AdminPinPrompt
+          onCancel={() => setResetPinPrompt(false)}
+          onSuccess={() => {
+            setResetPinPrompt(false);
+            onReset();
+          }}
+        />
+      )}
     </>
   );
 }

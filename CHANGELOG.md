@@ -5,6 +5,69 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.8.9] - 2026-09-12
+
+Wave 1 of "do everything left on the 94-item list that isn't blocked
+by needing to pay for something or real ARM64 hardware" — 15 items,
+numbered against the original list.
+
+### Added
+- **#1 Virtual desktops** — a real per-desktop window set (not just a
+  visual switcher): each open window belongs to exactly one desktop,
+  switching desktops shows only that desktop's windows and taskbar
+  entries, "+" adds a new one, middle-click closes one (moving its
+  windows to the previous desktop), and jumping to an app open on
+  another desktop switches you there automatically. Ctrl+Alt+Page
+  Up/Down cycles between them.
+- **#2 Thirds snapping** — Ctrl+Alt+Left/Right/Down snaps the focused
+  window into a left/center/right third of the screen.
+- **#3 Taskbar hover previews** — hovering a taskbar icon that
+  represents more than one window lists each by title, to jump to a
+  specific one instead of only cycling through them.
+- **#6 Move to next monitor** — Ctrl+Alt+M moves Anchoran's whole
+  window to the next connected physical display.
+- **#8 Named window layouts** — save the current arrangement of open
+  windows under a name from Task View, and restore it later (reopens
+  or repositions each app to match).
+- **#9 Keyboard window resize** — Ctrl+Shift+Arrow resizes the focused
+  window in fixed steps.
+- **#10 Minimize animates to its real taskbar icon** — previously
+  animated toward a fixed generic point regardless of which app it
+  was.
+- **#11 Admin audit log** — Settings → Users (owner-only) now lists
+  every Terminal elevation and every admin grant/revoke on this PC,
+  not just failed PIN attempts.
+- **#12 Admin session idle expiry** — an elevated Administrator
+  Terminal left untouched for 10 minutes closes itself automatically.
+- **#14 PIN-gated uninstall of protected apps** — default-installed
+  apps (not the genuinely core ones — Files, Terminal, Settings, the
+  Webstore, which stay permanently unremovable) can now be uninstalled
+  with an admin PIN, instead of being flatly blocked. The same PIN
+  gate now also protects Settings → Privacy → Reset Anchoran.
+- **#16 Sign out** — new Power menu entry that closes every open
+  window and returns to the lock screen, without shutting Anchoran
+  down.
+- **#17 Real encryption of preferences/filesystem at rest** —
+  AES-256, keyed by a random key itself protected via Windows DPAPI
+  (Electron's safeStorage), so the on-disk store doesn't decrypt
+  without that same Windows account. Existing stores are migrated in
+  place on first run.
+- **#18 Temporary guest mode** — "Continue as Guest" on the lock
+  screen starts a throwaway profile that's deleted the moment you
+  leave it (switch profile, or sign out). Scope note: guest mode
+  resets identity/appearance only — app data (Notes, Files, …) is
+  shared across every profile regardless, a pre-existing, documented
+  limitation of the whole profiles system, not something guest mode
+  changes.
+- **#22 Terminal command-name autocomplete** — Tab now completes the
+  command itself (built-ins and your own `alias`es), not just a file
+  path argument, which already worked.
+- **#25 Terminal right-click menu** — Copy (selected text), Paste
+  (into the input) and Clear, instead of only keyboard copy/paste.
+
+### Verification
+`typecheck`, `build` (renderer + electron) and `test` (7/7) all pass.
+
 ## [2.8.7] - 2026-09-12
 
 A second, smaller pass at the same 94-item list, picking up items that

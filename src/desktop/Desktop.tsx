@@ -13,6 +13,7 @@ import { PowerMenu } from "@/power/PowerMenu";
 import { NotificationToasts } from "@/notifications/NotificationCenter";
 import { NotificationPanel } from "@/notifications/NotificationPanel";
 import { useNotificationStore } from "@/notifications/notificationStore";
+import { useProfilesStore } from "@/core/profilesStore";
 import "./desktop.css";
 
 export function Desktop({
@@ -38,6 +39,8 @@ export function Desktop({
   const cycleFocus = useWindowStore((s) => s.cycleFocus);
   const openApp = useWindowStore((s) => s.openApp);
   const clearIconPositions = useDesktopIconsStore((s) => s.clearPositions);
+  const setBounds = useWindowStore((s) => s.setBounds);
+  const resizeWindow = useWindowStore((s) => s.resizeWindow);
 
   useEffect(() => {
     // Ctrl+Tab / Ctrl+Shift+Tab: Anchoran's own window switcher. Not
@@ -45,15 +48,62 @@ export function Desktop({
     // shell level the same way it owns the bare Windows key, so a
     // normal Electron app can't reliably intercept it (see the
     // Windows-key note in electron/main.ts).
+    //
+    // Ctrl+Alt+Left/Right/Down snap the focused window to a third of
+    // the screen — the keyboard-only counterpart to dragging into a
+    // corner for a quarter. Ctrl+Shift+Arrow resizes the focused
+    // window in fixed steps, for anyone who'd rather not drag an edge.
+    const THIRD_STEP = 24;
     function onKeyDown(e: KeyboardEvent) {
       if (e.ctrlKey && e.key === "Tab") {
         e.preventDefault();
         cycleFocus(e.shiftKey ? -1 : 1);
+        return;
+      }
+
+      const { focusedWindowId, windows } = useWindowStore.getState();
+      const focused = windows.find((w) => w.windowId === focusedWindowId);
+      if (!focused) return;
+
+      if (e.ctrlKey && e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowDown")) {
+        e.preventDefault();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight - 78; // taskbar height, see WindowFrame.tsx
+        const thirdW = Math.round(vw / 3);
+        const bounds =
+          e.key === "ArrowLeft"
+            ? { x: 0, y: 0, width: thirdW, height: vh }
+            : e.key === "ArrowRight"
+              ? { x: vw - thirdW, y: 0, width: thirdW, height: vh }
+              : { x: thirdW, y: 0, width: vw - thirdW * 2, height: vh };
+        setBounds(focused.windowId, bounds);
+      } else if (e.ctrlKey && e.shiftKey && e.key.startsWith("Arrow") && !focused.isMaximized) {
+        e.preventDefault();
+        const dw = e.key === "ArrowLeft" ? -THIRD_STEP : e.key === "ArrowRight" ? THIRD_STEP : 0;
+        const dh = e.key === "ArrowUp" ? -THIRD_STEP : e.key === "ArrowDown" ? THIRD_STEP : 0;
+        resizeWindow(focused.windowId, Math.max(240, focused.width + dw), Math.max(160, focused.height + dh));
       }
     }
+
+    // Ctrl+Alt+PageUp/PageDown cycles between virtual desktops — kept
+    // separate from Ctrl+Alt+Left/Right (thirds snap) above.
+    function onDesktopSwitchKeyDown(e: KeyboardEvent) {
+      if (!e.ctrlKey || !e.altKey || (e.key !== "PageUp" && e.key !== "PageDown")) return;
+      e.preventDefault();
+      const { desktops, activeDesktopId, switchDesktop } = useWindowStore.getState();
+      const index = desktops.indexOf(activeDesktopId);
+      const direction = e.key === "PageDown" ? 1 : -1;
+      const nextIndex = (index + direction + desktops.length) % desktops.length;
+      switchDesktop(desktops[nextIndex]);
+    }
+
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cycleFocus]);
+    window.addEventListener("keydown", onDesktopSwitchKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onDesktopSwitchKeyDown);
+    };
+  }, [cycleFocus, setBounds, resizeWindow]);
 
   const recordClipboard = useClipboardHistoryStore((s) => s.record);
   useEffect(() => {
@@ -128,6 +178,16 @@ export function Desktop({
           onShutDown={() => {
             setPowerOpen(false);
             onShutDown();
+          }}
+          onSignOut={() => {
+            setPowerOpen(false);
+            useWindowStore.getState().closeAllWindows();
+            // A guest session ends for good on sign-out, rather than
+            // sitting in the profile list waiting to be picked again.
+            const { profiles, activeProfileId, deleteProfile } = useProfilesStore.getState();
+            const active = profiles.find((p) => p.id === activeProfileId);
+            if (active?.isGuest) deleteProfile(active.id);
+            onLock();
           }}
         />
       )}

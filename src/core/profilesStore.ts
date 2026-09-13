@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persistGet, persistSet } from "@/core/persist";
 import { usePreferencesStore } from "@/theme/preferencesStore";
+import { useAdminAuditStore } from "@/core/adminAuditStore";
 
 /**
  * Multiple local user profiles. Scope, honestly stated: each profile
@@ -26,6 +27,8 @@ export interface Profile {
   isAdmin: boolean;
   /** The very first profile ever created on this PC. Always an admin; this can never be revoked, and only the owner may grant/revoke admin status on *other* profiles. Exactly one profile has this set. */
   isOwner: boolean;
+  /** A temporary session started from the lock screen's "Continue as Guest" — deleted the moment it's left (switching to another profile, or signing out), so its appearance changes never linger. App data itself (Notes, Files, …) is still shared across every profile, guest included — see the file-level note above on the scope of per-profile isolation. */
+  isGuest?: boolean;
 }
 
 const STORAGE_KEY = "profiles";
@@ -63,6 +66,8 @@ interface ProfilesState {
   activeProfileId: string;
   hydrated: boolean;
   createProfile: (name: string, isAdmin?: boolean) => string;
+  /** Creates and switches straight into a fresh, throwaway "Guest" profile — see Profile.isGuest above. */
+  createGuestProfile: () => void;
   deleteProfile: (id: string) => void;
   renameProfile: (id: string, name: string) => void;
   /** Saves the live preferencesStore state into the currently-active profile, then switches to another and loads its saved state in. */
@@ -101,6 +106,30 @@ export const useProfilesStore = create<ProfilesState>((set, get) => ({
     set({ profiles });
     persist(profiles, get().activeProfileId);
     return id;
+  },
+
+  createGuestProfile: () => {
+    const id = `guest-${Date.now()}`;
+    let n = 1;
+    const existingNames = new Set(get().profiles.map((p) => p.name));
+    while (existingNames.has(n === 1 ? "Guest" : `Guest ${n}`)) n++;
+    const guest: Profile = {
+      id,
+      name: n === 1 ? "Guest" : `Guest ${n}`,
+      avatarDataUrl: null,
+      lockPin: null,
+      accentColor: "#6E9BF7",
+      wallpaperId: "default",
+      customWallpaperDataUrl: null,
+      themeMode: "dark",
+      isAdmin: false,
+      isOwner: false,
+      isGuest: true,
+    };
+    const profiles = [...get().profiles, guest];
+    set({ profiles });
+    persist(profiles, get().activeProfileId);
+    get().switchProfile(id);
   },
 
   deleteProfile: (id) => {
@@ -146,11 +175,14 @@ export const useProfilesStore = create<ProfilesState>((set, get) => ({
     const next = profiles.map((p) => (p.id === id ? { ...p, isAdmin } : p));
     set({ profiles: next });
     persist(next, activeProfileId);
+    useAdminAuditStore.getState().record(`${isAdmin ? "Granted" : "Revoked"} admin ${isAdmin ? "to" : "from"} "${target.name}"`);
   },
 
   findAdminByPin: (pin) => {
     if (!pin) return null;
-    return get().profiles.find((p) => p.isAdmin && p.lockPin && p.lockPin === pin) ?? null;
+    const match = get().profiles.find((p) => p.isAdmin && p.lockPin && p.lockPin === pin) ?? null;
+    if (match) useAdminAuditStore.getState().record(`Elevated as "${match.name}"`);
+    return match;
   },
 }));
 

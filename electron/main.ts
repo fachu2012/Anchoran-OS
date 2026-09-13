@@ -1,7 +1,8 @@
-import { app, BrowserWindow, Menu, clipboard, desktopCapturer, dialog, globalShortcut, ipcMain, nativeImage, screen, session, shell, webContents } from "electron";
+import { app, BrowserWindow, Menu, clipboard, desktopCapturer, dialog, globalShortcut, ipcMain, nativeImage, safeStorage, screen, session, shell, webContents } from "electron";
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
+import crypto from "node:crypto";
 import https from "node:https";
 import { execFile, spawn } from "node:child_process";
 import Store from "electron-store";
@@ -41,8 +42,57 @@ for (const dir of [configDir, dataDir, logsDir, cacheDir]) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
-const configStore = new Store({ name: "preferences", cwd: configDir });
-const dataStore = new Store({ name: "filesystem", cwd: dataDir });
+// Placeholders — swapped for the real, encrypted stores once the app
+// is ready and safeStorage is available (see openEncryptedStore
+// below). Nothing reads or writes through these before then.
+let configStore = new Store({ name: "preferences", cwd: configDir });
+let dataStore = new Store({ name: "filesystem", cwd: dataDir });
+
+/**
+ * Encrypts preferences/filesystem at rest (AES-256-CBC, via
+ * electron-store's own encryptionKey option) using a random key that
+ * is itself protected by Windows' DPAPI (via Electron's safeStorage),
+ * tied to the current Windows user account. Even if someone copies
+ * Anchoran's userData folder to another machine or reads it from a
+ * different Windows account on a shared PC, the key file alone
+ * doesn't decrypt without that same account's DPAPI master key.
+ *
+ * Existing plaintext stores from before this feature existed are
+ * migrated in place, once, on first run — tracked by a small marker
+ * file so a later run never mistakes an already-encrypted store for a
+ * fresh, unencrypted one (which would otherwise reset it to empty).
+ */
+function getOrCreateEncryptionKey(): string | null {
+  if (!safeStorage.isEncryptionAvailable()) return null;
+  const keyFile = path.join(dataRoot, ".store.key");
+  if (fs.existsSync(keyFile)) {
+    try {
+      return safeStorage.decryptString(fs.readFileSync(keyFile));
+    } catch (err) {
+      logToDisk("encryption", `Could not decrypt stored key, regenerating: ${err}`);
+    }
+  }
+  const key = crypto.randomBytes(32).toString("hex");
+  fs.writeFileSync(keyFile, safeStorage.encryptString(key));
+  return key;
+}
+
+function openEncryptedStore(name: string, cwd: string, encryptionKey: string | undefined): Store {
+  const markerFile = path.join(cwd, `.${name}.encrypted`);
+  if (encryptionKey && !fs.existsSync(markerFile)) {
+    let existing: Record<string, unknown> = {};
+    try {
+      existing = new Store({ name, cwd }).store;
+    } catch (err) {
+      logToDisk("encryption", `No existing plaintext store to migrate for "${name}": ${err}`);
+    }
+    const store = new Store({ name, cwd, encryptionKey });
+    if (Object.keys(existing).length > 0) store.store = existing;
+    fs.writeFileSync(markerFile, "1");
+    return store;
+  }
+  return new Store({ name, cwd, encryptionKey });
+}
 
 const logFile = path.join(logsDir, "anchoran.log");
 function logToDisk(scope: string, message: string) {
@@ -174,6 +224,19 @@ function createMainWindow() {
  * Windows' own critical shortcuts (Ctrl+Alt+Del, Task Manager,
  * sign-out, etc.) and never modifies system security policy.
  */
+function moveToNextDisplay() {
+  if (!mainWindow) return;
+  const displays = screen.getAllDisplays();
+  if (displays.length < 2) return;
+  const current = screen.getDisplayMatching(mainWindow.getBounds());
+  const currentIndex = displays.findIndex((d) => d.id === current.id);
+  const next = displays[(currentIndex + 1) % displays.length];
+  const wasMaximized = mainWindow.isMaximized();
+  if (wasMaximized) mainWindow.unmaximize();
+  mainWindow.setBounds(next.workArea);
+  if (wasMaximized) mainWindow.maximize();
+}
+
 function registerGlobalShortcuts() {
   // globalShortcut.register() is documented as returning false when a
   // combination can't be bound, but on some Electron/Windows
@@ -207,6 +270,17 @@ function registerGlobalShortcuts() {
     globalShortcut.register("CommandOrControl+Shift+S", () => mainWindow?.webContents.send("anchoran:trigger-screenshot"));
   } catch (err) {
     logToDisk("main:shortcuts", `Registering the screenshot shortcut failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // Moves Anchoran's whole window to the next connected physical
+  // monitor — Anchoran's own "windows" are virtual, drawn inside this
+  // one real Electron window, so this is the one shortcut that
+  // legitimately targets a real OS-level display, not a virtual one.
+  // A no-op with just one display connected.
+  try {
+    globalShortcut.register("CommandOrControl+Alt+M", () => moveToNextDisplay());
+  } catch (err) {
+    logToDisk("main:shortcuts", `Registering the move-to-next-monitor shortcut failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   if (!superRegistered) {
@@ -1617,6 +1691,13 @@ ipcMain.handle("anchoran:embed-stop", (_event, windowId: string) => {
 });
 
 app.whenReady().then(() => {
+  const encryptionKey = getOrCreateEncryptionKey() ?? undefined;
+  configStore = openEncryptedStore("preferences", configDir, encryptionKey);
+  dataStore = openEncryptedStore("filesystem", dataDir, encryptionKey);
+  if (!encryptionKey) {
+    logToDisk("encryption", "safeStorage unavailable — preferences/filesystem stores stay unencrypted on disk.");
+  }
+
   createMainWindow();
   registerGlobalShortcuts();
   interceptWebviewDownloads();

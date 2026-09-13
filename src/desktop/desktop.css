@@ -221,6 +221,94 @@
   border-radius: 3px;
 }
 
+.taskbar-desktops {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.taskbar-desktop-pill {
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: var(--anchoran-radius-sm);
+  background: transparent;
+  color: var(--anchoran-text-secondary);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.taskbar-desktop-pill:hover {
+  background: var(--anchoran-border);
+}
+
+.taskbar-desktop-pill[data-active="true"] {
+  background: var(--anchoran-accent-soft);
+  border-color: var(--anchoran-accent);
+  color: var(--anchoran-accent);
+}
+
+.taskbar-desktop-add {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--anchoran-text-secondary);
+  cursor: pointer;
+}
+
+.taskbar-desktop-add:hover {
+  background: var(--anchoran-border);
+  color: var(--anchoran-text-primary);
+}
+
+.taskbar-window-preview {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+  max-width: 260px;
+  padding: 6px;
+  border-radius: var(--anchoran-radius-md);
+  background: var(--anchoran-surface);
+  border: 1px solid var(--anchoran-border);
+  box-shadow: var(--anchoran-shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.35));
+  cursor: default;
+  z-index: 50;
+}
+
+.taskbar-window-preview-title {
+  font-size: 11px;
+  color: var(--anchoran-text-secondary);
+  padding: 4px 8px 2px;
+}
+
+.taskbar-window-preview-item {
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--anchoran-radius-sm);
+  color: var(--anchoran-text-primary);
+  font-size: 12.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.taskbar-window-preview-item:hover {
+  background: var(--anchoran-border);
+}
+
 .taskbar-badge {
   position: absolute;
   top: 4px;

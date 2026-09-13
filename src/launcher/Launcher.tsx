@@ -6,7 +6,7 @@ import type { AppDefinition, AppId } from "@/core/types";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useTaskbarStore } from "@/desktop/taskbarStore";
 import { useDesktopIconsStore } from "@/desktop/desktopIconsStore";
-import { useInstalledAppsStore, isProtectedApp } from "@/applications/installedAppsStore";
+import { useInstalledAppsStore, isProtectedApp, isCoreApp } from "@/applications/installedAppsStore";
 import { ContextMenu, type ContextMenuEntry } from "@/desktop/ContextMenu";
 import { AdminPinPrompt } from "@/core/AdminPinPrompt";
 import { useAppUsageStore } from "@/core/appUsageStore";
@@ -141,7 +141,7 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
   const topApps = useAppUsageStore((s) => s.topApps);
 
   const [menu, setMenu] = useState<{ x: number; y: number; app: AppDefinition } | null>(null);
-  const [adminPinPrompt, setAdminPinPrompt] = useState(false);
+  const [adminPinPrompt, setAdminPinPrompt] = useState<{ mode: "runAsAdmin" } | { mode: "uninstall"; appId: AppId } | null>(null);
   const [letterJumpOpen, setLetterJumpOpen] = useState(false);
   const resultsRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -251,11 +251,20 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
     ];
     if (ADMIN_CAPABLE_APPS.has(app.id)) {
       items.push({ separator: true });
-      items.push({ label: "Run as Administrator", icon: "lock", onSelect: () => setAdminPinPrompt(true) });
+      items.push({ label: "Run as Administrator", icon: "lock", onSelect: () => setAdminPinPrompt({ mode: "runAsAdmin" }) });
     }
-    if (!isProtectedApp(app.id)) {
+    if (!isCoreApp(app.id)) {
       items.push({ separator: true });
-      items.push({ label: "Uninstall", danger: true, onSelect: () => uninstall(app.id) });
+      items.push(
+        isProtectedApp(app.id)
+          ? {
+              label: "Uninstall… (requires admin PIN)",
+              icon: "lock",
+              danger: true,
+              onSelect: () => setAdminPinPrompt({ mode: "uninstall", appId: app.id }),
+            }
+          : { label: "Uninstall", danger: true, onSelect: () => uninstall(app.id) }
+      );
     }
     return items;
   }
@@ -439,11 +448,16 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
 
       {adminPinPrompt && (
         <AdminPinPrompt
-          onCancel={() => setAdminPinPrompt(false)}
+          onCancel={() => setAdminPinPrompt(null)}
           onSuccess={() => {
-            setAdminPinPrompt(false);
-            onClose();
-            openApp("terminal", { startAdmin: true });
+            if (adminPinPrompt.mode === "runAsAdmin") {
+              setAdminPinPrompt(null);
+              onClose();
+              openApp("terminal", { startAdmin: true });
+            } else {
+              uninstall(adminPinPrompt.appId, { force: true });
+              setAdminPinPrompt(null);
+            }
           }}
         />
       )}

@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 import { IconTile } from "@/components/IconTile";
 import { APP_REGISTRY } from "@/applications/registry";
@@ -35,11 +35,19 @@ export function Taskbar({
   onToggleTaskView: () => void;
 }) {
   const openApp = useWindowStore((s) => s.openApp);
-  const windows = useWindowStore((s) => s.windows);
+  const allWindows = useWindowStore((s) => s.windows);
   const focusedWindowId = useWindowStore((s) => s.focusedWindowId);
   const focusWindow = useWindowStore((s) => s.focusWindow);
   const restoreWindow = useWindowStore((s) => s.restoreWindow);
   const minimizeWindow = useWindowStore((s) => s.minimizeWindow);
+  const desktops = useWindowStore((s) => s.desktops);
+  const activeDesktopId = useWindowStore((s) => s.activeDesktopId);
+  const addDesktop = useWindowStore((s) => s.addDesktop);
+  const removeDesktop = useWindowStore((s) => s.removeDesktop);
+  const switchDesktop = useWindowStore((s) => s.switchDesktop);
+  // The taskbar only lists windows on the current virtual desktop —
+  // the same "what's actually visible right now" list a real OS shows.
+  const windows = allWindows.filter((w) => w.desktopId === activeDesktopId);
   const notificationCount = useNotificationStore((s) => s.notifications.length);
   const accentColor = usePreferencesStore((s) => s.accentColor);
   const status = useSystemStatus();
@@ -52,6 +60,22 @@ export function Taskbar({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; appId: AppId } | null>(null);
   const [quickSettingsOpen, setQuickSettingsOpen] = useState(false);
   const [adminPinPrompt, setAdminPinPrompt] = useState(false);
+  // A single icon already represents every window of that app (grouped
+  // by appId below) — when there's more than one, hovering the icon
+  // lists each window by title so you can jump to a specific one
+  // instead of only cycling through them by clicking.
+  const [hoverAppId, setHoverAppId] = useState<AppId | null>(null);
+  const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function openHoverPreview(appId: AppId) {
+    if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current);
+    setHoverAppId(appId);
+  }
+
+  function scheduleHoverClose() {
+    if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current);
+    hoverCloseTimer.current = setTimeout(() => setHoverAppId(null), 200);
+  }
 
   // Auto-hide, like a real OS taskbar: while any window is maximized,
   // the bar slides out of the way so the app can truly fill the
@@ -99,6 +123,8 @@ export function Taskbar({
     reorder(fromIndex, targetIndex);
   }
 
+  const moveWindowToDesktop = useWindowStore((s) => s.moveWindowToDesktop);
+
   function contextItemsFor(appId: AppId): ContextMenuItem[] {
     const isPinned = pinned.includes(appId);
     const items: ContextMenuItem[] = [
@@ -108,6 +134,13 @@ export function Taskbar({
     ];
     if (appId === "terminal") {
       items.push({ label: "Run as Administrator", icon: "lock", onSelect: () => setAdminPinPrompt(true) });
+    }
+    const appWindow = windows.find((w) => w.appId === appId);
+    const otherDesktops = desktops.filter((id) => id !== activeDesktopId);
+    if (appWindow && otherDesktops.length > 0) {
+      for (const id of otherDesktops) {
+        items.push({ label: `Move to Desktop ${id}`, onSelect: () => moveWindowToDesktop(appWindow.windowId, id) });
+      }
     }
     return items;
   }
@@ -131,6 +164,26 @@ export function Taskbar({
           <Icon name="taskView" size={17} />
         </button>
 
+        <div className="taskbar-desktops">
+          {desktops.map((id) => (
+            <button
+              key={id}
+              className="taskbar-desktop-pill"
+              data-active={id === activeDesktopId}
+              onClick={() => switchDesktop(id)}
+              onAuxClick={(e) => {
+                if (e.button === 1 && desktops.length > 1) removeDesktop(id);
+              }}
+              title={`Desktop ${id}${desktops.length > 1 ? " (middle-click to close)" : ""}`}
+            >
+              {id}
+            </button>
+          ))}
+          <button className="taskbar-desktop-add" onClick={addDesktop} aria-label="New virtual desktop" title="New virtual desktop">
+            <Icon name="plus" size={12} />
+          </button>
+        </div>
+
         <div className="taskbar-divider" />
 
         <div className="taskbar-apps">
@@ -144,6 +197,7 @@ export function Taskbar({
               <button
                 key={appId}
                 className="taskbar-btn"
+                data-taskbar-app={appId}
                 data-open={isOpen}
                 data-focused={isFocused}
                 data-drag-over={isPinned && dragOverIndex === index}
@@ -162,11 +216,36 @@ export function Taskbar({
                   e.stopPropagation();
                   setContextMenu({ x: e.clientX, y: e.clientY, appId });
                 }}
+                onMouseEnter={() => appWindows.length > 1 && openHoverPreview(appId)}
+                onMouseLeave={() => scheduleHoverClose()}
                 aria-label={app.title}
-                title={app.title}
+                title={appWindows.length <= 1 ? app.title : undefined}
               >
                 <IconTile name={app.icon as IconName} size={26} glyphScale={0.62} />
                 {isOpen && <span className="taskbar-dot" />}
+                {appWindows.length > 1 && hoverAppId === appId && (
+                  <div
+                    className="taskbar-window-preview"
+                    onMouseEnter={() => openHoverPreview(appId)}
+                    onMouseLeave={() => scheduleHoverClose()}
+                  >
+                    <div className="taskbar-window-preview-title">{app.title}</div>
+                    {appWindows.map((w) => (
+                      <button
+                        key={w.windowId}
+                        className="taskbar-window-preview-item"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setHoverAppId(null);
+                          if (w.isMinimized) restoreWindow(w.windowId);
+                          else focusWindow(w.windowId);
+                        }}
+                      >
+                        {w.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </button>
             );
           })}

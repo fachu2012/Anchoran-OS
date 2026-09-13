@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ContextMenu, type ContextMenuEntry } from "@/desktop/ContextMenu";
 import { persistGet, persistSet } from "@/core/persist";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { usePreferencesStore } from "@/theme/preferencesStore";
@@ -9,6 +10,7 @@ import { APP_LIST } from "@/applications/registry";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { ANCHORAN_VERSION } from "@/core/version";
 import { getAppUptimeSeconds } from "@/core/appUptime";
+import { useNotificationStore } from "@/notifications/notificationStore";
 import type { AppId } from "@/core/types";
 import "@/applications/apps.css";
 
@@ -18,6 +20,23 @@ interface HistoryEntry {
 }
 
 let entryId = 0;
+
+// Every command name the switch below actually handles, plus "alias" —
+// kept as a flat, manually-maintained list rather than derived from
+// the switch at runtime, matching how the `help` text above is also
+// hand-maintained. Used for Tab-completing a command name itself
+// (completeTab() below already handled completing an argument's file
+// path; this is the "no space typed yet" half of the same feature).
+const KNOWN_COMMANDS = [
+  "about", "accent", "alias", "anchoran", "backup", "cat", "cd", "clear", "clearcache",
+  "closewindow", "copy", "cp", "crashinfo", "date", "del", "deleteallfiles", "delprofile",
+  "df", "du", "echo", "emptyrecyclebin", "exit", "exportlogs", "find", "forcequit", "format",
+  "get", "help", "history", "killall", "killexplorer", "listprofiles", "listwindows", "logs",
+  "ls", "mkdir", "move", "mv", "myip", "netcheck", "ping", "ps", "pslist", "pwd", "regquery",
+  "resetlayout", "resetpin", "restart", "restartexplorer", "restore", "rm", "scale", "set",
+  "shutdown", "sleep", "startup", "sysinfo", "system", "systemmode", "taskkill", "theme",
+  "touch", "unset", "uptime", "wallpaper", "whoami", "wipe",
+];
 
 // "C:\Users" -> "C:\" (kept with its trailing backslash — a bare
 // "C:" means "current directory on C:" to Windows, not the drive
@@ -117,6 +136,7 @@ export function TerminalConsole({
     });
   }, []);
   const [historyCursor, setHistoryCursor] = useState<number | null>(null);
+  const [terminalMenu, setTerminalMenu] = useState<{ x: number; y: number } | null>(null);
 
   const openApp = useWindowStore((s) => s.openApp);
   const windows = useWindowStore((s) => s.windows);
@@ -165,6 +185,25 @@ export function TerminalConsole({
     const t = setTimeout(() => inputRef.current?.focus(), 250);
     return () => clearTimeout(t);
   }, [isFocusedWindow]);
+
+  // An Administrator Terminal that's been elevated and then forgotten
+  // about is a real risk — auto-closes itself (de-elevating) after 10
+  // minutes with no typing, the same idea as a real OS expiring an
+  // elevated session rather than leaving it open indefinitely.
+  const ADMIN_IDLE_TIMEOUT_MS = 10 * 60_000;
+  useEffect(() => {
+    if (!isAdmin || !windowId) return;
+    const timer = setTimeout(() => {
+      useNotificationStore
+        .getState()
+        .push("Administrator session expired", "The elevated Terminal was idle for 10 minutes and has been closed.");
+      closeWindow(windowId);
+    }, ADMIN_IDLE_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+    // Re-armed on every keystroke (`input` changes) and every command
+    // run (`history` changes) — either counts as activity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, windowId, input, history]);
 
   function print(text: string) {
     progressLineId.current = null;
@@ -224,8 +263,26 @@ export function TerminalConsole({
   }, []);
 
   async function completeTab() {
-    if (!window.anchoran) return;
     const lastSpace = input.lastIndexOf(" ");
+
+    // No space yet — completing the command name itself, against both
+    // the built-in commands and any alias the user has defined.
+    if (lastSpace === -1) {
+      const prefix = input.toLowerCase();
+      if (!prefix) return;
+      const candidates = Array.from(new Set([...KNOWN_COMMANDS, ...Object.keys(aliases.current)]))
+        .filter((c) => c.startsWith(prefix))
+        .sort();
+      if (candidates.length === 0) return;
+      if (candidates.length === 1) {
+        setInput(`${candidates[0]} `);
+      } else {
+        print(candidates.join("  "));
+      }
+      return;
+    }
+
+    if (!window.anchoran) return;
     const partial = input.slice(lastSpace + 1);
     const lastSlash = Math.max(partial.lastIndexOf("\\"), partial.lastIndexOf("/"));
     const dirPart = lastSlash >= 0 ? partial.slice(0, lastSlash) : "";
@@ -1034,6 +1091,10 @@ export function TerminalConsole({
         if (window.getSelection()?.toString()) return;
         inputRef.current?.focus();
       }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setTerminalMenu({ x: e.clientX, y: e.clientY });
+      }}
     >
       {history.map((entry) => (
         <div key={entry.id} className="terminal-line" data-kind={lineKind(entry.text)}>
@@ -1088,6 +1149,44 @@ export function TerminalConsole({
           }}
         />
       </div>
+
+      {terminalMenu && (
+        <ContextMenu
+          x={terminalMenu.x}
+          y={terminalMenu.y}
+          items={terminalContextItems()}
+          onClose={() => setTerminalMenu(null)}
+        />
+      )}
     </div>
   );
+
+  function terminalContextItems(): ContextMenuEntry[] {
+    const hasSelection = !!window.getSelection()?.toString();
+    return [
+      {
+        label: "Copy",
+        disabled: !hasSelection,
+        onSelect: () => {
+          const text = window.getSelection()?.toString();
+          if (text) navigator.clipboard?.writeText(text).catch(() => {});
+        },
+      },
+      {
+        label: "Paste",
+        onSelect: () => {
+          navigator.clipboard
+            ?.readText()
+            .then((text) => {
+              if (!text) return;
+              setInput((current) => current + text);
+              inputRef.current?.focus();
+            })
+            .catch(() => {});
+        },
+      },
+      { separator: true },
+      { label: "Clear", onSelect: () => setHistory([]) },
+    ];
+  }
 }

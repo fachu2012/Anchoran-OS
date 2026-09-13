@@ -82,6 +82,11 @@
   }
 }
 
+.wm-window {
+  --wm-min-dx: 0px;
+  --wm-min-dy: 46vh;
+}
+
 @keyframes wm-minimize {
   from {
     opacity: 1;
@@ -89,7 +94,7 @@
   }
   to {
     opacity: 0;
-    transform: scale(0.75) translateY(46vh);
+    transform: translate(var(--wm-min-dx), var(--wm-min-dy)) scale(0.08);
   }
 }
 

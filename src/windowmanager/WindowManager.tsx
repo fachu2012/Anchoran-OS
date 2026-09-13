@@ -138,11 +138,15 @@ function AppLoadingFallback() {
 
 export function WindowManager() {
   const windows = useWindowStore((s) => s.windows);
+  const activeDesktopId = useWindowStore((s) => s.activeDesktopId);
   const snapPreview = useWindowStore((s) => s.snapPreview);
+  // Only the active virtual desktop's windows are actually shown —
+  // same principle as a minimized window not being rendered either.
+  const visibleWindows = windows.filter((w) => w.desktopId === activeDesktopId);
 
   return (
     <div className="wm-layer">
-      {windows.map((win) => {
+      {visibleWindows.map((win) => {
         const AppComponent = APP_COMPONENTS[win.appId];
         return (
           <WindowFrame key={win.windowId} win={win}>

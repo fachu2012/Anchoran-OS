@@ -31,6 +31,8 @@ export interface AnchoranWindow {
   embedPath?: string;
   /** Keeps this window rendered above every non-pinned window regardless of focus order — a small utility window (Calculator, Clock) staying visible over a maximized one. */
   alwaysOnTop?: boolean;
+  /** Which virtual desktop this window lives on — see desktops/activeDesktopId below. */
+  desktopId: string;
 }
 
 export interface OpenAppOptions {
@@ -44,6 +46,21 @@ export interface OpenAppOptions {
 type RememberedBoundsMap = Partial<Record<AppId, Bounds>>;
 
 const REMEMBERED_BOUNDS_KEY = "windowBounds";
+const SAVED_LAYOUTS_KEY = "windowLayouts";
+const DESKTOPS_KEY = "virtualDesktops";
+const DEFAULT_DESKTOP_ID = "1";
+
+/** One window's shape within a named, saved layout — just enough to reopen it in the same place, not a full window snapshot (no file/content state). */
+export interface SavedLayoutWindow {
+  appId: AppId;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isMaximized: boolean;
+}
+
+export type SavedLayoutsMap = Record<string, SavedLayoutWindow[]>;
 
 interface WindowManagerState {
   windows: AnchoranWindow[];
@@ -56,8 +73,18 @@ interface WindowManagerState {
   focusMode: boolean;
   setFocusMode: (on: boolean) => void;
 
+  /** Virtual desktops — each open window belongs to exactly one; only the active desktop's windows (and the taskbar entries for them) are shown. */
+  desktops: string[];
+  activeDesktopId: string;
+  addDesktop: () => void;
+  removeDesktop: (id: string) => void;
+  switchDesktop: (id: string) => void;
+  moveWindowToDesktop: (windowId: string, desktopId: string) => void;
+
   openApp: (appId: AppId, options?: OpenAppOptions) => string;
   closeWindow: (windowId: string) => void;
+  /** Closes every open window at once — used by "Sign out" (see PowerMenu.tsx), which ends every profile's session without shutting Anchoran down. */
+  closeAllWindows: () => void;
   focusWindow: (windowId: string) => void;
   minimizeWindow: (windowId: string) => void;
   restoreWindow: (windowId: string) => void;
@@ -70,6 +97,12 @@ interface WindowManagerState {
   /** Forgets every app's remembered window position/size — the next time each one opens, it starts at the default cascade spot again. */
   resetWindowLayout: () => void;
   toggleAlwaysOnTop: (windowId: string) => void;
+
+  /** Named layouts you can save the current arrangement of open windows as, and jump back to later — opens (or moves, if already open) each app to the saved spot. */
+  savedLayouts: SavedLayoutsMap;
+  saveLayout: (name: string) => void;
+  restoreLayout: (name: string) => void;
+  deleteLayout: (name: string) => void;
 }
 
 let windowCounter = 0;
@@ -101,6 +134,9 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
   focusMode: false,
   setFocusMode: (on) => set({ focusMode: on }),
 
+  desktops: [DEFAULT_DESKTOP_ID],
+  activeDesktopId: DEFAULT_DESKTOP_ID,
+
   openApp: (appId, options) => {
     // Some "apps" launch a real external Windows tool instead of
     // opening an Anchoran window — Recycle Bin, On-Screen Keyboard and
@@ -127,6 +163,11 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
     if (!def.allowMultipleInstances) {
       const existing = state.windows.find((w) => w.appId === appId);
       if (existing) {
+        // Jumping to an app already open on another virtual desktop
+        // switches you there — the same "bring the desktop with it"
+        // behavior a real OS has, rather than focusing a window you
+        // can't actually see.
+        if (existing.desktopId !== state.activeDesktopId) set({ activeDesktopId: existing.desktopId });
         get().focusWindow(existing.windowId);
         if (existing.isMinimized || options?.openPath) {
           set((s) => ({
@@ -161,6 +202,7 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
       openPath: options?.openPath,
       startAdmin: options?.startAdmin,
       embedPath: options?.embedPath,
+      desktopId: state.activeDesktopId,
     };
 
     set((s) => ({
@@ -190,6 +232,10 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
           : s.rememberedBounds;
       return { windows, focusedWindowId, rememberedBounds };
     });
+  },
+
+  closeAllWindows: () => {
+    set({ windows: [], focusedWindowId: null });
   },
 
   focusWindow: (windowId) => {
@@ -291,7 +337,90 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
       ),
     }));
   },
+
+  savedLayouts: {},
+
+  saveLayout: (name) => {
+    const snapshot: SavedLayoutWindow[] = get().windows.map((w) => ({
+      appId: w.appId,
+      x: w.x,
+      y: w.y,
+      width: w.width,
+      height: w.height,
+      isMaximized: w.isMaximized,
+    }));
+    const savedLayouts = { ...get().savedLayouts, [name]: snapshot };
+    set({ savedLayouts });
+    persistSet("config", SAVED_LAYOUTS_KEY, savedLayouts);
+  },
+
+  restoreLayout: (name) => {
+    const layout = get().savedLayouts[name];
+    if (!layout) return;
+    for (const saved of layout) {
+      const existing = get().windows.find((w) => w.appId === saved.appId);
+      if (existing) {
+        get().setBounds(existing.windowId, { x: saved.x, y: saved.y, width: saved.width, height: saved.height });
+        if (saved.isMaximized) get().toggleMaximize(existing.windowId);
+      } else {
+        const windowId = get().openApp(saved.appId);
+        if (windowId) {
+          get().setBounds(windowId, { x: saved.x, y: saved.y, width: saved.width, height: saved.height });
+          if (saved.isMaximized) get().toggleMaximize(windowId);
+        }
+      }
+    }
+  },
+
+  deleteLayout: (name) => {
+    const savedLayouts = { ...get().savedLayouts };
+    delete savedLayouts[name];
+    set({ savedLayouts });
+    persistSet("config", SAVED_LAYOUTS_KEY, savedLayouts);
+  },
+
+  addDesktop: () => {
+    const s = get();
+    let n = s.desktops.length + 1;
+    while (s.desktops.includes(String(n))) n++;
+    const id = String(n);
+    const desktops = [...s.desktops, id];
+    set({ desktops, activeDesktopId: id });
+    persistSet("config", DESKTOPS_KEY, desktops);
+  },
+
+  removeDesktop: (id) => {
+    const s = get();
+    if (s.desktops.length <= 1) return;
+    const desktops = s.desktops.filter((d) => d !== id);
+    const fallback = desktops[0];
+    // Windows left on a removed desktop move to the desktop before it
+    // in the list (or the first one) rather than vanishing.
+    const windows = s.windows.map((w) => (w.desktopId === id ? { ...w, desktopId: fallback } : w));
+    const activeDesktopId = s.activeDesktopId === id ? fallback : s.activeDesktopId;
+    set({ desktops, windows, activeDesktopId });
+    persistSet("config", DESKTOPS_KEY, desktops);
+  },
+
+  switchDesktop: (id) => {
+    if (!get().desktops.includes(id)) return;
+    set({ activeDesktopId: id });
+  },
+
+  moveWindowToDesktop: (windowId, desktopId) => {
+    set((s) => ({
+      windows: s.windows.map((w) => (w.windowId === windowId ? { ...w, desktopId } : w)),
+    }));
+  },
 }));
+
+persistGet<SavedLayoutsMap>("config", SAVED_LAYOUTS_KEY, {}).then((savedLayouts) => {
+  useWindowStore.setState({ savedLayouts });
+});
+
+persistGet<string[]>("config", DESKTOPS_KEY, [DEFAULT_DESKTOP_ID]).then((desktops) => {
+  if (desktops.length > 0) useWindowStore.setState({ desktops });
+});
 
 persistGet<RememberedBoundsMap>("config", REMEMBERED_BOUNDS_KEY, {}).then((loaded) => {
   useWindowStore.setState({ rememberedBounds: loaded });

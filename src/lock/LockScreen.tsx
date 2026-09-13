@@ -14,6 +14,8 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const profiles = useProfilesStore((s) => s.profiles);
   const activeProfileId = useProfilesStore((s) => s.activeProfileId);
   const switchProfile = useProfilesStore((s) => s.switchProfile);
+  const createGuestProfile = useProfilesStore((s) => s.createGuestProfile);
+  const deleteProfile = useProfilesStore((s) => s.deleteProfile);
   const [now] = useState(new Date());
   const [unlocking, setUnlocking] = useState(false);
   const [pinPromptOpen, setPinPromptOpen] = useState(false);
@@ -30,9 +32,18 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
 
   function selectProfile(id: string) {
     if (id === activeProfileId) return;
+    // Leaving a guest session for good deletes it right here, instead
+    // of leaving a growing pile of throwaway "Guest" profiles around.
+    const outgoing = profiles.find((p) => p.id === activeProfileId);
     switchProfile(id);
+    if (outgoing?.isGuest) deleteProfile(outgoing.id);
     setPinPromptOpen(false);
     setPinInput("");
+  }
+
+  function continueAsGuest() {
+    createGuestProfile();
+    requestUnlock();
   }
 
   function wake() {
@@ -160,6 +171,27 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
           />
         )}
         <div style={{ fontSize: 14, marginTop: 6 }}>{username}</div>
+
+        {!pinPromptOpen && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              continueAsGuest();
+            }}
+            style={{
+              marginTop: 14,
+              padding: "6px 14px",
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.3)",
+              background: "rgba(255,255,255,0.08)",
+              color: "#fff",
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+          >
+            Continue as Guest
+          </button>
+        )}
 
         {!pinPromptOpen ? (
           <div style={{ fontSize: 12, opacity: 0.7, marginTop: 40 }}>

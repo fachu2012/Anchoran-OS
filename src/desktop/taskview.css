@@ -129,3 +129,72 @@
   background: #E5484D;
   color: #fff;
 }
+
+.taskview-layouts {
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--anchoran-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.taskview-layouts-save {
+  display: flex;
+  gap: 8px;
+}
+
+.taskview-layouts-save input {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-sm);
+  background: var(--anchoran-surface);
+  color: var(--anchoran-text-primary);
+  font-size: 12.5px;
+}
+
+.taskview-layouts-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.taskview-layout-chip {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--anchoran-border);
+  border-radius: var(--anchoran-radius-sm);
+  overflow: hidden;
+}
+
+.taskview-layout-chip button:first-child {
+  padding: 6px 10px;
+  border: none;
+  background: var(--anchoran-surface);
+  color: var(--anchoran-text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.taskview-layout-chip button:first-child:hover {
+  background: var(--anchoran-accent-soft);
+  color: var(--anchoran-accent);
+}
+
+.taskview-layout-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  align-self: stretch;
+  border: none;
+  border-left: 1px solid var(--anchoran-border);
+  background: transparent;
+  color: var(--anchoran-text-secondary);
+  cursor: pointer;
+}
+
+.taskview-layout-delete:hover {
+  background: #E5484D;
+  color: #fff;
+}
