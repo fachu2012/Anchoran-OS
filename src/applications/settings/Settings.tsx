@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { usePreferencesStore, DEFAULT_PREFERENCES } from "@/theme/preferencesStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { ANCHORAN_VERSION } from "@/core/version";
+import { ANCHORAN_DISPLAY_VERSION, buildNumberFor } from "@/core/buildNumber";
 import { WALLPAPERS, getWallpaper } from "@/desktop/wallpapers";
 import { playNotificationSound } from "@/core/sound";
 import { useUpdateHistoryStore } from "@/core/updateHistory";
@@ -1401,7 +1402,7 @@ function SystemSection() {
   return (
     <>
       <p style={{ color: "var(--anchoran-text-secondary)", fontSize: 12.5 }}>
-        Anchoran OS {ANCHORAN_VERSION} — running as a shell application on top of Windows.
+        Anchoran OS — {ANCHORAN_DISPLAY_VERSION} — running as a shell application on top of Windows.
       </p>
       {info && (
         <>
@@ -1541,8 +1542,17 @@ function AboutSection() {
         setReleaseNotes(`No changelog entry found for v${ANCHORAN_VERSION}.`);
         return;
       }
-      const nextHeading = text.indexOf("\n## [", start + marker.length);
-      setReleaseNotes(text.slice(start, nextHeading === -1 ? undefined : nextHeading).trim());
+      // Insider Preview Updates can chain (2.9.9-IPU, 3.0.0-IPU, …) with
+      // no stable release cut in between — a device that jumped straight
+      // from its last real version to this one, skipping every I.P.U.
+      // along the way, should still see everything that changed, not
+      // just this version's own section. useUpdateHistoryStore records
+      // exactly what this device was actually running before, so that's
+      // the real lower bound — not just "the previous version number".
+      const fromVersion = useUpdateHistoryStore.getState().history[0]?.fromVersion ?? null;
+      const endMarker = fromVersion ? `## [${fromVersion}]` : null;
+      const end = endMarker ? text.indexOf(endMarker, start + marker.length) : -1;
+      setReleaseNotes(text.slice(start, end === -1 ? undefined : end).trim());
     } catch {
       setReleaseNotes("Couldn't reach GitHub to fetch the release notes.");
     } finally {
@@ -1587,12 +1597,12 @@ function AboutSection() {
     window.anchoran?.onUpdateStatus((status) => {
       if (status.state === "checking") setUpdateStatus("Checking for updates…");
       else if (status.state === "available") {
-        setUpdateStatus(`Update available: v${status.version}. Downloading…`);
+        setUpdateStatus(`Update available: Build ${buildNumberFor(status.version)}. Downloading…`);
         fetchUpdateInfo(status.version).then((info) => setUpdateLabel(info?.label ?? null));
       } else if (status.state === "not-available") setUpdateStatus("Anchoran OS is up to date.");
       else if (status.state === "downloading") setUpdateStatus(`Downloading… ${status.percent}%`);
       else if (status.state === "downloaded") {
-        setUpdateStatus(`Update v${status.version} ready to install.`);
+        setUpdateStatus(`Update Build ${buildNumberFor(status.version)} ready to install.`);
         setDownloadedVersion(status.version);
         fetchUpdateInfo(status.version).then((info) => setUpdateLabel(info?.label ?? null));
       } else if (status.state === "error") setUpdateStatus(`Couldn't check for updates: ${status.message}`);
@@ -1603,7 +1613,7 @@ function AboutSection() {
     <div>
       <AnchoranLogo size={56} color="var(--anchoran-accent)" style={{ marginBottom: 14 }} />
       <h2 style={{ margin: "0 0 4px", fontWeight: 500 }}>Anchoran OS</h2>
-      <p style={{ color: "var(--anchoran-text-secondary)", marginTop: 0 }}>Version {ANCHORAN_VERSION}</p>
+      <p style={{ color: "var(--anchoran-text-secondary)", marginTop: 0 }}>{ANCHORAN_DISPLAY_VERSION}</p>
       <div style={{ display: "flex", gap: 8 }}>
         <button
           className="app-toolbar-btn"
@@ -1625,7 +1635,7 @@ function AboutSection() {
               window.dispatchEvent(new CustomEvent("anchoran-request-update-theater", { detail: downloadedVersion }))
             }
           >
-            Restart & install v{downloadedVersion}
+            Restart & install Build {buildNumberFor(downloadedVersion)}
           </button>
         )}
         <button className="app-toolbar-btn" onClick={() => setDiagnosticsPicker(true)}>

@@ -63,33 +63,53 @@ Anchoran uses strict [SemVer](https://semver.org/): `MAJOR.MINOR.PATCH`,
 starting at `1.0.0`. The **only** file to hand-edit is `/version.json`.
 `npm run sync-version` (run automatically before `dev`/`build`) propagates it
 into both `package.json` and `installer/package.json`, which `electron-builder`
-reads to stamp the version onto the built executables. The same value is read
-at runtime by `src/core/version.ts` and shown in Settings → About, the boot
-screen, and the `anchoran version` terminal command. Update `CHANGELOG.md`
-alongside every version bump, including a `**Update type:**` line right under
-the new heading (`security` / `critical` / `stability` / `feature` /
-`performance` / `maintenance` — see `src/core/updateInfo.ts`), which
-`scripts/generate-update-info.cjs` turns into the `update-info.json` release
-asset the updater reads to label what kind of update it is.
+reads to stamp the version onto the built executables. This real SemVer value
+is what every technical thing keys off forever — git tags, download URLs, the
+update mechanism's own version comparisons, and `anchoran changeto`/`anchoran
+version` in the Terminal. Update `CHANGELOG.md` alongside every version bump,
+including a `**Update type:**` line right under the new heading (`security` /
+`critical` / `stability` / `feature` / `performance` / `maintenance` — see
+`src/core/updateInfo.ts`), which `scripts/generate-update-info.cjs` turns into
+the `update-info.json` release asset the updater reads to label what kind of
+update it is.
 
-Every version ships in two stages, both from `version.json` left at the
-same plain version number (e.g. `2.9.9`) throughout:
+**Display convention, starting at v3.0.0**: everywhere a *person* reads
+Anchoran's version — the boot screen, Settings → About, Anchover, taskbar
+update tooltips, the App Center, GitHub release titles — shows "Version
+{major} | Build {major}H{minor}.{patch}" (e.g. "Version 3 | Build 3H0.1")
+instead of the plain dotted number, built by `src/core/buildNumber.ts` from
+the real version. `v3.0.0` is the very last GitHub release named in the old
+`vX.Y.Z` style; every release after it uses the new naming there too. This
+is purely cosmetic — nothing that actually matches versions (tags, latest.yml,
+`anchoran changeto`) ever looks at a release's display name, so the switch
+doesn't affect update compatibility for devices on either side of it.
 
-1. **Insider Preview Update (I.P.U.)** — tag `v2.9.9-IPU`. A respin of the
-   same version (a bug found and fixed before the stable cut) bumps
-   `version.json` forward instead of reusing the tag — tags are never
-   deleted/recreated, see the versioning rules above. The release workflow
-   ships this as a GitHub *prerelease* named `v2.9.9-IPU`; `electron-updater`'s
+Releases ship through an **Insider Preview Update (I.P.U.)** stage before
+becoming stable — and unlike a single "beta of this one version", an I.P.U.
+streak can chain across several version bumps in a row, with **no stable
+release cut until everything queued for that streak is actually ready**:
+
+1. **Insider Preview Update(s)** — tag `vX.Y.Z-IPU`. `electron-updater`'s
    `allowPrerelease` (toggled by Settings → About → "Insider Preview
-   updates") means only devices opted into that offer it automatically.
-2. **Stable release** — once the I.P.U. build is confirmed bug-free, tag
-   the exact same version plainly (`v2.9.9`, no `-IPU` suffix). This ships
-   as a normal release and becomes the repo's Latest, available to
+   updates") means only devices opted into that ever see these offered
+   automatically; the release workflow ships each one as a GitHub
+   *prerelease*, named `vX.Y.Z I.P.U.` for `v3.0.0` itself or "Version #
+   | Build #H#.# I.P.U." for anything after it (see the display convention
+   above). The next change, however small, bumps `version.json` forward
+   and tags again as `-IPU` — there's no `.1`/`.2` respin numbering, and
+   tags are never deleted/recreated (see the versioning rules above) —
+   for as long as more is still queued to add before this goes out to
    everyone.
+2. **Stable release** — once satisfied, tag the current version plainly
+   (`vX.Y.Z`, no `-IPU` suffix). This becomes the repo's Latest, available
+   to everyone. Its release notes (and the in-app "What's new" panel, for
+   anyone who updates straight from the last stable release) automatically
+   cover *every* version in the I.P.U. streak that preceded it, not just
+   this last one — see the "Determine previous stable version" step in
+   `.github/workflows/release.yml`.
 
-See the "Determine release channel" step in
-`.github/workflows/release.yml` for how a tag's `-IPU` suffix changes the
-release's name/prerelease flag.
+See the "Determine release channel" step in `.github/workflows/release.yml`
+for how a tag's `-IPU` suffix changes the release's name/prerelease flag.
 
 ## Development
 

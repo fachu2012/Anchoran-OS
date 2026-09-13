@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ANCHORAN_VERSION } from "@/core/version";
+import { ANCHORAN_BUILD_NUMBER } from "@/core/buildNumber";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { APP_REGISTRY } from "@/applications/registry";
 import { Icon, type IconName } from "@/components/Icon";
@@ -207,7 +207,7 @@ export function SystemMonitorApp() {
           <div className="sysmon-grid">
             <div className="sysmon-card">
               <div className="sysmon-card-label">Anchoran Version</div>
-              <div className="sysmon-card-value">{ANCHORAN_VERSION}</div>
+              <div className="sysmon-card-value">{ANCHORAN_BUILD_NUMBER}</div>
             </div>
             <div className="sysmon-card">
               <div className="sysmon-card-label">Processor</div>

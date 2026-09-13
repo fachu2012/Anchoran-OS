@@ -5,6 +5,38 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.0.0] - 2026-09-13
+
+**Update type:** feature
+
+### Added
+- Anchover now shows an "Insider Preview build" badge when the
+  specific binary running was built from an I.P.U. tag — a real
+  build-time marker (`src/core/buildChannel.json`, baked in by the
+  release workflow), not something derived from the version number,
+  since an I.P.U. build and its later stable release of the same
+  version deliberately share the same version number.
+- Release notes — both the GitHub release body and the in-app "What's
+  new" panel — now cover every version in an Insider Preview Update
+  streak, not just the one being installed right now. I.P.U.s can
+  chain across several version bumps with no stable release cut in
+  between (see the README's versioning section); anyone who updates
+  straight from the last real stable release, skipping every I.P.U.
+  along the way, still sees everything that changed.
+
+### Changed
+- **New versioning display convention, starting with this release**:
+  everywhere a person reads Anchoran's version — the boot screen,
+  Settings → About, Anchover, taskbar update tooltips, the App Center —
+  now shows "Version {major} | Build {major}H{minor}.{patch}" (e.g.
+  "Version 3 | Build 3H0.0") instead of the plain dotted version
+  number. `v3.0.0` is the very last release named in the old style on
+  GitHub; every release after it uses the new naming there too. This
+  is purely a display change — git tags, `version.json`, download
+  URLs, and every Terminal command that matches a real release
+  (`anchoran changeto`, `anchoran version`) all keep using real SemVer
+  forever, so the update mechanism itself is unaffected either way.
+
 ## [2.9.9] - 2026-09-13
 
 **Update type:** feature

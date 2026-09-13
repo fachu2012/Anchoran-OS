@@ -9,6 +9,7 @@ import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import { APP_LIST } from "@/applications/registry";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { ANCHORAN_VERSION } from "@/core/version";
+import { buildNumberFor } from "@/core/buildNumber";
 import { getAppUptimeSeconds } from "@/core/appUptime";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import type { AppId } from "@/core/types";
@@ -643,10 +644,19 @@ export function TerminalConsole({
             const installable = data
               .filter((r) => !r.draft && !r.prerelease && typeof r.body === "string" && !r.body.includes("installation option has been disabled"))
               .map((r) => r.tag_name.replace(/^v/i, ""));
+            // Every release, old-style "vX.Y.Z" naming or the current
+            // "Version # | Build #H#.#" naming, is still tagged with a
+            // real, permanent semver version underneath (tag_name here)
+            // — the naming style only ever changed the release's
+            // cosmetic display title, never the tag itself, so matching
+            // and installing by version number works identically for
+            // every release regardless of which style it shipped under.
             if (!subArgs[0]) {
               print(
                 installable.length > 0
-                  ? installable.map((v) => `  ${v}${v === ANCHORAN_VERSION ? " (current)" : ""}`).join("\n")
+                  ? installable
+                      .map((v) => `  v${v} (Build ${buildNumberFor(v)})${v === ANCHORAN_VERSION ? " (current)" : ""}`)
+                      .join("\n")
                   : "Couldn't fetch the release list."
               );
             } else {
@@ -657,7 +667,7 @@ export function TerminalConsole({
                 print(`anchoran changeto: v${target} is already the version running.`);
               } else {
                 pendingChangeTo.current = target;
-                print(`Change to v${target}? Anchoran will close and reopen on that version. [y/n]`);
+                print(`Change to v${target} (Build ${buildNumberFor(target)})? Anchoran will close and reopen on that version. [y/n]`);
               }
             }
           } catch {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ANCHORAN_VERSION } from "@/core/version";
+import { ANCHORAN_MAJOR_VERSION, ANCHORAN_BUILD_NUMBER, buildNumberFor } from "@/core/buildNumber";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 
@@ -145,7 +145,7 @@ function StandardBoot({ onDone }: { onDone: () => void }) {
           letterSpacing: 1,
         }}
       >
-        v{ANCHORAN_VERSION}
+        Version {ANCHORAN_MAJOR_VERSION} | Build {ANCHORAN_BUILD_NUMBER}
       </div>
     </div>
   );
@@ -188,7 +188,10 @@ function FinishingUpdateBoot({ version, onDone }: { version: string; onDone: () 
     return () => timers.forEach(clearTimeout);
   }, [onDone]);
 
-  const label = phraseIndex === -1 ? `Finishing update to v${version}…` : FINISHING_PHRASES[phraseIndex];
+  const label =
+    phraseIndex === -1
+      ? `Finishing update to Build ${buildNumberFor(version)}…`
+      : FINISHING_PHRASES[phraseIndex];
 
   return (
     <div

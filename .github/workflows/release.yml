@@ -42,20 +42,58 @@ jobs:
           if echo "$VERSION" | grep -qi -- '-ipu'; then
             IS_IPU=true
             BASE_VERSION=$(echo "$VERSION" | sed -E 's/-[Ii][Pp][Uu].*$//')
-            # The git tag itself stays dot-free (v2.9.9-IPU — a ref can't
-            # end in a literal "."), but the release's own display name
-            # isn't a ref, so it spells the abbreviation out properly,
-            # space-separated: "v2.9.9 I.P.U.".
-            RELEASE_NAME="v${BASE_VERSION} I.P.U."
           else
             IS_IPU=false
             BASE_VERSION="$VERSION"
-            RELEASE_NAME="v${VERSION}"
+          fi
+          # v3.0.0 is the very last release named in the old "vX.Y.Z"
+          # style — a device on a pre-3.0.0 client still recognizes it
+          # as the newest available release, since the update MECHANISM
+          # itself never actually reads this display name (electron-
+          # updater compares the real semver embedded in latest.yml,
+          # which every release — before or after this switch — always
+          # carries; this is purely a courtesy for anyone reading the
+          # Releases page by eye). Every release after 3.0.0 uses the
+          # new "Version # | Build #H#.#" naming instead.
+          if [ "$BASE_VERSION" = "3.0.0" ]; then
+            if [ "$IS_IPU" = "true" ]; then
+              RELEASE_NAME="v${BASE_VERSION} I.P.U."
+            else
+              RELEASE_NAME="v${BASE_VERSION}"
+            fi
+          else
+            MAJOR=$(echo "$BASE_VERSION" | cut -d. -f1)
+            MINOR=$(echo "$BASE_VERSION" | cut -d. -f2)
+            PATCH=$(echo "$BASE_VERSION" | cut -d. -f3)
+            BUILD="${MAJOR}H${MINOR}.${PATCH}"
+            if [ "$IS_IPU" = "true" ]; then
+              RELEASE_NAME="Version ${MAJOR} | Build ${BUILD} I.P.U."
+            else
+              RELEASE_NAME="Version ${MAJOR} | Build ${BUILD}"
+            fi
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "base_version=$BASE_VERSION" >> "$GITHUB_OUTPUT"
           echo "is_ipu=$IS_IPU" >> "$GITHUB_OUTPUT"
           echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
+
+      # I.P.U. builds can chain: 2.9.9-IPU, 3.0.0-IPU, 3.0.1-IPU, …, each
+      # one superseding the last, with no stable release cut in between —
+      # until every change queued for that streak is actually ready. The
+      # repo's current "latest" release (GitHub's `/releases/latest` only
+      # ever returns a non-prerelease) is that streak's starting point:
+      # whichever version was last officially stable. The release
+      # description step below uses it to show everything added across
+      # the *whole* streak, not just this one version's own section —
+      # someone installing after several I.P.U.s shipped in a row
+      # shouldn't see only the last one's changes.
+      - name: Determine previous stable version
+        id: prev
+        shell: bash
+        run: |
+          PREV=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const j=JSON.parse(d);console.log(j.tag_name?j.tag_name.replace(/^v/,''):'');}catch(e){console.log('')}})")
+          echo "prev_version=$PREV" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
         with:
@@ -89,6 +127,18 @@ jobs:
       # run directly (see the next step), but it's what electron-updater
       # silently downloads later for in-place updates, and it's the
       # payload AnchoranSetup bundles for a first install.
+      # Bakes which channel THIS specific binary was built from into the
+      # bundle itself (src/core/buildChannel.json, committed as
+      # "stable") — the one thing Anchover shows that version.json alone
+      # can never answer, since an I.P.U. build and its later stable
+      # release of the same version deliberately share the same version
+      # number. See src/core/buildChannel.ts.
+      - name: Set build channel
+        if: steps.channel.outputs.is_ipu == 'true'
+        shell: bash
+        run: |
+          echo '{ "channel": "insider" }' > src/core/buildChannel.json
+
       - name: Build AnchoranOS installer
         run: |
           npm run sync-version
@@ -142,17 +192,22 @@ jobs:
             release/update-info.json
 
       # Builds the release description from CHANGELOG.md itself, so it
-      # never falls back to old boilerplate — pulls out this version's
-      # own section (everything between its "## [x.y.z]" heading and
-      # the next one) as the "Update summary". A release later found to
-      # be non-installable (a critical bug, or superseded by a required
-      # newer version) still gets its wording adjusted by hand — see
-      # the versioning rules in README.md — this is just the default.
+      # never falls back to old boilerplate — pulls out every version
+      # section from this release's own back through (but not including)
+      # the last stable release's — i.e. this version's own changes plus
+      # every I.P.U.-only version that shipped since the last real
+      # release, all of it, as one combined "Update summary". For the
+      # very first I.P.U. in a fresh streak that's just this one
+      # version's section, same as before. A release later found to be
+      # non-installable (a critical bug, or superseded by a required
+      # newer version) still gets its wording adjusted by hand — see the
+      # versioning rules in README.md — this is just the default.
       - name: Build release description
         shell: bash
         env:
           IS_IPU: ${{ steps.channel.outputs.is_ipu }}
           VERSION: ${{ steps.channel.outputs.base_version }}
+          PREV_VERSION: ${{ steps.prev.outputs.prev_version }}
         run: |
           {
             echo "**Anchoran OS** \`v$VERSION\` is available for installation and update."
@@ -163,11 +218,10 @@ jobs:
             fi
             echo "Update summary:"
             echo
-            awk -v ver="$VERSION" '
+            awk -v ver="$VERSION" -v prev="$PREV_VERSION" '
               /^## \[/ {
-                if (found) exit
-                if ($0 ~ ("\\[" ver "\\]")) { found = 1 }
-                next
+                if (prev != "" && index($0, "[" prev "]") > 0) exit
+                if (index($0, "[" ver "]") > 0) { found = 1 }
               }
               found { print }
             ' CHANGELOG.md

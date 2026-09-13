@@ -1,7 +1,8 @@
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { useProfilesStore } from "@/core/profilesStore";
-import { ANCHORAN_VERSION } from "@/core/version";
+import { ANCHORAN_MAJOR_VERSION, ANCHORAN_BUILD_NUMBER } from "@/core/buildNumber";
+import { BUILD_CHANNEL } from "@/core/buildChannel";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import "@/applications/apps.css";
 
@@ -17,8 +18,6 @@ export function AnchoverApp({ windowId }: { windowId?: string }) {
   const username = usePreferencesStore((s) => s.username);
   const owner = useProfilesStore((s) => s.profiles.find((p) => p.isOwner));
   const closeWindow = useWindowStore((s) => s.closeWindow);
-  const majorVersion = ANCHORAN_VERSION.split(".")[0];
-
   return (
     <div
       className="app-root"
@@ -32,10 +31,27 @@ export function AnchoverApp({ windowId }: { windowId?: string }) {
     >
       <AnchoranLogo size={52} color="var(--anchoran-accent)" />
       <div>
-        <div style={{ fontSize: 20, fontWeight: 600 }}>ANCHORAN OS {majorVersion}</div>
+        <div style={{ fontSize: 20, fontWeight: 600 }}>ANCHORAN OS {ANCHORAN_MAJOR_VERSION}</div>
         <div style={{ fontSize: 12.5, color: "var(--anchoran-text-secondary)", marginTop: 2 }}>Fachun Anchoran</div>
       </div>
-      <div style={{ fontSize: 12.5, color: "var(--anchoran-text-secondary)" }}>Version {ANCHORAN_VERSION}</div>
+      <div style={{ fontSize: 12.5, color: "var(--anchoran-text-secondary)" }}>
+        Version {ANCHORAN_MAJOR_VERSION} | Build {ANCHORAN_BUILD_NUMBER}
+      </div>
+      {BUILD_CHANNEL === "insider" && (
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 500,
+            letterSpacing: 0.3,
+            padding: "3px 10px",
+            borderRadius: 999,
+            background: "var(--anchoran-accent-soft)",
+            color: "var(--anchoran-accent)",
+          }}
+        >
+          Insider Preview build
+        </span>
+      )}
       <div
         style={{
           borderTop: "1px solid var(--anchoran-border)",

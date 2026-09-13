@@ -13,6 +13,7 @@ import { AdminPinPrompt } from "@/core/AdminPinPrompt";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { useUpdateAvailableStore } from "@/core/updateAvailableStore";
+import { buildNumberFor } from "@/core/buildNumber";
 import type { AppId } from "@/core/types";
 
 const DRAG_MIME = "application/x-anchoran-taskbar-app";
@@ -261,13 +262,13 @@ export function Taskbar({
             <button
               className="taskbar-btn"
               onClick={() => openApp("settings")}
-              aria-label={`Update ${updateStatus}${updateVersion ? `: v${updateVersion}` : ""}`}
+              aria-label={`Update ${updateStatus}${updateVersion ? `: Build ${buildNumberFor(updateVersion)}` : ""}`}
               title={
                 updateStatus === "downloaded"
-                  ? `Update v${updateVersion} ready — restart to install`
+                  ? `Update Build ${updateVersion ? buildNumberFor(updateVersion) : "?"} ready — restart to install`
                   : updateStatus === "downloading"
                     ? "Downloading update…"
-                    : `Update v${updateVersion} available`
+                    : `Update Build ${updateVersion ? buildNumberFor(updateVersion) : "?"} available`
               }
             >
               <Icon name="restart" size={15} style={{ color: "var(--anchoran-accent)" }} />
