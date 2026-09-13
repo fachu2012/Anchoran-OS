@@ -5,6 +5,34 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.9.1] - 2026-09-13
+
+**Critical fix — v2.9.0 could fail to start at all.** The encryption-
+at-rest migration added in v2.8.9 (#17) had a real bug: on a machine
+that still had a plaintext preferences/filesystem store from before
+that feature existed, `openEncryptedStore()` constructed a new,
+encryption-configured `Store` directly on top of the still-plaintext
+file. electron-store reads whatever's on disk immediately at
+construction time, so handing it an encryption key while the actual
+bytes underneath were plain JSON made it try to AES-decrypt plaintext
+— which reliably threw a `SyntaxError`, uncaught, before
+`createMainWindow()` ever ran. Since the migration marker is only
+written *after* that line, the exact same crash repeated on every
+single subsequent launch, with no way back in from inside the app.
+
+### Fixed
+- The plaintext file is now renamed out of the way *before* a Store
+  configured with the encryption key is ever constructed on that path,
+  removing the failure mode entirely. The original data is kept as
+  `<name>.json.pre-encryption-backup`, not deleted, in case anything
+  else about the migration ever needs re-checking.
+- Wrapped the whole encryption setup in `app.whenReady()` in a
+  try/catch that falls back to the plain (still fully functional)
+  stores on any unexpected error, instead of ever again being able to
+  block the app from starting over a preferences-file issue.
+- An already-migrated store that somehow still fails to open now logs
+  and starts fresh (backing up the bad file) instead of crashing too.
+
 ## [2.9.0] - 2026-09-13
 
 The final wave of the 94-item "what would you improve about the whole

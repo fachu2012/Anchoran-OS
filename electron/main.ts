@@ -78,20 +78,49 @@ function getOrCreateEncryptionKey(): string | null {
 }
 
 function openEncryptedStore(name: string, cwd: string, encryptionKey: string | undefined): Store {
+  const filePath = path.join(cwd, `${name}.json`);
   const markerFile = path.join(cwd, `.${name}.encrypted`);
-  if (encryptionKey && !fs.existsSync(markerFile)) {
-    let existing: Record<string, unknown> = {};
+
+  if (!encryptionKey) return new Store({ name, cwd });
+
+  if (fs.existsSync(markerFile)) {
+    // Already migrated in an earlier run — safe to open directly. Still
+    // never allowed to take the whole app down if this somehow fails
+    // anyway (a corrupted or hand-edited file, say): fall back to a
+    // fresh encrypted store rather than crashing on every single launch.
     try {
-      existing = new Store({ name, cwd }).store;
+      return new Store({ name, cwd, encryptionKey });
     } catch (err) {
-      logToDisk("encryption", `No existing plaintext store to migrate for "${name}": ${err}`);
+      logToDisk("encryption", `Could not open the encrypted "${name}" store despite being migrated already: ${err}. Starting fresh instead of crashing.`);
+      if (fs.existsSync(filePath)) fs.renameSync(filePath, `${filePath}.corrupt-${Date.now()}`);
+      return new Store({ name, cwd, encryptionKey });
     }
-    const store = new Store({ name, cwd, encryptionKey });
-    if (Object.keys(existing).length > 0) store.store = existing;
-    fs.writeFileSync(markerFile, "1");
-    return store;
   }
-  return new Store({ name, cwd, encryptionKey });
+
+  // First run with encryption: read any existing PLAINTEXT store first —
+  // safe, since no encryptionKey is passed here, so this step never tries
+  // to decrypt anything — then move that plaintext file out of the way
+  // *before* constructing a Store configured with encryptionKey on the
+  // same path. Skipping that move was the actual bug: electron-store's
+  // constructor reads whatever's already on disk immediately, so hitting
+  // it with an encryptionKey while the file underneath was still plain
+  // JSON made it try to AES-decrypt plaintext bytes — which reliably
+  // threw a SyntaxError, uncaught, crashing the whole app on every launch
+  // (the marker file is only ever written *after* this line, so the
+  // exact same crash repeated every single time, with no way back in).
+  let existing: Record<string, unknown> = {};
+  try {
+    existing = new Store({ name, cwd }).store;
+  } catch (err) {
+    logToDisk("encryption", `No existing plaintext store to migrate for "${name}": ${err}`);
+  }
+  if (fs.existsSync(filePath)) {
+    fs.renameSync(filePath, `${filePath}.pre-encryption-backup`);
+  }
+  const store = new Store({ name, cwd, encryptionKey });
+  if (Object.keys(existing).length > 0) store.store = existing;
+  fs.writeFileSync(markerFile, "1");
+  return store;
 }
 
 const logFile = path.join(logsDir, "anchoran.log");
@@ -1860,11 +1889,21 @@ ipcMain.handle("anchoran:embed-stop", (_event, windowId: string) => {
 });
 
 app.whenReady().then(() => {
-  const encryptionKey = getOrCreateEncryptionKey() ?? undefined;
-  configStore = openEncryptedStore("preferences", configDir, encryptionKey);
-  dataStore = openEncryptedStore("filesystem", dataDir, encryptionKey);
-  if (!encryptionKey) {
-    logToDisk("encryption", "safeStorage unavailable — preferences/filesystem stores stay unencrypted on disk.");
+  // Never let anything in here — encryption setup included — stop the
+  // app from actually reaching createMainWindow() below. A real
+  // incident already happened once: an uncaught error at this exact
+  // point, before a window ever opened, left Anchoran unable to start
+  // at all. Anything that goes wrong here now logs and falls back to
+  // the plain (still functional) placeholder stores instead.
+  try {
+    const encryptionKey = getOrCreateEncryptionKey() ?? undefined;
+    configStore = openEncryptedStore("preferences", configDir, encryptionKey);
+    dataStore = openEncryptedStore("filesystem", dataDir, encryptionKey);
+    if (!encryptionKey) {
+      logToDisk("encryption", "safeStorage unavailable — preferences/filesystem stores stay unencrypted on disk.");
+    }
+  } catch (err) {
+    logToDisk("encryption", `Setting up encrypted storage failed unexpectedly: ${err instanceof Error ? err.stack ?? err.message : String(err)}. Continuing with the unencrypted placeholder stores so Anchoran can still start.`);
   }
   autoUpdater.allowPrerelease = configStore.get("betaChannel", false) as boolean;
 
