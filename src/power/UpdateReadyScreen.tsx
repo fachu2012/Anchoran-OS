@@ -1,6 +1,7 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { usePreferencesStore } from "@/theme/preferencesStore";
+import { fetchUpdateInfo } from "@/core/updateInfo";
 
 const btnBase: CSSProperties = {
   padding: "9px 18px",
@@ -28,6 +29,17 @@ export function UpdateReadyScreen({
 }) {
   const accentColor = usePreferencesStore((s) => s.accentColor);
   const [confirming, setConfirming] = useState(false);
+  const [updateLabel, setUpdateLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchUpdateInfo(version).then((info) => {
+      if (!cancelled && info) setUpdateLabel(info.label);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [version]);
 
   return (
     <div
@@ -48,6 +60,21 @@ export function UpdateReadyScreen({
       <div style={{ color: "#F3F4F6", fontSize: 16, fontWeight: 300, letterSpacing: 0.4 }}>
         Anchoran OS {version} is ready to install
       </div>
+      {updateLabel && (
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 500,
+            letterSpacing: 0.3,
+            padding: "3px 10px",
+            borderRadius: 999,
+            background: `color-mix(in srgb, ${accentColor} 22%, transparent)`,
+            color: accentColor,
+          }}
+        >
+          {updateLabel}
+        </span>
+      )}
 
       {!confirming ? (
         <>

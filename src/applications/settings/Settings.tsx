@@ -18,6 +18,7 @@ import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import { APP_LIST, APP_REGISTRY } from "@/applications/registry";
 import type { AppId } from "@/core/types";
 import { AdminPinPrompt } from "@/core/AdminPinPrompt";
+import { fetchUpdateInfo } from "@/core/updateInfo";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 import { useDefaultAppsStore } from "@/core/defaultAppsStore";
@@ -1518,6 +1519,7 @@ function StartupAppsRow() {
 function AboutSection() {
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
   const [downloadedVersion, setDownloadedVersion] = useState<string | null>(null);
+  const [updateLabel, setUpdateLabel] = useState<string | null>(null);
   const [diagnosticsPicker, setDiagnosticsPicker] = useState(false);
   const [betaChannel, setBetaChannelState] = useState(false);
   const [releaseNotes, setReleaseNotes] = useState<string | null>(null);
@@ -1584,12 +1586,15 @@ function AboutSection() {
   useEffect(() => {
     window.anchoran?.onUpdateStatus((status) => {
       if (status.state === "checking") setUpdateStatus("Checking for updates…");
-      else if (status.state === "available") setUpdateStatus(`Update available: v${status.version}. Downloading…`);
-      else if (status.state === "not-available") setUpdateStatus("Anchoran OS is up to date.");
+      else if (status.state === "available") {
+        setUpdateStatus(`Update available: v${status.version}. Downloading…`);
+        fetchUpdateInfo(status.version).then((info) => setUpdateLabel(info?.label ?? null));
+      } else if (status.state === "not-available") setUpdateStatus("Anchoran OS is up to date.");
       else if (status.state === "downloading") setUpdateStatus(`Downloading… ${status.percent}%`);
       else if (status.state === "downloaded") {
         setUpdateStatus(`Update v${status.version} ready to install.`);
         setDownloadedVersion(status.version);
+        fetchUpdateInfo(status.version).then((info) => setUpdateLabel(info?.label ?? null));
       } else if (status.state === "error") setUpdateStatus(`Couldn't check for updates: ${status.message}`);
     });
   }, []);
@@ -1634,14 +1639,31 @@ function AboutSection() {
         <div>
           <div className="settings-row-label">Insider Preview updates</div>
           <div className="settings-row-desc">
-            Also install pre-release updates, not just full releases. There's nothing on the
-            Insider Preview channel yet — this just gets you the first one the moment it exists.
+            Get new updates earlier, before they ship to everyone — each one is tested here
+            first as an Insider Preview Update (I.P.U.) before it becomes a full release.
           </div>
         </div>
         <input type="checkbox" checked={betaChannel} onChange={(e) => toggleBetaChannel(e.target.checked)} />
       </div>
       {updateStatus && (
-        <p style={{ fontSize: 12, color: "var(--anchoran-text-secondary)", marginTop: 8 }}>{updateStatus}</p>
+        <p style={{ fontSize: 12, color: "var(--anchoran-text-secondary)", marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+          {updateStatus}
+          {updateLabel && (
+            <span
+              style={{
+                fontSize: 10.5,
+                fontWeight: 500,
+                letterSpacing: 0.3,
+                padding: "2px 8px",
+                borderRadius: 999,
+                background: "var(--anchoran-accent-soft)",
+                color: "var(--anchoran-accent)",
+              }}
+            >
+              {updateLabel}
+            </span>
+          )}
+        </p>
       )}
       <UpdateHistoryList />
       {diagnosticsPicker && (

@@ -1,7 +1,7 @@
 {
   "name": "anchoran-os",
   "productName": "Anchoran OS",
-  "version": "2.9.8",
+  "version": "2.9.9",
   "description": "Anchoran OS - an immersive desktop environment shell for Windows.",
   "author": "Anchoran",
   "private": true,
@@ -21,6 +21,7 @@
     "test": "vitest run",
     "prepare-installer-source": "node scripts/prepare-installer-source.cjs",
     "generate-webstore-registry": "node scripts/generate-webstore-registry.cjs",
+    "generate-update-info": "node scripts/generate-update-info.cjs",
     "dist:setup": "cd installer && npm install && npm run dist",
     "dist:full": "npm run dist && npm run prepare-installer-source && npm run dist:setup"
   },

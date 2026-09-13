@@ -5,6 +5,22 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.9.9] - 2026-09-13
+
+**Update type:** feature
+
+### Added
+- Every release now carries a small `update-info.json` asset
+  classifying what *kind* of update it is — Security, Critical,
+  Stability, Feature, Performance or Maintenance Update — set per
+  version via a `**Update type:**` line in this changelog and shown by
+  the updater in the update-ready screen and Settings → About.
+- Releases now ship in two stages. Every update first goes out as an
+  **Insider Preview Update (I.P.U.)** — a GitHub prerelease, offered
+  automatically only to devices with Insider Preview updates enabled
+  (Settings → About) — and only ships as a normal release, available
+  to everyone, once that build is confirmed bug-free.
+
 ## [2.9.8] - 2026-09-13
 
 ### Changed

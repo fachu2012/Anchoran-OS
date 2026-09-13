@@ -3,7 +3,10 @@ name: Release
 # Builds AnchoranOS.exe and attaches it to a GitHub Release whenever a
 # version tag (v1.0.0, v1.0.0-alpha.1, …) is pushed. Tag the same
 # version that is in /version.json — see the versioning rules in
-# README.md.
+# README.md. A tag containing "-ipu" (e.g. v2.9.9-ipu.1) ships as an
+# Insider Preview Update — a GitHub prerelease, offered only to devices
+# with Insider Preview updates enabled — instead of a normal release;
+# see the "Determine release channel" step below.
 on:
   push:
     tags:
@@ -21,6 +24,34 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Every update ships in two stages: first as an Insider Preview
+      # Update (a tag like v2.9.9-ipu.1), a GitHub prerelease that only
+      # devices with Insider Preview updates enabled (Settings → About
+      # — see the betaChannel/allowPrerelease wiring in electron/main.ts)
+      # are offered automatically. Once that build is confirmed bug-free,
+      # the exact same version ships again as a plain tag (v2.9.9) — a
+      # normal, non-prerelease release everyone gets. This step tells
+      # every later step which of those two this run is.
+      - name: Determine release channel
+        id: channel
+        shell: bash
+        run: |
+          REF="${GITHUB_REF_NAME}"
+          VERSION="${REF#v}"
+          if [[ "$VERSION" == *-ipu* ]]; then
+            IS_IPU=true
+            BASE_VERSION="${VERSION%%-ipu*}"
+            RELEASE_NAME="v${BASE_VERSION} I.P.U"
+          else
+            IS_IPU=false
+            BASE_VERSION="$VERSION"
+            RELEASE_NAME="v${VERSION}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "base_version=$BASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "is_ipu=$IS_IPU" >> "$GITHUB_OUTPUT"
+          echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
         with:
@@ -85,6 +116,15 @@ jobs:
       - name: Generate Webstore registry
         run: npm run generate-webstore-registry
 
+      # A small, typed classification of this release — Security,
+      # Critical, Stability, Feature, Performance or Maintenance — read
+      # from CHANGELOG.md's own "**Update type:**" line for this
+      # version. Lets the updater tell someone what *kind* of update
+      # they're installing, not just its version number. See
+      # src/core/updateInfo.ts and scripts/generate-update-info.cjs.
+      - name: Generate update-info.json
+        run: npm run generate-update-info
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -95,6 +135,7 @@ jobs:
             release/*.blockmap
             release/latest.yml
             release/webstore-registry.json
+            release/update-info.json
 
       # Builds the release description from CHANGELOG.md itself, so it
       # never falls back to old boilerplate — pulls out this version's
@@ -105,11 +146,17 @@ jobs:
       # the versioning rules in README.md — this is just the default.
       - name: Build release description
         shell: bash
+        env:
+          IS_IPU: ${{ steps.channel.outputs.is_ipu }}
+          VERSION: ${{ steps.channel.outputs.base_version }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           {
             echo "**Anchoran OS** \`v$VERSION\` is available for installation and update."
             echo
+            if [ "$IS_IPU" = "true" ]; then
+              echo "⚠️ **This is an Insider Preview Update (I.P.U.)** — a pre-release build for testing before it ships to everyone. Only devices with Insider Preview updates enabled (Settings → About) receive it automatically."
+              echo
+            fi
             echo "Update summary:"
             echo
             awk -v ver="$VERSION" '
@@ -133,19 +180,25 @@ jobs:
       - name: Attach to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          name: ${{ steps.channel.outputs.release_name }}
           body_path: release_body.md
           # Explicit, not relying on the action's defaults: publish
-          # immediately (not a draft awaiting manual review) and mark
-          # it as the repo's Latest release, so it shows up without a
-          # manual step on github.com/…/releases.
+          # immediately (not a draft awaiting manual review). An I.P.U.
+          # build is marked as a GitHub prerelease — electron-updater's
+          # allowPrerelease (toggled by Settings → About → Insider
+          # Preview updates, see electron/main.ts) only offers those to
+          # devices opted in — and never becomes the repo's "Latest"
+          # release, so it can't override the real latest stable build
+          # for everyone else.
           draft: false
-          prerelease: false
-          make_latest: "true"
+          prerelease: ${{ steps.channel.outputs.is_ipu == 'true' }}
+          make_latest: ${{ steps.channel.outputs.is_ipu == 'true' && 'false' || 'true' }}
           files: |
             release-setup/*.exe
             release/*.exe
             release/*.blockmap
             release/latest.yml
             release/webstore-registry.json
+            release/update-info.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
