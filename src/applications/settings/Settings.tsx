@@ -1,19 +1,28 @@
 import { useEffect, useState, type CSSProperties } from "react";
-import { usePreferencesStore } from "@/theme/preferencesStore";
+import { usePreferencesStore, DEFAULT_PREFERENCES } from "@/theme/preferencesStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { ANCHORAN_VERSION } from "@/core/version";
-import { WALLPAPERS } from "@/desktop/wallpapers";
+import { WALLPAPERS, getWallpaper } from "@/desktop/wallpapers";
 import { playNotificationSound } from "@/core/sound";
 import { useUpdateHistoryStore } from "@/core/updateHistory";
 import { useSystemModeStore } from "@/desktop/systemModeStore";
 import { useProfilesStore } from "@/core/profilesStore";
 import { usePinAttemptsStore } from "@/core/pinAttemptsStore";
 import { useAdminAuditStore } from "@/core/adminAuditStore";
+import { useSettingsChangeLogStore } from "@/theme/settingsChangeLogStore";
+import { useWallpaperSpotlightStore } from "@/theme/wallpaperSpotlightStore";
+import { useShortcutPrefsStore, MODIFIER_LABELS, type ModifierCombo } from "@/core/shortcutPrefsStore";
+import { useAnchoranStartupAppsStore } from "@/core/anchoranStartupAppsStore";
+import { useInstalledAppsStore } from "@/applications/installedAppsStore";
+import { APP_LIST, APP_REGISTRY } from "@/applications/registry";
+import type { AppId } from "@/core/types";
 import { AdminPinPrompt } from "@/core/AdminPinPrompt";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 import { useDefaultAppsStore } from "@/core/defaultAppsStore";
 import { useClipboardHistoryStore } from "@/core/clipboardHistoryStore";
+import { useNotificationSoundStore } from "@/notifications/notificationSoundStore";
+import type { NotificationSoundVariant } from "@/core/sound";
 import "@/applications/apps.css";
 
 const DEFAULT_AVATAR = new URL("../../../assets/avatar/default-avatar.png", import.meta.url).href;
@@ -36,6 +45,18 @@ const SECTIONS = [
 ] as const;
 
 const ACCENTS = ["#6E9BF7", "#1E3A8A", "#0F766E", "#7C3AED", "#B45309", "#94A3B8"];
+
+// Full theme presets — one click sets theme mode, accent color and
+// wallpaper together, instead of tuning the three separately every
+// time you want a whole different look.
+const THEME_PRESETS: { name: string; themeMode: "light" | "dark"; accentColor: string; wallpaperId: string }[] = [
+  { name: "Anchoran Deep", themeMode: "dark", accentColor: "#6E9BF7", wallpaperId: "default" },
+  { name: "Slate", themeMode: "dark", accentColor: "#94A3B8", wallpaperId: "slate" },
+  { name: "Dawn", themeMode: "light", accentColor: "#B45309", wallpaperId: "dawn" },
+  { name: "Mist", themeMode: "light", accentColor: "#1E3A8A", wallpaperId: "mist" },
+  { name: "Ember", themeMode: "dark", accentColor: "#B45309", wallpaperId: "ember" },
+  { name: "Verdant", themeMode: "dark", accentColor: "#0F766E", wallpaperId: "verdant" },
+];
 
 // A lightweight "find a setting" index — enough to jump to the right
 // section without building a full per-row search across every control.
@@ -66,6 +87,22 @@ const SETTINGS_INDEX: { label: string; section: (typeof SECTIONS)[number] }[] = 
   { label: "Check for updates", section: "Updater" },
   { label: "Update history", section: "Updater" },
 ];
+
+/** Wraps the part of `text` matching `query` in a `<mark>`, case-insensitively — used by the "Find a setting…" search results. */
+function highlightMatch(text: string, query: string) {
+  if (!query.trim()) return text;
+  const idx = text.toLowerCase().indexOf(query.trim().toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark style={{ background: "var(--anchoran-accent-soft)", color: "var(--anchoran-accent)", borderRadius: 3 }}>
+        {text.slice(idx, idx + query.trim().length)}
+      </mark>
+      {text.slice(idx + query.trim().length)}
+    </>
+  );
+}
 
 const inputStyle: CSSProperties = {
   background: "var(--anchoran-bg)",
@@ -128,7 +165,7 @@ export function SettingsApp() {
                     setSettingsQuery("");
                   }}
                 >
-                  {m.label}
+                  {highlightMatch(m.label, settingsQuery)}
                   <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--anchoran-text-secondary)" }}>{m.section}</span>
                 </button>
               ))}
@@ -149,6 +186,52 @@ export function SettingsApp() {
       <div className="settings-panel">
         {section === "Appearance" && (
           <>
+            <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
+              <div>
+                <div className="settings-row-label">Theme presets</div>
+                <div className="settings-row-desc">Theme mode, accent and wallpaper together, in one click.</div>
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {THEME_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    onClick={() => {
+                      prefs.setThemeMode(preset.themeMode);
+                      prefs.setAccentColor(preset.accentColor);
+                      prefs.setWallpaper(preset.wallpaperId);
+                    }}
+                    title={preset.name}
+                    style={{
+                      width: 72,
+                      height: 48,
+                      borderRadius: 8,
+                      border:
+                        prefs.themeMode === preset.themeMode &&
+                        prefs.accentColor === preset.accentColor &&
+                        prefs.wallpaperId === preset.wallpaperId
+                          ? "2px solid var(--anchoran-accent)"
+                          : "1px solid var(--anchoran-border)",
+                      background: getWallpaper(preset.wallpaperId).preview,
+                      position: "relative",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        bottom: 4,
+                        right: 4,
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: preset.accentColor,
+                        boxShadow: "0 0 0 1.5px rgba(0,0,0,0.4)",
+                      }}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="settings-row">
               <div>
                 <div className="settings-row-label">Theme</div>
@@ -200,6 +283,13 @@ export function SettingsApp() {
                 onChange={(e) => prefs.setAnimationsEnabled(e.target.checked)}
               />
             </div>
+            <ResetSectionButton
+              onReset={() => {
+                prefs.setThemeMode(DEFAULT_PREFERENCES.themeMode);
+                prefs.setAccentColor(DEFAULT_PREFERENCES.accentColor);
+                prefs.setAnimationsEnabled(DEFAULT_PREFERENCES.animationsEnabled);
+              }}
+            />
           </>
         )}
 
@@ -248,6 +338,12 @@ export function SettingsApp() {
             <button className="app-toolbar-btn" onClick={() => setWallpaperPicker(true)}>
               Import…
             </button>
+            <WallpaperSpotlightRow />
+            <ResetSectionButton
+              onReset={() => {
+                prefs.setWallpaper(DEFAULT_PREFERENCES.wallpaperId);
+              }}
+            />
           </div>
         )}
 
@@ -314,6 +410,15 @@ export function SettingsApp() {
                 onChange={(e) => prefs.setLargeText(e.target.checked)}
               />
             </div>
+            <ResetSectionButton
+              onReset={() => {
+                prefs.setUiScale(DEFAULT_PREFERENCES.uiScale);
+                prefs.setBrightness(DEFAULT_PREFERENCES.brightness);
+                prefs.setNightLightEnabled(DEFAULT_PREFERENCES.nightLightEnabled);
+                prefs.setHighContrast(DEFAULT_PREFERENCES.highContrast);
+                prefs.setLargeText(DEFAULT_PREFERENCES.largeText);
+              }}
+            />
             <DisplaySection />
           </>
         )}
@@ -347,6 +452,12 @@ export function SettingsApp() {
                 onMouseUp={() => playNotificationSound()}
               />
             </div>
+            <ResetSectionButton
+              onReset={() => {
+                prefs.setSoundEnabled(DEFAULT_PREFERENCES.soundEnabled);
+                prefs.setSoundVolume(DEFAULT_PREFERENCES.soundVolume);
+              }}
+            />
           </>
         )}
 
@@ -385,6 +496,68 @@ export function SettingsApp() {
  * connected display. Only rendered when the Electron bridge exposes
  * display info — e.g. not in a plain-browser preview of the renderer.
  */
+/** A per-section "restore factory defaults" — narrower than Privacy's whole-app Reset, and without needing a confirmation step since it only ever touches a handful of easily-reversible appearance/behavior settings, never files or the PIN. */
+function ResetSectionButton({ onReset }: { onReset: () => void }) {
+  return (
+    <div className="settings-row" style={{ borderBottom: "none" }}>
+      <div />
+      <button className="app-toolbar-btn" onClick={onReset}>
+        Restore defaults for this section
+      </button>
+    </div>
+  );
+}
+
+/** A plain, everyday log of recent preference changes — see settingsChangeLogStore.ts. */
+function RecentChangesRow() {
+  const entries = useSettingsChangeLogStore((s) => s.entries);
+  const clear = useSettingsChangeLogStore((s) => s.clear);
+  return (
+    <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
+      <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div className="settings-row-label">Recent changes</div>
+          <div className="settings-row-desc">What you've changed here recently.</div>
+        </div>
+        {entries.length > 0 && (
+          <button className="app-toolbar-btn" onClick={clear}>
+            Clear
+          </button>
+        )}
+      </div>
+      {entries.length === 0 ? (
+        <div style={{ fontSize: 12, color: "var(--anchoran-text-secondary)" }}>No changes recorded yet.</div>
+      ) : (
+        <div style={{ maxHeight: 140, overflowY: "auto", width: "100%", fontSize: 12, color: "var(--anchoran-text-secondary)" }}>
+          {entries.map((e) => (
+            <div key={e.id}>{new Date(e.timestamp).toLocaleString()} — {e.description}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Spotlight-style self-rotating wallpaper — see wallpaperSpotlightStore.ts. */
+function WallpaperSpotlightRow() {
+  const enabled = useWallpaperSpotlightStore((s) => s.enabled);
+  const setEnabled = useWallpaperSpotlightStore((s) => s.setEnabled);
+  const rotateNow = useWallpaperSpotlightStore((s) => s.rotateNow);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5 }}>
+        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+        Change wallpaper automatically every day
+      </label>
+      {enabled && (
+        <button className="app-toolbar-btn" onClick={rotateNow}>
+          Shuffle now
+        </button>
+      )}
+    </div>
+  );
+}
+
 function DisplaySection() {
   const [displays, setDisplays] = useState<{ id: number; label: string; isPrimary: boolean }[]>([]);
 
@@ -440,13 +613,27 @@ function NetworkSection() {
   );
 }
 
+const SOUND_VARIANT_LABELS: Record<NotificationSoundVariant, string> = {
+  default: "Default",
+  chime: "Chime",
+  pop: "Pop",
+  none: "Silent",
+};
+
 function NotificationsSection() {
   const doNotDisturb = useNotificationStore((s) => s.doNotDisturb);
   const setDoNotDisturb = useNotificationStore((s) => s.setDoNotDisturb);
   const dndSchedule = useNotificationStore((s) => s.dndSchedule);
   const setDndSchedule = useNotificationStore((s) => s.setDndSchedule);
   const clearAll = useNotificationStore((s) => s.clearAll);
-  const count = useNotificationStore((s) => s.notifications.length);
+  const notifications = useNotificationStore((s) => s.notifications);
+  const count = notifications.length;
+  const byApp = useNotificationSoundStore((s) => s.byApp);
+  const setSound = useNotificationSoundStore((s) => s.setSound);
+  // Only apps that have actually pushed a notification — a fixed list
+  // of every app that *could* is mostly dead rows, since most never
+  // will.
+  const knownApps = Array.from(new Set(notifications.map((n) => n.title))).sort();
 
   return (
     <>
@@ -499,6 +686,32 @@ function NotificationsSection() {
           Clear all
         </button>
       </div>
+      {knownApps.length > 0 && (
+        <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
+          <div>
+            <div className="settings-row-label">Sounds per app</div>
+            <div className="settings-row-desc">A different tone (or silence) per app that's notified you.</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
+            {knownApps.map((app) => (
+              <div key={app} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ flex: 1, fontSize: 12.5 }}>{app}</span>
+                <select
+                  value={byApp[app] ?? "default"}
+                  onChange={(e) => setSound(app, e.target.value as NotificationSoundVariant)}
+                  style={inputStyle}
+                >
+                  {(Object.keys(SOUND_VARIANT_LABELS) as NotificationSoundVariant[]).map((v) => (
+                    <option key={v} value={v}>
+                      {SOUND_VARIANT_LABELS[v]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -779,11 +992,11 @@ const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: "Delete", action: "Delete the selected item(s) in Files (or delete permanently, in Trash)" },
   { keys: "Ctrl / Cmd + Click", action: "Multi-select items in Files" },
   { keys: "Drag to a screen edge", action: "Snap a window to a half or, near a corner, a quarter of the screen" },
-  { keys: "Ctrl + Alt + Left / Right", action: "Snap the focused window to a left/right third of the screen" },
-  { keys: "Ctrl + Alt + Down", action: "Snap the focused window to the center third of the screen" },
-  { keys: "Ctrl + Shift + Arrow", action: "Resize the focused window in fixed steps from the keyboard" },
+  { keys: "[modifier] + Left / Right", action: "Snap the focused window to a left/right third of the screen — modifier customizable below" },
+  { keys: "[modifier] + Down", action: "Snap the focused window to the center third of the screen — modifier customizable below" },
+  { keys: "[modifier] + Arrow", action: "Resize the focused window in fixed steps from the keyboard — modifier customizable below" },
   { keys: "Ctrl + Alt + M", action: "Move the whole Anchoran window to the next connected monitor" },
-  { keys: "Ctrl + Alt + Page Up / Page Down", action: "Switch to the previous/next virtual desktop" },
+  { keys: "[modifier] + Page Up / Page Down", action: "Switch to the previous/next virtual desktop — modifier customizable below" },
   { keys: "Double-click a title bar", action: "Maximize or restore a window" },
   { keys: "Right-click the desktop", action: "New Folder, New File, Sort Icons, Change Wallpaper" },
   { keys: "Right-click a taskbar icon", action: "Pin or unpin an app" },
@@ -791,11 +1004,53 @@ const SHORTCUTS: { keys: string; action: string }[] = [
 ];
 
 function ShortcutsSection() {
+  const desktopModifier = useShortcutPrefsStore((s) => s.desktopModifier);
+  const setDesktopModifier = useShortcutPrefsStore((s) => s.setDesktopModifier);
+  const resizeModifier = useShortcutPrefsStore((s) => s.resizeModifier);
+  const setResizeModifier = useShortcutPrefsStore((s) => s.setResizeModifier);
+
   return (
     <>
       <p style={{ color: "var(--anchoran-text-secondary)", fontSize: 12.5, marginTop: 0 }}>
-        Every keyboard and mouse shortcut Anchoran responds to.
+        Every keyboard and mouse shortcut Anchoran responds to. The two below can use a
+        different modifier combo if the defaults clash with something else on your system —
+        the rest (drag/click gestures, and the global Launcher/screenshot shortcuts Electron
+        registers at the OS level) stay fixed for now.
       </p>
+      <div className="settings-row">
+        <div>
+          <div className="settings-row-label">Snap-to-third / switch desktop modifier</div>
+          <div className="settings-row-desc">Arrow keys snap thirds, Page Up/Down switch virtual desktops.</div>
+        </div>
+        <select
+          className="app-toolbar-btn"
+          value={desktopModifier}
+          onChange={(e) => setDesktopModifier(e.target.value as ModifierCombo)}
+        >
+          {(Object.keys(MODIFIER_LABELS) as ModifierCombo[]).map((m) => (
+            <option key={m} value={m}>
+              {MODIFIER_LABELS[m]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="settings-row">
+        <div>
+          <div className="settings-row-label">Keyboard resize modifier</div>
+          <div className="settings-row-desc">Arrow keys resize the focused window in steps.</div>
+        </div>
+        <select
+          className="app-toolbar-btn"
+          value={resizeModifier}
+          onChange={(e) => setResizeModifier(e.target.value as ModifierCombo)}
+        >
+          {(Object.keys(MODIFIER_LABELS) as ModifierCombo[]).map((m) => (
+            <option key={m} value={m}>
+              {MODIFIER_LABELS[m]}
+            </option>
+          ))}
+        </select>
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {SHORTCUTS.map((s) => (
           <div
@@ -899,6 +1154,9 @@ function PrivacySection() {
   const [resetPinPrompt, setResetPinPrompt] = useState(false);
   const retentionMinutes = useClipboardHistoryStore((s) => s.retentionMinutes);
   const setRetentionMinutes = useClipboardHistoryStore((s) => s.setRetentionMinutes);
+  const [profileExportPicker, setProfileExportPicker] = useState(false);
+  const [profileImportPicker, setProfileImportPicker] = useState(false);
+  const prefs = usePreferencesStore();
 
   async function onExport() {
     const result = await window.anchoran?.exportData();
@@ -912,6 +1170,46 @@ function PrivacySection() {
       setTimeout(() => window.anchoran?.restart(), 1200);
     } else if (result?.error) {
       setStatus(result.error);
+    }
+  }
+
+  // A "settings profile" is deliberately narrower than the full
+  // Backup above — just the appearance/behavior preferences, not the
+  // virtual filesystem or the PIN — so it's safe to hand to someone
+  // else, or to carry your look-and-feel to a fresh install without
+  // dragging your whole file tree along.
+  async function onExportProfile(result: { path: string } | { dir: string; name: string }) {
+    setProfileExportPicker(false);
+    if (!("dir" in result) || !window.anchoran) return;
+    const { hydrated: _hydrated, lockPin: _lockPin, ...portable } = prefs;
+    const filePath = `${result.dir}\\${result.name}`;
+    const write = await window.anchoran.fsWriteTextFile(filePath, JSON.stringify(portable, null, 2));
+    setStatus(write.success ? `Settings profile exported to ${filePath}` : write.error ?? "Couldn't export.");
+  }
+
+  async function onImportProfile(result: { path: string } | { dir: string; name: string }) {
+    setProfileImportPicker(false);
+    if (!("path" in result) || !window.anchoran) return;
+    const read = await window.anchoran.fsReadTextFile(result.path);
+    if (!("content" in read)) {
+      setStatus(read.error);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(read.content);
+      if (typeof parsed.themeMode === "string") prefs.setThemeMode(parsed.themeMode);
+      if (typeof parsed.accentColor === "string") prefs.setAccentColor(parsed.accentColor);
+      if (typeof parsed.wallpaperId === "string") prefs.setWallpaper(parsed.wallpaperId);
+      if (typeof parsed.customWallpaperDataUrl === "string") prefs.setCustomWallpaper(parsed.customWallpaperDataUrl);
+      if (typeof parsed.uiScale === "number") prefs.setUiScale(parsed.uiScale);
+      if (typeof parsed.animationsEnabled === "boolean") prefs.setAnimationsEnabled(parsed.animationsEnabled);
+      if (typeof parsed.soundEnabled === "boolean") prefs.setSoundEnabled(parsed.soundEnabled);
+      if (typeof parsed.soundVolume === "number") prefs.setSoundVolume(parsed.soundVolume);
+      if (typeof parsed.highContrast === "boolean") prefs.setHighContrast(parsed.highContrast);
+      if (typeof parsed.largeText === "boolean") prefs.setLargeText(parsed.largeText);
+      setStatus("Settings profile imported.");
+    } catch {
+      setStatus("That file isn't a valid Anchoran settings profile.");
     }
   }
 
@@ -935,6 +1233,16 @@ function PrivacySection() {
         <div style={{ display: "flex", gap: 8 }}>
           <button className="app-toolbar-btn" onClick={onExport}>Export…</button>
           <button className="app-toolbar-btn" onClick={onImport}>Import…</button>
+        </div>
+      </div>
+      <div className="settings-row">
+        <div>
+          <div className="settings-row-label">Settings profile</div>
+          <div className="settings-row-desc">Just your appearance and behavior preferences — theme, accent, wallpaper, sound, scale — not your files or PIN. Safe to share or carry to a fresh install.</div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="app-toolbar-btn" onClick={() => setProfileExportPicker(true)}>Export…</button>
+          <button className="app-toolbar-btn" onClick={() => setProfileImportPicker(true)}>Import…</button>
         </div>
       </div>
       <div className="settings-row">
@@ -973,6 +1281,25 @@ function PrivacySection() {
         )}
       </div>
       {status && <p style={{ fontSize: 12, color: "var(--anchoran-text-secondary)" }}>{status}</p>}
+      <RecentChangesRow />
+      {profileExportPicker && (
+        <AnchoranFilePicker
+          mode="save"
+          title="Export settings profile"
+          defaultName="anchoran-settings-profile.json"
+          onConfirm={onExportProfile}
+          onCancel={() => setProfileExportPicker(false)}
+        />
+      )}
+      {profileImportPicker && (
+        <AnchoranFilePicker
+          mode="open"
+          title="Import settings profile"
+          extensions={[".json"]}
+          onConfirm={onImportProfile}
+          onCancel={() => setProfileImportPicker(false)}
+        />
+      )}
       {resetPinPrompt && (
         <AdminPinPrompt
           onCancel={() => setResetPinPrompt(false)}
@@ -1046,7 +1373,69 @@ function SystemSection() {
           </select>
         </div>
       ))}
+
+      <StartupAppsRow />
     </>
+  );
+}
+
+/** Chooses which of Anchoran's own apps reopen every time Anchoran boots, and whether each starts minimized — distinct from the "Startup Apps" app, which manages real Windows Run-key programs. */
+function StartupAppsRow() {
+  const items = useAnchoranStartupAppsStore((s) => s.items);
+  const addItem = useAnchoranStartupAppsStore((s) => s.addItem);
+  const removeItem = useAnchoranStartupAppsStore((s) => s.removeItem);
+  const toggleMinimized = useAnchoranStartupAppsStore((s) => s.toggleMinimized);
+  const installed = useInstalledAppsStore((s) => s.installed);
+  const [addingAppId, setAddingAppId] = useState<AppId | "">("");
+  const candidates = APP_LIST.filter((a) => installed.has(a.id) && !items.some((i) => i.appId === a.id));
+
+  return (
+    <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
+      <div>
+        <div className="settings-row-label">Anchoran apps at startup</div>
+        <div className="settings-row-desc">Reopen these apps every time Anchoran itself boots, minimized or not.</div>
+      </div>
+      {items.length === 0 ? (
+        <div style={{ fontSize: 12, color: "var(--anchoran-text-secondary)" }}>Nothing set to reopen.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
+          {items.map((item) => (
+            <div key={item.appId} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ flex: 1, fontSize: 12.5 }}>{APP_REGISTRY[item.appId]?.title ?? item.appId}</span>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--anchoran-text-secondary)" }}>
+                <input type="checkbox" checked={item.minimized} onChange={() => toggleMinimized(item.appId)} />
+                Start minimized
+              </label>
+              <button className="app-toolbar-btn" onClick={() => removeItem(item.appId)}>
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {candidates.length > 0 && (
+        <div style={{ display: "flex", gap: 8 }}>
+          <select value={addingAppId} onChange={(e) => setAddingAppId(e.target.value as AppId)} style={inputStyle}>
+            <option value="">Add an app…</option>
+            {candidates.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.title}
+              </option>
+            ))}
+          </select>
+          <button
+            className="app-toolbar-btn"
+            disabled={!addingAppId}
+            onClick={() => {
+              if (addingAppId) addItem(addingAppId);
+              setAddingAppId("");
+            }}
+          >
+            Add
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

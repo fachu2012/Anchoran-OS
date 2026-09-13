@@ -5,6 +5,7 @@ import { useWindowStore } from "@/windowmanager/windowStore";
 import { useSystemStatus } from "./systemStatus";
 import { useVolumeMixerStore, MIXER_APP_IDS } from "./volumeMixerStore";
 import { APP_REGISTRY } from "@/applications/registry";
+import { useEnergyProfileStore, POWER_PROFILE_LABELS, type PowerProfile } from "@/theme/energyProfileStore";
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -37,6 +38,34 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
         }}
       />
     </button>
+  );
+}
+
+function PowerProfileRow() {
+  const profile = useEnergyProfileStore((s) => s.profile);
+  const setProfile = useEnergyProfileStore((s) => s.setProfile);
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <span style={{ fontSize: 12.5 }}>Power profile</span>
+      <select
+        value={profile}
+        onChange={(e) => setProfile(e.target.value as PowerProfile)}
+        style={{
+          border: "1px solid var(--anchoran-border)",
+          borderRadius: 6,
+          padding: "3px 6px",
+          background: "var(--anchoran-bg)",
+          color: "var(--anchoran-text-primary)",
+          fontSize: 12,
+        }}
+      >
+        {(Object.keys(POWER_PROFILE_LABELS) as PowerProfile[]).map((p) => (
+          <option key={p} value={p}>
+            {POWER_PROFILE_LABELS[p]}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }
 
@@ -187,10 +216,7 @@ export function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
             <span style={{ fontSize: 12.5 }}>Night Light</span>
             <Toggle checked={prefs.nightLightEnabled} onChange={prefs.setNightLightEnabled} />
           </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 12.5 }}>Battery Saver (reduce animations)</span>
-            <Toggle checked={!prefs.animationsEnabled} onChange={(v) => prefs.setAnimationsEnabled(!v)} />
-          </div>
+          <PowerProfileRow />
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 12.5 }}>Window Spotlight (dim other windows)</span>
             <Toggle checked={focusMode} onChange={setFocusMode} />

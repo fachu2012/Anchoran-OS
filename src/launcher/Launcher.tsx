@@ -13,6 +13,7 @@ import { useAppUsageStore } from "@/core/appUsageStore";
 import { useBrowserStore } from "@/applications/browser/browserStore";
 import { persistGet, persistSet } from "@/core/persist";
 import { useShortcutsStore } from "@/desktop/shortcutsStore";
+import { useProfilesStore } from "@/core/profilesStore";
 import "./launcher.css";
 
 // Mirrors Settings.tsx's SECTIONS — kept here as a plain list rather
@@ -162,7 +163,21 @@ async function searchFiles(query: string): Promise<FileResult[]> {
   return results;
 }
 
-export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: () => void }) {
+export function Launcher({
+  onClose,
+  onPower,
+  onLock,
+  onSleep,
+  onRestart,
+  onShutDown,
+}: {
+  onClose: () => void;
+  onPower: () => void;
+  onLock: () => void;
+  onSleep: () => void;
+  onRestart: () => void;
+  onShutDown: () => void;
+}) {
   const [query, setQuery] = useState("");
   const [fileResults, setFileResults] = useState<FileResult[]>([]);
   const openApp = useWindowStore((s) => s.openApp);
@@ -368,6 +383,94 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
       .filter((a): a is AppDefinition => Boolean(a));
   }, [topApps, installed, sortedApps]);
 
+  function openBrowserResult(url: string) {
+    openApp("browser", { openPath: url });
+    onClose();
+  }
+
+  function signOut() {
+    useWindowStore.getState().closeAllWindows();
+    const { profiles, activeProfileId, deleteProfile } = useProfilesStore.getState();
+    const active = profiles.find((p) => p.id === activeProfileId);
+    if (active?.isGuest) deleteProfile(active.id);
+    onLock();
+  }
+
+  // #48 — a visible "system commands" category, findable from the
+  // Launcher the same way Windows' own Start menu surfaces "shut
+  // down" as a search result, not only as a menu you have to open
+  // first.
+  const SYSTEM_COMMANDS: { label: string; icon: IconName; run: () => void }[] = [
+    { label: "Lock", icon: "lock", run: () => (onClose(), onLock()) },
+    { label: "Sign out", icon: "userSwitch", run: () => (onClose(), signOut()) },
+    { label: "Sleep", icon: "minimize", run: () => (onClose(), onSleep()) },
+    { label: "Restart Anchoran", icon: "restart", run: () => (onClose(), onRestart()) },
+    { label: "Shut down Anchoran", icon: "power", run: () => (onClose(), onShutDown()) },
+    { label: "Power menu", icon: "power", run: () => (onClose(), onPower()) },
+  ];
+  const systemCommandResults = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return SYSTEM_COMMANDS.filter((c) => c.label.toLowerCase().includes(q));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  // Full keyboard-only mode: every visible, actionable row — the
+  // calculator result, apps, settings, files, browser history — in
+  // the exact order they're rendered below, so Up/Down/Enter reaches
+  // any of them, not just the first app match.
+  const keyboardEntries = useMemo(() => {
+    const entries: (() => void)[] = [];
+    if (calcResult !== null) entries.push(() => navigator.clipboard?.writeText(String(calcResult)).catch(() => {}));
+    if (!hasQuery) {
+      frequentApps.forEach((a) => entries.push(() => launch(a.id)));
+      for (const letter of JUMP_LETTERS) {
+        const apps = groupedApps.get(letter);
+        if (!apps) continue;
+        apps.forEach((a) => entries.push(() => launch(a.id)));
+      }
+    } else {
+      appResults.forEach((a) => entries.push(() => launch(a.id)));
+      settingResults.forEach(() => entries.push(() => openSettingSection()));
+      fileResults.forEach((f) => entries.push(() => openFileResult(f)));
+      browserResults.forEach((h) => entries.push(() => openBrowserResult(h.url)));
+      systemCommandResults.forEach((c) => entries.push(() => c.run()));
+    }
+    return entries;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    hasQuery,
+    calcResult,
+    frequentApps,
+    groupedApps,
+    appResults,
+    settingResults,
+    fileResults,
+    browserResults,
+    systemCommandResults,
+  ]);
+
+  const [activeIndex, setActiveIndex] = useState(0);
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query]);
+  useEffect(() => {
+    if (activeIndex >= keyboardEntries.length) setActiveIndex(Math.max(0, keyboardEntries.length - 1));
+  }, [keyboardEntries.length, activeIndex]);
+  useEffect(() => {
+    resultsRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex]);
+
+  // Assigns each rendered row its position in keyboardEntries, in the
+  // same top-to-bottom order the JSX below renders them — reset once
+  // per render via this counter rather than tracked per-section, since
+  // sections render in a fixed, known sequence.
+  let rowCursor = -1;
+  function nextRowIsActive(): boolean {
+    rowCursor += 1;
+    return rowCursor === activeIndex;
+  }
+
   return (
     <div className="launcher-backdrop" onClick={onClose}>
       <div
@@ -386,9 +489,20 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
               setLetterJumpOpen(false);
             }}
             onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActiveIndex((i) => Math.min(i + 1, keyboardEntries.length - 1));
+                return;
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActiveIndex((i) => Math.max(i - 1, 0));
+                return;
+              }
               if (e.key === "Enter") {
                 if (hasQuery) recordSearch(query);
-                if (appResults[0]) launch(appResults[0].id);
+                const entry = keyboardEntries[activeIndex];
+                if (entry) entry();
                 else if (calcResult !== null) navigator.clipboard?.writeText(String(calcResult)).catch(() => {});
               }
               if (e.key === "Escape") onClose();
@@ -397,7 +511,7 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
         </div>
         <div className="launcher-results" ref={resultsRef}>
           {calcResult !== null && (
-            <div className="launcher-item">
+            <div className="launcher-item" data-active={nextRowIsActive()}>
               <button
                 className="launcher-item-main"
                 onClick={() => navigator.clipboard?.writeText(String(calcResult)).catch(() => {})}
@@ -423,11 +537,11 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
                 <>
                   <div className="launcher-section-label">Frequently used</div>
                   {frequentApps.map((app) => (
-                    <AppRow key={`frequent-${app.id}`} app={app} showHint={false} />
+                    <AppRow key={`frequent-${app.id}`} app={app} showHint={nextRowIsActive()} />
                   ))}
                 </>
               )}
-              {JUMP_LETTERS.filter((l) => groupedApps.has(l)).map((letter, sectionIndex) => (
+              {JUMP_LETTERS.filter((l) => groupedApps.has(l)).map((letter) => (
                 <div
                   key={letter}
                   ref={(el) => {
@@ -438,21 +552,21 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
                   <button className="launcher-letter-header" onClick={() => setLetterJumpOpen((v) => !v)}>
                     {letter}
                   </button>
-                  {groupedApps.get(letter)!.map((app, i) => (
-                    <AppRow key={app.id} app={app} showHint={sectionIndex === 0 && i === 0} />
+                  {groupedApps.get(letter)!.map((app) => (
+                    <AppRow key={app.id} app={app} showHint={nextRowIsActive()} />
                   ))}
                 </div>
               ))}
             </>
           ) : (
-            appResults.map((app, i) => <AppRow key={app.id} app={app} showHint={i === 0} />)
+            appResults.map((app) => <AppRow key={app.id} app={app} showHint={nextRowIsActive()} />)
           )}
 
           {hasQuery && settingResults.length > 0 && (
             <>
               <div className="launcher-section-label">Settings</div>
               {settingResults.map((s) => (
-                <div key={s} className="launcher-item">
+                <div key={s} className="launcher-item" data-active={nextRowIsActive()}>
                   <button className="launcher-item-main" onClick={openSettingSection}>
                     <IconTile name="settings" size={34} />
                     {s}
@@ -466,7 +580,7 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
             <>
               <div className="launcher-section-label">Files</div>
               {fileResults.map((f) => (
-                <div key={f.path} className="launcher-item">
+                <div key={f.path} className="launcher-item" data-active={nextRowIsActive()}>
                   <button className="launcher-item-main" onClick={() => openFileResult(f)}>
                     <IconTile name={f.isDirectory ? "folder" : "file"} size={34} />
                     {f.name}
@@ -480,16 +594,24 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
             <>
               <div className="launcher-section-label">Browser history</div>
               {browserResults.map((h) => (
-                <div key={h.url} className="launcher-item">
-                  <button
-                    className="launcher-item-main"
-                    onClick={() => {
-                      openApp("browser", { openPath: h.url });
-                      onClose();
-                    }}
-                  >
+                <div key={h.url} className="launcher-item" data-active={nextRowIsActive()}>
+                  <button className="launcher-item-main" onClick={() => openBrowserResult(h.url)}>
                     <IconTile name="browser" size={34} />
                     {h.title || h.url}
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
+
+          {hasQuery && systemCommandResults.length > 0 && (
+            <>
+              <div className="launcher-section-label">System</div>
+              {systemCommandResults.map((c) => (
+                <div key={c.label} className="launcher-item" data-active={nextRowIsActive()}>
+                  <button className="launcher-item-main" onClick={c.run}>
+                    <IconTile name={c.icon} size={34} />
+                    {c.label}
                   </button>
                 </div>
               ))}
@@ -500,7 +622,8 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
             appResults.length === 0 &&
             settingResults.length === 0 &&
             fileResults.length === 0 &&
-            browserResults.length === 0 && (
+            browserResults.length === 0 &&
+            systemCommandResults.length === 0 && (
               <div style={{ padding: 16, fontSize: 13, color: "var(--anchoran-text-secondary)" }}>No results.</div>
             )}
 

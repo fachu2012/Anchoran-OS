@@ -4,7 +4,7 @@ import { persistGet, persistSet } from "@/core/persist";
 
 const STORAGE_KEY = "preferences";
 
-const DEFAULT_PREFERENCES: AnchoranPreferences = {
+export const DEFAULT_PREFERENCES: AnchoranPreferences = {
   themeMode: "dark",
   accentColor: "#6E9BF7",
   wallpaperId: "default",

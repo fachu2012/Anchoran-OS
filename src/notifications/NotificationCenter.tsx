@@ -60,6 +60,18 @@ export function NotificationToasts() {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12.5, fontWeight: 500 }}>{n.title}</div>
             <div style={{ fontSize: 12, color: "var(--anchoran-text-secondary)" }}>{n.message}</div>
+            {n.action && (
+              <button
+                className="app-toolbar-btn"
+                style={{ marginTop: 6, fontSize: 11.5, padding: "4px 8px" }}
+                onClick={() => {
+                  n.action!.onClick();
+                  dismiss(n.id);
+                }}
+              >
+                {n.action.label}
+              </button>
+            )}
           </div>
           <button
             onClick={() => dismiss(n.id)}

@@ -5,6 +5,62 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.8.15] - 2026-09-13
+
+Wave 3 of the remaining 94-item list — 15 more items, numbered against
+the original list. This wave finishes the Launcher and Configuración
+categories entirely.
+
+### Added
+- **#47 Full keyboard-only Launcher** — Up/Down/Enter now reaches any
+  visible result (apps, settings, files, browser history, system
+  commands), not just the first app match.
+- **#48 Visible system commands** — typing "lock", "sign out",
+  "restart", "shut down", "sleep" or "power" in the Launcher surfaces
+  the matching action directly, the same way Windows' Start menu
+  search does.
+- **#49 Highlighted setting search matches** — the existing "Find a
+  setting…" search now highlights the matched substring in each
+  result, not just the section name.
+- **#50 Exportable/importable settings profile** — a narrower export
+  than the full Backup: just appearance/behavior preferences (theme,
+  accent, wallpaper, sound, scale), safe to share or carry to a fresh
+  install, under Settings → Privacy.
+- **#51 Per-section factory reset** — "Restore defaults for this
+  section" on Appearance, Personalization, Display and Sound.
+- **#52 Recent settings changes log** — a plain-language "what did I
+  just change" list under Settings → Privacy.
+- **#53 Full theme presets** — six one-click combos (theme mode +
+  accent + wallpaper together) under Appearance.
+- **#54 Self-rotating wallpaper (Spotlight-style)** — an optional
+  daily auto-rotation through Anchoran's built-in wallpapers, under
+  Personalization.
+- **#55 Customizable shortcuts** — the modifier combo for snap-to-
+  third/switch-desktop and keyboard-resize can each be changed to a
+  different combo under Settings → Shortcuts (the OS-level Launcher/
+  screenshot shortcuts stay fixed — see the note there).
+- **#56 Power profile** — Battery Saver / Balanced / Performance in
+  Quick Settings, replacing the old single "reduce animations" toggle
+  with three named presets (animations + brightness).
+- **#57 Choose what opens minimized at startup** — a new "Anchoran
+  apps at startup" list under Settings → System, distinct from the
+  existing Startup Apps tool (which manages real Windows Run-key
+  programs, not Anchoran's own).
+- **#59 True "group by app"** — notifications sharing a source now
+  collapse into one group anywhere in the list, not only when they
+  happened to arrive back-to-back.
+- **#60 Quick actions on notifications** — an optional one-click
+  button right on the notification itself ("Open Files" on a drive-
+  connected notice, "Undo" on a Files delete), no need to open the app
+  first.
+- **#63 Per-app notification sounds** — a different tone (or silence)
+  per app that's notified you, under Settings → Notifications.
+- **#64 Calendar widget in the notification panel** — a compact,
+  read-only month view above the notification list.
+
+### Verification
+`typecheck`, `build` (renderer + electron) and `test` (7/7) all pass.
+
 ## [2.8.12] - 2026-09-13
 
 Wave 2 of the remaining 94-item list — 15 more items, numbered against

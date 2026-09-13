@@ -373,7 +373,22 @@ export function FilesApp() {
     // Anchoran's own trash, not the real Windows Recycle Bin — see
     // ANCHORAN_TRASH below for browsing/restoring it from inside Files.
     const result = await window.anchoran!.trashMove(paths);
-    if (!result.success) pushNotification("Files", result.error ?? "Couldn't delete.");
+    if (!result.success) {
+      pushNotification("Files", result.error ?? "Couldn't delete.");
+    } else {
+      pushNotification(
+        "Files",
+        paths.length > 1 ? `${paths.length} items moved to Trash.` : `"${paths[0].split(/[\\/]/).pop()}" moved to Trash.`,
+        {
+          label: "Undo",
+          onClick: () => {
+            result.ids.forEach((id) => window.anchoran!.trashRestore(id));
+            refresh();
+            refreshTrash();
+          },
+        }
+      );
+    }
     setSelected(new Set());
     refresh();
     refreshTrash();

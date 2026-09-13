@@ -68,9 +68,25 @@ export function playLoginSound() {
   ]);
 }
 
-/** Played for each new notification. */
-export function playNotificationSound() {
-  playChord([{ freq: 880, offset: 0, duration: 0.18, gain: 0.04 }]);
+export type NotificationSoundVariant = "default" | "chime" | "pop" | "none";
+
+/** Played for each new notification — see notificationSoundStore.ts for picking a variant per app/source. */
+export function playNotificationSound(variant: NotificationSoundVariant = "default") {
+  switch (variant) {
+    case "none":
+      return;
+    case "chime":
+      playChord([
+        { freq: 987.77, offset: 0, duration: 0.16, gain: 0.035 },
+        { freq: 1318.51, offset: 0.07, duration: 0.2, gain: 0.035 },
+      ]);
+      return;
+    case "pop":
+      playChord([{ freq: 523.25, offset: 0, duration: 0.1, gain: 0.045 }]);
+      return;
+    default:
+      playChord([{ freq: 880, offset: 0, duration: 0.18, gain: 0.04 }]);
+  }
 }
 
 /** Played when Anchoran surfaces an unexpected error. */

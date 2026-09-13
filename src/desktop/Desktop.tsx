@@ -14,6 +14,7 @@ import { NotificationToasts } from "@/notifications/NotificationCenter";
 import { NotificationPanel } from "@/notifications/NotificationPanel";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { useProfilesStore } from "@/core/profilesStore";
+import { useShortcutPrefsStore, matchesModifier } from "@/core/shortcutPrefsStore";
 import "./desktop.css";
 
 export function Desktop({
@@ -65,7 +66,8 @@ export function Desktop({
       const focused = windows.find((w) => w.windowId === focusedWindowId);
       if (!focused) return;
 
-      if (e.ctrlKey && e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowDown")) {
+      const { desktopModifier, resizeModifier } = useShortcutPrefsStore.getState();
+      if (matchesModifier(e, desktopModifier) && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowDown")) {
         e.preventDefault();
         const vw = window.innerWidth;
         const vh = window.innerHeight - 78; // taskbar height, see WindowFrame.tsx
@@ -77,7 +79,7 @@ export function Desktop({
               ? { x: vw - thirdW, y: 0, width: thirdW, height: vh }
               : { x: thirdW, y: 0, width: vw - thirdW * 2, height: vh };
         setBounds(focused.windowId, bounds);
-      } else if (e.ctrlKey && e.shiftKey && e.key.startsWith("Arrow") && !focused.isMaximized) {
+      } else if (matchesModifier(e, resizeModifier) && e.key.startsWith("Arrow") && !focused.isMaximized) {
         e.preventDefault();
         const dw = e.key === "ArrowLeft" ? -THIRD_STEP : e.key === "ArrowRight" ? THIRD_STEP : 0;
         const dh = e.key === "ArrowUp" ? -THIRD_STEP : e.key === "ArrowDown" ? THIRD_STEP : 0;
@@ -85,10 +87,11 @@ export function Desktop({
       }
     }
 
-    // Ctrl+Alt+PageUp/PageDown cycles between virtual desktops — kept
-    // separate from Ctrl+Alt+Left/Right (thirds snap) above.
+    // Cycles between virtual desktops, sharing its modifier with the
+    // thirds-snap above (Page Up/Down never overlaps Arrow keys).
     function onDesktopSwitchKeyDown(e: KeyboardEvent) {
-      if (!e.ctrlKey || !e.altKey || (e.key !== "PageUp" && e.key !== "PageDown")) return;
+      const { desktopModifier } = useShortcutPrefsStore.getState();
+      if (!matchesModifier(e, desktopModifier) || (e.key !== "PageUp" && e.key !== "PageDown")) return;
       e.preventDefault();
       const { desktops, activeDesktopId, switchDesktop } = useWindowStore.getState();
       const index = desktops.indexOf(activeDesktopId);
@@ -111,7 +114,10 @@ export function Desktop({
   // already sitting there.
   useEffect(() => {
     window.anchoran?.onDriveConnected((drive) => {
-      pushNotification("Drive connected", `${drive} is now available in Files.`);
+      pushNotification("Drive connected", `${drive} is now available in Files.`, {
+        label: "Open Files",
+        onClick: () => useWindowStore.getState().openApp("files"),
+      });
     });
     window.anchoran?.onDriveDisconnected((drive) => {
       pushNotification("Drive disconnected", `${drive} was removed.`);
@@ -171,7 +177,14 @@ export function Desktop({
       {taskViewOpen && <TaskView onClose={() => setTaskViewOpen(false)} />}
 
       {launcherOpen && (
-        <Launcher onClose={() => setLauncherOpen(false)} onPower={() => setPowerOpen(true)} />
+        <Launcher
+          onClose={() => setLauncherOpen(false)}
+          onPower={() => setPowerOpen(true)}
+          onLock={onLock}
+          onSleep={onSleep}
+          onRestart={onRestart}
+          onShutDown={onShutDown}
+        />
       )}
 
       {powerOpen && (

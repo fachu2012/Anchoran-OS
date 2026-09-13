@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { playNotificationSound } from "@/core/sound";
 import { persistGet, persistSet } from "@/core/persist";
+import { useNotificationSoundStore } from "@/notifications/notificationSoundStore";
 
 export interface AnchoranNotification {
   id: string;
@@ -9,6 +10,8 @@ export interface AnchoranNotification {
   createdAt: number;
   /** True for notifications pushed while Do Not Disturb was on — they were logged silently, no toast/sound. */
   silent: boolean;
+  /** An optional one-click action shown right on the notification — e.g. "Open Files" on a drive-connected notice — so the app it's about doesn't need opening first. Not persisted, same as the rest of this store. */
+  action?: { label: string; onClick: () => void };
 }
 
 const DND_KEY = "doNotDisturb";
@@ -38,7 +41,7 @@ interface NotificationState {
   notifications: AnchoranNotification[];
   doNotDisturb: boolean;
   dndSchedule: DndSchedule;
-  push: (title: string, message: string) => void;
+  push: (title: string, message: string, action?: { label: string; onClick: () => void }) => void;
   dismiss: (id: string) => void;
   /** Dismisses a notification now and re-delivers the same title/message after the given number of minutes. */
   snooze: (id: string, minutes: number) => void;
@@ -53,7 +56,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
   doNotDisturb: false,
   dndSchedule: DEFAULT_SCHEDULE,
-  push: (title, message) => {
+  push: (title, message, action) => {
     counter += 1;
     const dnd = get().doNotDisturb;
     const notification: AnchoranNotification = {
@@ -62,9 +65,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       message,
       createdAt: Date.now(),
       silent: dnd,
+      action,
     };
     set((s) => ({ notifications: [notification, ...s.notifications] }));
-    if (!dnd) playNotificationSound();
+    if (!dnd) playNotificationSound(useNotificationSoundStore.getState().soundFor(title));
   },
   dismiss: (id) => set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) })),
   snooze: (id, minutes) => {

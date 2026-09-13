@@ -859,6 +859,7 @@ function moveWithFallback(src: string, dest: string) {
 
 ipcMain.handle("anchoran:trash-move", (_event, paths: string[]) => {
   const errors: string[] = [];
+  const movedIds: string[] = [];
   const items = trashStore.get("items");
   for (const p of paths) {
     try {
@@ -866,12 +867,13 @@ ipcMain.handle("anchoran:trash-move", (_event, paths: string[]) => {
       const stat = fs.statSync(p);
       moveWithFallback(p, path.join(trashDir, id));
       items.push({ id, originalPath: p, name: path.basename(p), isDirectory: stat.isDirectory(), deletedAt: Date.now() });
+      movedIds.push(id);
     } catch (err) {
       errors.push(`${path.basename(p)}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
   trashStore.set("items", items);
-  return errors.length > 0 ? { success: false, error: errors.join("; ") } : { success: true };
+  return errors.length > 0 ? { success: false, error: errors.join("; "), ids: movedIds } : { success: true, ids: movedIds };
 });
 
 ipcMain.handle("anchoran:trash-list", () => trashStore.get("items"));

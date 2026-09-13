@@ -5,6 +5,46 @@ function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+/** A compact, read-only month calendar — the same "what's today, what's coming up this week" glance a real OS's own notification center gives you above the notifications themselves. */
+function MiniCalendar() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: (number | null)[] = [...Array(firstWeekday).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+
+  return (
+    <div style={{ padding: "6px 6px 10px", borderBottom: "1px solid var(--anchoran-border)" }}>
+      <div style={{ fontSize: 12.5, fontWeight: 500, marginBottom: 6 }}>
+        {today.toLocaleDateString([], { month: "long", year: "numeric" })}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, fontSize: 10.5, color: "var(--anchoran-text-secondary)", marginBottom: 2 }}>
+        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+          <div key={i} style={{ textAlign: "center" }}>{d}</div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+        {cells.map((day, i) => (
+          <div
+            key={i}
+            style={{
+              textAlign: "center",
+              fontSize: 11.5,
+              padding: "3px 0",
+              borderRadius: 6,
+              color: day === today.getDate() ? "#fff" : "var(--anchoran-text-primary)",
+              background: day === today.getDate() ? "var(--anchoran-accent)" : "transparent",
+            }}
+          >
+            {day ?? ""}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface Group {
   title: string;
   latest: AnchoranNotification;
@@ -12,19 +52,27 @@ interface Group {
   ids: string[];
 }
 
-/** Consecutive notifications sharing a title collapse into one group with a count. */
+/**
+ * Every notification sharing a title (in this convention, the source
+ * that pushed it — "Files", "Anchoran Webstore", …) collapses into one
+ * group, anywhere in the list — not just when they happened to arrive
+ * back-to-back. Groups are ordered by their own most recent
+ * notification, so the panel still reads newest-first overall.
+ */
 function groupNotifications(notifications: AnchoranNotification[]): Group[] {
-  const groups: Group[] = [];
+  const byTitle = new Map<string, Group>();
   for (const n of notifications) {
-    const last = groups[groups.length - 1];
-    if (last && last.title === n.title) {
-      last.count += 1;
-      last.ids.push(n.id);
+    const existing = byTitle.get(n.title);
+    if (existing) {
+      existing.count += 1;
+      existing.ids.push(n.id);
+      // notifications arrives newest-first, so the first one seen per
+      // title is already the most recent — nothing to update here.
     } else {
-      groups.push({ title: n.title, latest: n, count: 1, ids: [n.id] });
+      byTitle.set(n.title, { title: n.title, latest: n, count: 1, ids: [n.id] });
     }
   }
-  return groups;
+  return Array.from(byTitle.values()).sort((a, b) => b.latest.createdAt - a.latest.createdAt);
 }
 
 export function NotificationPanel({ onClose }: { onClose: () => void }) {
@@ -58,6 +106,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
           transformOrigin: "bottom right",
         }}
       >
+        <MiniCalendar />
         <div
           style={{
             display: "flex",
@@ -163,6 +212,18 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                   <div style={{ fontSize: 10.5, color: "var(--anchoran-text-disabled)", marginTop: 2 }}>
                     {formatTime(group.latest.createdAt)}
                   </div>
+                  {group.latest.action && (
+                    <button
+                      className="app-toolbar-btn"
+                      style={{ marginTop: 6, fontSize: 11.5, padding: "4px 8px" }}
+                      onClick={() => {
+                        group.latest.action!.onClick();
+                        dismiss(group.latest.id);
+                      }}
+                    >
+                      {group.latest.action.label}
+                    </button>
+                  )}
                 </div>
                 <button
                   onClick={() => snooze(group.latest.id, 10)}

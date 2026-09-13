@@ -12,8 +12,15 @@ import { persistGet, persistSet } from "@/core/persist";
 import { playLoginSound } from "@/core/sound";
 import { recordUpdateIfVersionChanged } from "@/core/updateHistory";
 import { usePreferencesStore } from "@/theme/preferencesStore";
+// Side-effect only — starts the "recent settings changes" log tracking
+// from boot, not only once Settings has been opened once.
+import "@/theme/settingsChangeLogStore";
+// Side-effect only — checks on boot whether the wallpaper Spotlight is
+// due to rotate, rather than only ever checking once Settings opens.
+import "@/theme/wallpaperSpotlightStore";
 import { Onboarding } from "@/onboarding/Onboarding";
 import { useWindowStore } from "@/windowmanager/windowStore";
+import { useAnchoranStartupAppsStore, startupAppsReady } from "@/core/anchoranStartupAppsStore";
 import { useSystemModeStore } from "@/desktop/systemModeStore";
 import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 
@@ -204,6 +211,18 @@ export default function App() {
     // Anchoran always starts locked, like a real PC — with a PIN set,
     // LockScreen requires it; without one, it unlocks on any input.
     setLocked(true);
+
+    // Reopens whatever apps were set to launch with Anchoran itself —
+    // see anchoranStartupAppsStore.ts. Windows exist right away even
+    // while the lock screen is up, the same as a real OS restoring
+    // your session before you've unlocked.
+    startupAppsReady.then(() => {
+      const { items } = useAnchoranStartupAppsStore.getState();
+      for (const item of items) {
+        const windowId = useWindowStore.getState().openApp(item.appId);
+        if (item.minimized && windowId) useWindowStore.getState().minimizeWindow(windowId);
+      }
+    });
 
     const alreadyWelcomed = await persistGet("config", WELCOMED_KEY, false);
     if (!alreadyWelcomed) {
