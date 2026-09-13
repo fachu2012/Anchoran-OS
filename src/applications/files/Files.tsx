@@ -10,11 +10,16 @@ import { FileProperties } from "./FileProperties";
 import { iconForFile } from "./fileTypes";
 import { useRecentFilesStore } from "./recentFilesStore";
 import { useFavoritesStore } from "./favoritesStore";
+import { useFileTagsStore, TAG_COLOR_HEX } from "./fileTagsStore";
+import { TagPicker } from "./TagPicker";
+import { FolderCompare } from "./FolderCompare";
 import JSZip from "jszip";
 import { addPathToZip, extractZipTo } from "@/core/zipHelpers";
 import "@/applications/apps.css";
 
 const THIS_PC = "This PC";
+const ANCHORAN_TRASH = "Anchoran Trash";
+interface TrashItem { id: string; originalPath: string; name: string; isDirectory: boolean; deletedAt: number }
 type Entry = { name: string; path: string; isDirectory: boolean; size: number; modifiedAt: number; createdAt: number };
 type Clipboard = { paths: string[]; mode: "copy" | "cut" } | null;
 type SortMode = "name-asc" | "name-desc" | "date-desc" | "date-asc" | "size-desc" | "size-asc";
@@ -84,7 +89,9 @@ export function FilesApp() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "columns">("list");
+  const [columnPaths, setColumnPaths] = useState<string[]>([]);
+  const [columnEntriesMap, setColumnEntriesMap] = useState<Record<string, Entry[]>>({});
   const [sortMode, setSortMode] = useState<SortMode>("date-desc");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [clipboard, setClipboard] = useState<Clipboard>(null);
@@ -97,10 +104,46 @@ export function FilesApp() {
   const [recentOpen, setRecentOpen] = useState(false);
   const favoritePaths = useFavoritesStore((s) => s.paths);
   const toggleFavorite = useFavoritesStore((s) => s.toggle);
+  const fileTags = useFileTagsStore((s) => s.tags);
+  const setFileTag = useFileTagsStore((s) => s.setTag);
+  const [tagPicker, setTagPicker] = useState<{ x: number; y: number; path: string } | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
+
+  async function refreshTrash() {
+    if (!window.anchoran) return;
+    setTrashItems(await window.anchoran.trashList());
+  }
+
+  useEffect(() => {
+    refreshTrash();
+  }, []);
+
+  useEffect(() => {
+    if (currentPath === ANCHORAN_TRASH) refreshTrash();
+  }, [currentPath]);
+
+  async function restoreTrashItem(id: string) {
+    const result = await window.anchoran!.trashRestore(id);
+    if (!result.success) pushNotification("Files", result.error ?? "Couldn't restore.");
+    refreshTrash();
+  }
+
+  async function deleteTrashItemPermanently(id: string) {
+    const result = await window.anchoran!.trashDeletePermanently(id);
+    if (!result.success) pushNotification("Files", result.error ?? "Couldn't delete.");
+    refreshTrash();
+  }
+
+  async function emptyTrash() {
+    await window.anchoran!.trashEmpty();
+    refreshTrash();
+  }
   const [addressInput, setAddressInput] = useState("This PC");
   const [addressError, setAddressError] = useState<string | null>(null);
   const [driveSpace, setDriveSpace] = useState<{ caption: string; free: number; total: number } | null>(null);
   const [includeSubfolders, setIncludeSubfolders] = useState(false);
+  const [searchContents, setSearchContents] = useState(false);
   const [recursiveResults, setRecursiveResults] = useState<Entry[] | null>(null);
   const [propertiesEntry, setPropertiesEntry] = useState<Entry | null>(null);
   const [batchRenamePaths, setBatchRenamePaths] = useState<string[] | null>(null);
@@ -171,11 +214,15 @@ export function FilesApp() {
     };
   }, [currentDriveLetter]);
 
-  // "Include subfolders" search — a bounded recursive scan under the
-  // current folder, debounced since it's real disk I/O rather than an
-  // in-memory filter of what's already loaded.
+  // "Include subfolders" and/or "Contents" search — a bounded scan
+  // under the current folder, debounced since it's real disk I/O
+  // rather than an in-memory filter of what's already loaded. Content
+  // matching only opens files under 512KB that Anchoran itself
+  // recognizes as text — the same size/type guard "cat" and Quick Look
+  // already use — so it doesn't try to read binaries or huge files.
+  const CONTENT_SEARCH_SIZE_LIMIT = 512_000;
   useEffect(() => {
-    if (!includeSubfolders || !query.trim() || currentPath === THIS_PC || !window.anchoran) {
+    if ((!includeSubfolders && !searchContents) || !query.trim() || currentPath === THIS_PC || !window.anchoran) {
       setRecursiveResults(null);
       return;
     }
@@ -183,24 +230,32 @@ export function FilesApp() {
     const lowerQuery = query.trim().toLowerCase();
     const timer = setTimeout(async () => {
       const results: Entry[] = [];
+      async function contentMatches(entry: Entry): Promise<boolean> {
+        if (!searchContents || entry.isDirectory || entry.size > CONTENT_SEARCH_SIZE_LIMIT) return false;
+        const isText = await window.anchoran!.fsIsTextFile(entry.path);
+        if (!isText) return false;
+        const result = await window.anchoran!.fsReadTextFile(entry.path);
+        return "content" in result && result.content.toLowerCase().includes(lowerQuery);
+      }
       async function scan(dir: string, depth: number) {
         if (cancelled || results.length >= 300 || depth > 8) return;
         const result = await window.anchoran!.fsListDir(dir);
         if ("error" in result) return;
         for (const entry of result.entries) {
           if (cancelled || results.length >= 300) return;
-          if (entry.name.toLowerCase().includes(lowerQuery)) results.push(entry);
-          if (entry.isDirectory) await scan(entry.path, depth + 1);
+          const nameMatch = entry.name.toLowerCase().includes(lowerQuery);
+          if (nameMatch || (await contentMatches(entry))) results.push(entry);
+          if (entry.isDirectory && includeSubfolders) await scan(entry.path, depth + 1);
         }
       }
       await scan(currentPath, 0);
       if (!cancelled) setRecursiveResults(results);
-    }, 250);
+    }, 300);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [includeSubfolders, query, currentPath]);
+  }, [includeSubfolders, searchContents, query, currentPath]);
 
   async function goToAddress() {
     const target = addressInput.trim();
@@ -315,10 +370,13 @@ export function FilesApp() {
   }
 
   async function deletePaths(paths: string[]) {
-    const result = await window.anchoran!.fsDelete(paths);
+    // Anchoran's own trash, not the real Windows Recycle Bin — see
+    // ANCHORAN_TRASH below for browsing/restoring it from inside Files.
+    const result = await window.anchoran!.trashMove(paths);
     if (!result.success) pushNotification("Files", result.error ?? "Couldn't delete.");
     setSelected(new Set());
     refresh();
+    refreshTrash();
   }
 
   async function pasteClipboard() {
@@ -447,6 +505,10 @@ export function FilesApp() {
         label: favoritePaths.has(entry.path) ? "Remove from Favorites" : "Add to Favorites",
         onSelect: () => toggleFavorite(entry.path),
       },
+      {
+        label: "Color tag…",
+        onSelect: () => setTagPicker(menu ? { x: menu.x, y: menu.y, path: entry.path } : null),
+      },
       { label: "Show in Explorer", onSelect: () => window.anchoran!.fsShowInExplorer(entry.path) },
       { separator: true },
       { label: paths.length > 1 ? `Delete ${paths.length} items` : "Delete", onSelect: () => deletePaths(paths), danger: true },
@@ -464,7 +526,7 @@ export function FilesApp() {
     return items;
   }
 
-  const searchingSubfolders = includeSubfolders && query.trim().length > 0 && currentPath !== THIS_PC;
+  const searchingSubfolders = (includeSubfolders || searchContents) && query.trim().length > 0 && currentPath !== THIS_PC;
   const filtered = searchingSubfolders
     ? recursiveResults ?? []
     : query.trim()
@@ -474,19 +536,49 @@ export function FilesApp() {
     a.isDirectory !== b.isDirectory ? (a.isDirectory ? -1 : 1) : compareEntries(a, b, sortMode)
   );
 
+  // Column ("Miller columns") view: a chain of folders drilled into,
+  // one per column. The last column mirrors normal browsing (reuses
+  // `entries`/`sorted`, already kept in sync with currentPath); every
+  // column before it is fetched and cached here since it's a real,
+  // separate directory listing the normal single-path state doesn't
+  // cover.
+  useEffect(() => {
+    if (viewMode !== "columns") return;
+    if (columnPaths[columnPaths.length - 1] !== currentPath) setColumnPaths([currentPath]);
+  }, [viewMode, currentPath, columnPaths]);
+
+  useEffect(() => {
+    if (viewMode !== "columns" || !window.anchoran) return;
+    columnPaths.slice(0, -1).forEach(async (p) => {
+      if (columnEntriesMap[p] || p === THIS_PC) return;
+      const result = await window.anchoran!.fsListDir(p);
+      if (!("error" in result)) setColumnEntriesMap((m) => ({ ...m, [p]: result.entries }));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, columnPaths]);
+
+  function openColumnEntry(colIndex: number, entry: Entry) {
+    if (!entry.isDirectory) {
+      setQuickLookEntry(entry);
+      return;
+    }
+    setColumnPaths((paths) => [...paths.slice(0, colIndex + 1), entry.path]);
+    setCurrentPath(entry.path);
+  }
+
   return (
     <div className="app-root">
       <div className="app-toolbar">
         <button className="app-toolbar-btn" onClick={() => setCurrentPath(THIS_PC)} data-op={currentPath === THIS_PC}>
           This PC
         </button>
-        <button className="app-toolbar-btn" onClick={() => setCurrentPath(parentOf(currentPath))} disabled={currentPath === THIS_PC}>
+        <button className="app-toolbar-btn" onClick={() => setCurrentPath(parentOf(currentPath))} disabled={currentPath === THIS_PC || currentPath === ANCHORAN_TRASH}>
           <Icon name="chevronRight" size={13} style={{ transform: "rotate(180deg)" }} />
         </button>
-        <button className="app-toolbar-btn" onClick={newFolder} disabled={currentPath === THIS_PC}>
+        <button className="app-toolbar-btn" onClick={newFolder} disabled={currentPath === THIS_PC || currentPath === ANCHORAN_TRASH}>
           <Icon name="folder" size={14} /> New Folder
         </button>
-        <button className="app-toolbar-btn" onClick={newFile} disabled={currentPath === THIS_PC}>
+        <button className="app-toolbar-btn" onClick={newFile} disabled={currentPath === THIS_PC || currentPath === ANCHORAN_TRASH}>
           <Icon name="file" size={14} /> New File
         </button>
         <input
@@ -499,10 +591,19 @@ export function FilesApp() {
           className="app-toolbar-btn"
           data-op={includeSubfolders}
           onClick={() => setIncludeSubfolders((v) => !v)}
-          disabled={currentPath === THIS_PC}
+          disabled={currentPath === THIS_PC || currentPath === ANCHORAN_TRASH}
           title="Also search inside subfolders"
         >
           Subfolders
+        </button>
+        <button
+          className="app-toolbar-btn"
+          data-op={searchContents}
+          onClick={() => setSearchContents((v) => !v)}
+          disabled={currentPath === THIS_PC || currentPath === ANCHORAN_TRASH}
+          title="Also search inside text file contents, not just names"
+        >
+          Contents
         </button>
         <select
           value={sortMode}
@@ -518,10 +619,63 @@ export function FilesApp() {
         <button className="app-toolbar-btn" onClick={() => setRecentOpen(true)} disabled={recentFiles.length === 0}>
           Recent
         </button>
-        <button className="app-toolbar-btn" onClick={() => setViewMode((v) => (v === "grid" ? "list" : "grid"))} style={{ marginLeft: "auto" }}>
-          {viewMode === "grid" ? "List view" : "Grid view"}
+        <button className="app-toolbar-btn" onClick={() => setCompareOpen(true)} disabled={currentPath === THIS_PC || currentPath === ANCHORAN_TRASH}>
+          Compare…
+        </button>
+        {currentPath === ANCHORAN_TRASH && (
+          <button className="app-toolbar-btn" onClick={emptyTrash} disabled={trashItems.length === 0}>
+            Empty Trash
+          </button>
+        )}
+        <button
+          className="app-toolbar-btn"
+          onClick={() => setViewMode((v) => (v === "grid" ? "list" : v === "list" ? "columns" : "grid"))}
+          style={{ marginLeft: "auto" }}
+        >
+          {viewMode === "grid" ? "List view" : viewMode === "list" ? "Columns view" : "Grid view"}
         </button>
       </div>
+      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+        <div className="files-sidebar">
+          <div className="files-sidebar-label">Quick access</div>
+          {quickLinks.map((q) => (
+            <button key={q.path} className="files-sidebar-item" data-active={currentPath === q.path} onClick={() => setCurrentPath(q.path)}>
+              <IconTile name="folder" size={20} glyphScale={0.6} />
+              {q.label}
+            </button>
+          ))}
+          <button className="files-sidebar-item" data-active={currentPath === THIS_PC} onClick={() => setCurrentPath(THIS_PC)}>
+            <IconTile name="files" size={20} glyphScale={0.6} />
+            This PC
+          </button>
+          <button className="files-sidebar-item" data-active={currentPath === ANCHORAN_TRASH} onClick={() => setCurrentPath(ANCHORAN_TRASH)}>
+            <IconTile name="recycleBin" size={20} glyphScale={0.6} />
+            Trash{trashItems.length > 0 ? ` (${trashItems.length})` : ""}
+          </button>
+          {favoritePaths.size > 0 && (
+            <>
+              <div className="files-sidebar-label">Favorites</div>
+              {Array.from(favoritePaths).map((p) => (
+                <button key={p} className="files-sidebar-item" data-active={currentPath === p} onClick={() => setCurrentPath(p)}>
+                  <IconTile name="star" size={20} glyphScale={0.75} />
+                  {p.split(/[\\/]/).filter(Boolean).pop() ?? p}
+                </button>
+              ))}
+            </>
+          )}
+          {drives.length > 0 && (
+            <>
+              <div className="files-sidebar-label">Drives</div>
+              {drives.map((d) => (
+                <button key={d} className="files-sidebar-item" data-active={currentPath === d} onClick={() => setCurrentPath(d)}>
+                  <IconTile name="files" size={20} glyphScale={0.6} />
+                  {d}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
       <div style={{ display: "flex", flexDirection: "column", borderBottom: "1px solid var(--anchoran-border)", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px" }}>
           <Icon name="folder" size={13} style={{ flexShrink: 0, color: "var(--anchoran-text-secondary)" }} />
@@ -579,7 +733,33 @@ export function FilesApp() {
           if (e.target === e.currentTarget) setSelected(new Set());
         }}
       >
-        {currentPath === THIS_PC ? (
+        {currentPath === ANCHORAN_TRASH ? (
+          trashItems.length === 0 ? (
+            <div className="empty-state">
+              <Icon name="recycleBin" size={40} className="empty-state-icon" />
+              <div className="empty-state-title">Trash is empty</div>
+              <div className="empty-state-desc">Anchoran's own trash — separate from the Windows Recycle Bin.</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {trashItems.map((item) => (
+                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 4px", borderBottom: "1px solid var(--anchoran-border)" }}>
+                  <IconTile name={item.isDirectory ? "folder" : iconForFile(item.name)} size={26} glyphScale={0.58} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--anchoran-text-secondary)" }}>
+                      Deleted {formatDate(item.deletedAt)} — {item.originalPath}
+                    </div>
+                  </div>
+                  <button className="app-toolbar-btn" onClick={() => restoreTrashItem(item.id)}>Restore</button>
+                  <button className="app-toolbar-btn" style={{ color: "#E5484D" }} onClick={() => deleteTrashItemPermanently(item.id)}>
+                    Delete permanently
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
+        ) : currentPath === THIS_PC ? (
           <div className="files-grid">
             {quickLinks.map((q) => (
               <div key={q.path} className="files-item" onDoubleClick={() => setCurrentPath(q.path)} onClick={() => setCurrentPath(q.path)}>
@@ -596,6 +776,30 @@ export function FilesApp() {
           </div>
         ) : loadError ? (
           <div style={{ color: "#E5484D", fontSize: 13, padding: 12 }}>{loadError}</div>
+        ) : viewMode === "columns" ? (
+          <div className="files-columns">
+            {columnPaths.map((p, i) => {
+              const colEntries = i === columnPaths.length - 1 ? sorted : columnEntriesMap[p] ?? [];
+              return (
+                <div key={p} className="files-column">
+                  {colEntries.map((e) => (
+                    <button
+                      key={e.path}
+                      className="files-column-item"
+                      data-active={columnPaths[i + 1] === e.path}
+                      onClick={() => openColumnEntry(i, e)}
+                    >
+                      {fileTags[e.path] && <span className="files-tag-dot" style={{ background: TAG_COLOR_HEX[fileTags[e.path]] }} />}
+                      <IconTile name={e.isDirectory ? "folder" : iconForFile(e.name)} size={18} glyphScale={0.6} />
+                      <span>{e.name}</span>
+                      {e.isDirectory && <Icon name="chevronRight" size={11} style={{ marginLeft: "auto", flexShrink: 0, opacity: 0.5 }} />}
+                    </button>
+                  ))}
+                  {colEntries.length === 0 && <div className="files-column-empty">Empty</div>}
+                </div>
+              );
+            })}
+          </div>
         ) : viewMode === "grid" ? (
           <div className="files-grid">
             {sorted.map((entry) => (
@@ -623,6 +827,12 @@ export function FilesApp() {
                     <span className="files-favorite-badge">
                       <IconTile name="star" size={14} glyphScale={0.75} />
                     </span>
+                  )}
+                  {fileTags[entry.path] && (
+                    <span
+                      className="files-tag-dot"
+                      style={{ position: "absolute", top: -2, left: -2, background: TAG_COLOR_HEX[fileTags[entry.path]] }}
+                    />
                   )}
                 </div>
                 {renamingPath === entry.path ? (
@@ -671,6 +881,7 @@ export function FilesApp() {
                   style={{ cursor: "default", borderTop: "1px solid var(--anchoran-border)" }}
                 >
                   <td style={{ padding: "7px 8px", display: "flex", alignItems: "center", gap: 8 }}>
+                    {fileTags[entry.path] && <span className="files-tag-dot" style={{ background: TAG_COLOR_HEX[fileTags[entry.path]] }} />}
                     <IconTile name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={20} glyphScale={0.6} />
                     <span>
                       {entry.name}
@@ -692,8 +903,20 @@ export function FilesApp() {
           </table>
         )}
       </div>
+        </div>
+      </div>
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} items={menu.entry ? entryMenuItems(menu.entry) : emptySpaceMenuItems()} onClose={() => setMenu(null)} />
+      )}
+      {compareOpen && <FolderCompare folderA={currentPath} onClose={() => setCompareOpen(false)} />}
+      {tagPicker && (
+        <TagPicker
+          x={tagPicker.x}
+          y={tagPicker.y}
+          current={fileTags[tagPicker.path] ?? null}
+          onPick={(color) => setFileTag(tagPicker.path, color)}
+          onClose={() => setTagPicker(null)}
+        />
       )}
       {quickLookEntry && <QuickLook entry={quickLookEntry} onClose={() => setQuickLookEntry(null)} />}
       {propertiesEntry && <FileProperties entry={propertiesEntry} onClose={() => setPropertiesEntry(null)} />}

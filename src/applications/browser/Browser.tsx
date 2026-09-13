@@ -5,6 +5,7 @@ import { useWebviewVolume } from "@/core/useWebviewVolume";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { ContextMenu, type ContextMenuEntry } from "@/desktop/ContextMenu";
 import { useBrowserStore } from "./browserStore";
+import { useShortcutsStore } from "@/desktop/shortcutsStore";
 import "@/applications/apps.css";
 import "./browser.css";
 
@@ -261,8 +262,11 @@ function BrowserTabView({
   );
 }
 
-export function BrowserApp() {
-  const [tabs, setTabs] = useState<Tab[]>(() => [newTab(HOME_URL)]);
+export function BrowserApp({ openPath }: { openPath?: string } = {}) {
+  // A URL handed in at open time (from the Launcher's browser-history
+  // search results, or any future caller) opens straight to it instead
+  // of the usual new-tab page.
+  const [tabs, setTabs] = useState<Tab[]>(() => [newTab(openPath || HOME_URL)]);
   const [tabMenu, setTabMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [activeId, setActiveId] = useState(tabs[0].id);
   const [addressInput, setAddressInput] = useState(HOME_URL);
@@ -322,6 +326,18 @@ export function BrowserApp() {
     if (!options?.background) setActiveId(t.id);
     return t.id;
   }
+
+  // Browser is single-instance — reopening it with a new openPath (the
+  // Launcher's browser-history search results, say) re-focuses the
+  // existing window rather than remounting it, so the initial-tab
+  // useState above only ever runs once. This is what actually
+  // navigates for every open after the first.
+  const lastOpenPath = useRef(openPath);
+  useEffect(() => {
+    if (openPath && openPath !== lastOpenPath.current) openTab(openPath);
+    lastOpenPath.current = openPath;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPath]);
 
   function closeTab(id: string) {
     setTabs((prev) => {
@@ -592,6 +608,17 @@ export function BrowserApp() {
                 onSelect: () => togglePin(tabMenu.id),
               },
               { label: "Duplicate tab", onSelect: () => duplicateTab(tabMenu.id) },
+              ...(t && t.url !== NEW_TAB_URL
+                ? [
+                    {
+                      label: "Create desktop shortcut…",
+                      onSelect: () =>
+                        useShortcutsStore
+                          .getState()
+                          .addShortcut({ appId: "browser" as const, title: t.title || t.url, openPath: t.url }),
+                    },
+                  ]
+                : []),
               { separator: true },
               { label: "Close others", onSelect: () => closeOthers(tabMenu.id) },
               { label: "Close tabs to the right", onSelect: () => closeToRight(tabMenu.id) },

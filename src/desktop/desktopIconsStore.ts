@@ -18,7 +18,7 @@ const POSITIONS_KEY = "desktopIconPositions";
 
 const DEFAULT_PINNED: AppId[] = ["files", "terminal", "settings", "recycleBin"];
 
-export type IconKey = `app:${string}` | `file:${string}`;
+export type IconKey = `app:${string}` | `file:${string}` | `shortcut:${string}`;
 
 interface DesktopIconsState {
   pinnedApps: AppId[];

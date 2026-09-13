@@ -111,6 +111,13 @@ declare global {
     fsReadTextFile: (filePath: string) => Promise<{ content: string } | { error: string }>;
     fsReadImageFile: (filePath: string) => Promise<{ dataUrl: string } | { error: string }>;
     fsIsTextFile: (filePath: string) => Promise<boolean>;
+    onDriveConnected: (callback: (drive: string) => void) => void;
+    onDriveDisconnected: (callback: (drive: string) => void) => void;
+    trashMove: (paths: string[]) => Promise<{ success: boolean; error?: string }>;
+    trashList: () => Promise<{ id: string; originalPath: string; name: string; isDirectory: boolean; deletedAt: number }[]>;
+    trashRestore: (id: string) => Promise<{ success: boolean; error?: string; restoredTo?: string }>;
+    trashDeletePermanently: (id: string) => Promise<{ success: boolean; error?: string }>;
+    trashEmpty: () => Promise<{ success: boolean; error?: string }>;
     fsReadBinary: (filePath: string) => Promise<{ base64: string } | { error: string }>;
     fsWriteTextFile: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
     fsCreateFolder: (parentPath: string, name: string) => Promise<{ path: string } | { error: string }>;

@@ -10,6 +10,9 @@ import { useInstalledAppsStore, isProtectedApp, isCoreApp } from "@/applications
 import { ContextMenu, type ContextMenuEntry } from "@/desktop/ContextMenu";
 import { AdminPinPrompt } from "@/core/AdminPinPrompt";
 import { useAppUsageStore } from "@/core/appUsageStore";
+import { useBrowserStore } from "@/applications/browser/browserStore";
+import { persistGet, persistSet } from "@/core/persist";
+import { useShortcutsStore } from "@/desktop/shortcutsStore";
 import "./launcher.css";
 
 // Mirrors Settings.tsx's SECTIONS — kept here as a plain list rather
@@ -20,6 +23,40 @@ const SETTINGS_SECTIONS = [
   "Appearance", "Personalization", "Display", "Sound", "Network", "Notifications",
   "Users", "Privacy", "System", "Shortcuts", "System Mode", "Updater",
 ];
+
+// Individual, specific settings a query might name — "dark mode",
+// "wallpaper" — mapped to the section that actually holds them, so
+// searching for the setting itself works, not just the section's own
+// name (which SETTINGS_SECTIONS above already covers).
+const SETTING_KEYWORDS: Record<string, string> = {
+  "dark mode": "Appearance",
+  "light mode": "Appearance",
+  theme: "Appearance",
+  accent: "Appearance",
+  wallpaper: "Personalization",
+  background: "Personalization",
+  username: "Personalization",
+  avatar: "Personalization",
+  resolution: "Display",
+  scale: "Display",
+  brightness: "Display",
+  volume: "Sound",
+  mute: "Sound",
+  wifi: "Network",
+  "do not disturb": "Notifications",
+  dnd: "Notifications",
+  pin: "Users",
+  admin: "Users",
+  profile: "Users",
+  "clipboard auto-clear": "Privacy",
+  encryption: "Privacy",
+  reset: "Privacy",
+  backup: "Privacy",
+  "storage used": "System",
+  diagnostics: "System",
+  update: "Updater",
+  changelog: "Updater",
+};
 
 /** Apps that can be opened already-elevated via a right-click "Run as Administrator". */
 const ADMIN_CAPABLE_APPS = new Set<AppId>(["terminal"]);
@@ -137,8 +174,20 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
   const unpinFromDesktop = useDesktopIconsStore((s) => s.unpinApp);
   const installed = useInstalledAppsStore((s) => s.installed);
   const uninstall = useInstalledAppsStore((s) => s.uninstall);
+  const addShortcut = useShortcutsStore((s) => s.addShortcut);
   const recordUsage = useAppUsageStore((s) => s.record);
   const topApps = useAppUsageStore((s) => s.topApps);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  useEffect(() => {
+    persistGet<string[]>("config", "launcherSearchHistory", []).then(setSearchHistory);
+  }, []);
+  function recordSearch(q: string) {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    const next = [trimmed, ...searchHistory.filter((s) => s !== trimmed)].slice(0, 8);
+    setSearchHistory(next);
+    persistSet("config", "launcherSearchHistory", next);
+  }
 
   const [menu, setMenu] = useState<{ x: number; y: number; app: AppDefinition } | null>(null);
   const [adminPinPrompt, setAdminPinPrompt] = useState<{ mode: "runAsAdmin" } | { mode: "uninstall"; appId: AppId } | null>(null);
@@ -172,10 +221,24 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
     return groups;
   }, [sortedApps]);
 
+  const browserHistory = useBrowserStore((s) => s.history);
+  const browserResults = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q || !installed.has("browser")) return [];
+    const seen = new Set<string>();
+    return browserHistory
+      .filter((h) => !seen.has(h.url) && (h.url.toLowerCase().includes(q) || h.title.toLowerCase().includes(q)) && (seen.add(h.url), true))
+      .slice(0, 5);
+  }, [browserHistory, query, installed]);
+
   const settingResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return SETTINGS_SECTIONS.filter((s) => s.toLowerCase().includes(q));
+    const bySection = SETTINGS_SECTIONS.filter((s) => s.toLowerCase().includes(q));
+    const byKeyword = Object.entries(SETTING_KEYWORDS)
+      .filter(([keyword]) => keyword.includes(q))
+      .map(([keyword, section]) => `${keyword} (in ${section})`);
+    return [...bySection, ...byKeyword];
   }, [query]);
 
   // Real files are read from disk, so this is debounced rather than
@@ -252,6 +315,11 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
     if (ADMIN_CAPABLE_APPS.has(app.id)) {
       items.push({ separator: true });
       items.push({ label: "Run as Administrator", icon: "lock", onSelect: () => setAdminPinPrompt({ mode: "runAsAdmin" }) });
+      items.push({
+        label: "Pin Administrator shortcut to Desktop",
+        onSelect: () =>
+          addShortcut({ appId: app.id, title: `${app.title} (Administrator)`, startAdmin: true }),
+      });
     }
     if (!isCoreApp(app.id)) {
       items.push({ separator: true });
@@ -319,6 +387,7 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
+                if (hasQuery) recordSearch(query);
                 if (appResults[0]) launch(appResults[0].id);
                 else if (calcResult !== null) navigator.clipboard?.writeText(String(calcResult)).catch(() => {});
               }
@@ -341,6 +410,15 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
           )}
           {!hasQuery ? (
             <>
+              {searchHistory.length > 0 && (
+                <div className="launcher-search-history">
+                  {searchHistory.map((s) => (
+                    <button key={s} className="launcher-search-history-chip" onClick={() => setQuery(s)}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
               {frequentApps.length > 0 && (
                 <>
                   <div className="launcher-section-label">Frequently used</div>
@@ -398,9 +476,33 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
             </>
           )}
 
-          {hasQuery && appResults.length === 0 && settingResults.length === 0 && fileResults.length === 0 && (
-            <div style={{ padding: 16, fontSize: 13, color: "var(--anchoran-text-secondary)" }}>No results.</div>
+          {hasQuery && browserResults.length > 0 && (
+            <>
+              <div className="launcher-section-label">Browser history</div>
+              {browserResults.map((h) => (
+                <div key={h.url} className="launcher-item">
+                  <button
+                    className="launcher-item-main"
+                    onClick={() => {
+                      openApp("browser", { openPath: h.url });
+                      onClose();
+                    }}
+                  >
+                    <IconTile name="browser" size={34} />
+                    {h.title || h.url}
+                  </button>
+                </div>
+              ))}
+            </>
           )}
+
+          {hasQuery &&
+            appResults.length === 0 &&
+            settingResults.length === 0 &&
+            fileResults.length === 0 &&
+            browserResults.length === 0 && (
+              <div style={{ padding: 16, fontSize: 13, color: "var(--anchoran-text-secondary)" }}>No results.</div>
+            )}
 
           {letterJumpOpen && (
             <div className="launcher-jump-overlay">

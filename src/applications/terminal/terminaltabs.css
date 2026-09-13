@@ -1,0 +1,94 @@
+.terminal-tabs-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.terminal-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px 0;
+  background: #0B0E14;
+  flex-shrink: 0;
+}
+
+.terminal-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px 6px 0 0;
+  background: #161B26;
+  color: #8B96A5;
+  font-size: 12px;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  cursor: pointer;
+}
+
+.terminal-tab[data-active="true"] {
+  background: #0B0E14;
+  color: #DCE1E8;
+}
+
+.terminal-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  padding: 2px;
+}
+
+.terminal-tab-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.terminal-tab-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #8B96A5;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+.terminal-tab-add-solo {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #8B96A5;
+  cursor: pointer;
+}
+
+.terminal-tab-add:hover,
+.terminal-tab-add-solo:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #DCE1E8;
+}
+
+.terminal-tab-content {
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.terminal-tab-content .terminal-root {
+  flex: 1;
+  min-height: 0;
+}

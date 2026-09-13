@@ -4,8 +4,10 @@ import { IconTile } from "@/components/IconTile";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { APP_REGISTRY } from "@/applications/registry";
 import { useDesktopIconsStore, type IconKey } from "./desktopIconsStore";
+import { useShortcutsStore } from "./shortcutsStore";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { AdminPinPrompt } from "@/core/AdminPinPrompt";
+import type { AppId } from "@/core/types";
 
 const GRID_X = 100;
 const GRID_Y = 92;
@@ -40,9 +42,23 @@ export function DesktopIcons() {
   const unpinApp = useDesktopIconsStore((s) => s.unpinApp);
   const positions = useDesktopIconsStore((s) => s.positions);
   const setPosition = useDesktopIconsStore((s) => s.setPosition);
+  const shortcuts = useShortcutsStore((s) => s.shortcuts);
+  const removeShortcut = useShortcutsStore((s) => s.removeShortcut);
   const [dragging, setDragging] = useState<IconKey | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
   const [adminPinPrompt, setAdminPinPrompt] = useState(false);
+  // A shortcut saved with startAdmin never skips the PIN check — it
+  // only remembers the *intent* to open elevated; the actual admin
+  // grant still has to come from a live PIN prompt every time, exactly
+  // like "Run as Administrator" itself. Storing a bare "already
+  // elevated" flag on disk would otherwise let anyone who can click a
+  // desktop icon skip authentication entirely.
+  const [pendingAdminShortcut, setPendingAdminShortcut] = useState<{ appId: AppId; openPath?: string } | null>(null);
+
+  function openShortcut(s: (typeof shortcuts)[number]) {
+    if (s.startAdmin) setPendingAdminShortcut({ appId: s.appId, openPath: s.openPath });
+    else openApp(s.appId, { openPath: s.openPath });
+  }
 
   const entries: IconEntry[] = pinnedApps
     .filter((id) => APP_REGISTRY[id])
@@ -58,7 +74,19 @@ export function DesktopIcons() {
           : []),
         { label: "Remove from desktop", onSelect: () => unpinApp(id) },
       ],
-    }));
+    }))
+    .concat(
+      shortcuts.map((s): IconEntry => ({
+        key: `shortcut:${s.id}` as IconKey,
+        icon: APP_REGISTRY[s.appId].icon as IconName,
+        label: s.title,
+        onOpen: () => openShortcut(s),
+        menu: [
+          { label: "Open", onSelect: () => openShortcut(s) },
+          { label: "Remove shortcut", onSelect: () => removeShortcut(s.id) },
+        ],
+      }))
+    );
 
   function onPointerDown(e: React.PointerEvent, key: IconKey) {
     if (e.button !== 0) return;
@@ -119,6 +147,15 @@ export function DesktopIcons() {
           onSuccess={() => {
             setAdminPinPrompt(false);
             openApp("terminal", { startAdmin: true });
+          }}
+        />
+      )}
+      {pendingAdminShortcut && (
+        <AdminPinPrompt
+          onCancel={() => setPendingAdminShortcut(null)}
+          onSuccess={() => {
+            openApp(pendingAdminShortcut.appId, { openPath: pendingAdminShortcut.openPath, startAdmin: true });
+            setPendingAdminShortcut(null);
           }}
         />
       )}

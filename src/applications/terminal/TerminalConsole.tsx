@@ -31,9 +31,9 @@ const KNOWN_COMMANDS = [
   "about", "accent", "alias", "anchoran", "backup", "cat", "cd", "clear", "clearcache",
   "closewindow", "copy", "cp", "crashinfo", "date", "del", "deleteallfiles", "delprofile",
   "df", "du", "echo", "emptyrecyclebin", "exit", "exportlogs", "find", "forcequit", "format",
-  "get", "help", "history", "killall", "killexplorer", "listprofiles", "listwindows", "logs",
+  "get", "grep", "help", "history", "killall", "killexplorer", "listprofiles", "listwindows", "logs",
   "ls", "mkdir", "move", "mv", "myip", "netcheck", "ping", "ps", "pslist", "pwd", "regquery",
-  "resetlayout", "resetpin", "restart", "restartexplorer", "restore", "rm", "scale", "set",
+  "resetlayout", "resetpin", "restart", "restartexplorer", "restore", "rm", "runscript", "scale", "set",
   "shutdown", "sleep", "startup", "sysinfo", "system", "systemmode", "taskkill", "theme",
   "touch", "unset", "uptime", "wallpaper", "whoami", "wipe",
 ];
@@ -383,6 +383,8 @@ export function TerminalConsole({
             "Available commands:",
             "  help, clear, about, system, date, echo, pwd, ls, cd, mkdir, touch, cat",
             "  del/rm, move/mv, copy/cp, find, history, alias name=\"cmd\" | alias --remove name",
+            "  runscript <file> — runs each non-empty, non-# line in a text file as its own command",
+            "  grep <text> — searches this window's own output history for matching lines",
             "  anchoran system | version | settings | update | changelog [vX.Y.Z] | uptime",
             "  anchoran restart | lock | apps | open <app> | install <app> | uninstall <app> | kill <app>",
             "Tab completes file and folder names.",
@@ -465,6 +467,32 @@ export function TerminalConsole({
         const result = await window.anchoran?.fsReadTextFile(resolvePath(cwd, args[0]));
         if (result && "content" in result) print(result.content);
         else print(`cat: no such file: ${args[0]}`);
+        break;
+      }
+      case "grep": {
+        if (!args[0]) {
+          print("grep: missing search text");
+          break;
+        }
+        const needle = args.join(" ").toLowerCase();
+        const matches = history.filter((h) => h.text.toLowerCase().includes(needle));
+        print(matches.length > 0 ? matches.map((m) => m.text).join("\n") : `grep: no matches for "${args.join(" ")}"`);
+        break;
+      }
+      case "runscript": {
+        if (!args[0]) {
+          print("runscript: missing script file");
+          break;
+        }
+        const result = await window.anchoran?.fsReadTextFile(resolvePath(cwd, args[0]));
+        if (!result || !("content" in result)) {
+          print(`runscript: no such file: ${args[0]}`);
+          break;
+        }
+        const lines = result.content.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
+        for (const scriptLine of lines) {
+          await run(scriptLine);
+        }
         break;
       }
       case "del":

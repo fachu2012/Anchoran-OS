@@ -5,6 +5,60 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.8.12] - 2026-09-13
+
+Wave 2 of the remaining 94-item list — 15 more items, numbered against
+the original list.
+
+### Added
+- **#24 Terminal tabs** — multiple independent shells in one Terminal
+  window, each with its own scrollback and current directory; a "+"
+  adds one, and switching keeps every tab's state (nothing unmounts in
+  the background).
+- **#27 `runscript <file>`** — runs each non-empty, non-`#` line of a
+  text file as its own Terminal command.
+- **#29 `grep <text>`** — searches this Terminal window's own output
+  history for matching lines.
+- **#31 Files column view** — a Miller-columns browsing mode (one
+  column per folder level drilled into), alongside the existing grid
+  and list views.
+- **#32 Real color tags** — six color tags assignable to any file or
+  folder from its context menu, shown as a small dot in every view.
+  Upgrades the single favorite/star toggle from 2.8.7's batch into a
+  proper multi-color tagging system.
+- **#33 Files sidebar** — Quick access, Favorites and Drives, always
+  visible on the left, instead of only reachable from "This PC".
+- **#34 Quick Look confirmed already covered** — Space already opens
+  an enlarged preview without opening the file; no new work needed.
+- **#35 Content search** — a new "Contents" toggle searches inside
+  text files (not just names), bounded to files under 512KB that
+  Anchoran recognizes as text.
+- **#36 Compare folders** — pick a second folder and see what's only
+  in one side, different, or identical, top-level entries.
+- **#39 Clearer USB/network drive notices** — connecting or removing a
+  drive now pushes a real notification instead of only showing up the
+  next time Files happens to be reopened.
+- **#40 Anchoran's own Trash** — deleting in Files now moves items into
+  a trash Anchoran fully owns (browsable and restorable from its own
+  sidebar), instead of the real Windows Recycle Bin. **This is a
+  deliberate, real behavior change**: deleted files no longer appear
+  in Windows' own Recycle Bin — see the note in electron/main.ts.
+- **#42 Browser history search in the Launcher** — matching pages from
+  Browser's history show up as their own result group.
+- **#43 Shortcuts with parameters** — "Pin Administrator shortcut to
+  Desktop" (Terminal) and "Create desktop shortcut…" for a specific
+  browser tab's URL (Browser's tab menu). An admin shortcut still
+  requires the PIN at every launch — the shortcut only remembers the
+  intent to elevate, never a standing bypass.
+- **#44 Launcher search history** — recent searches shown as chips
+  when the search box is empty.
+- **#46 Settings keyword search** — searching a specific setting by
+  name ("dark mode", "wallpaper", "clipboard auto-clear", …) now
+  suggests the section that actually holds it, not just section names.
+
+### Verification
+`typecheck`, `build` (renderer + electron) and `test` (7/7) all pass.
+
 ## [2.8.9] - 2026-09-12
 
 Wave 1 of "do everything left on the 94-item list that isn't blocked

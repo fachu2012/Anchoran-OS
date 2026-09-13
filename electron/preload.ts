@@ -199,6 +199,22 @@ contextBridge.exposeInMainWorld("anchoran", {
   fsReadImageFile: (filePath: string): Promise<{ dataUrl: string } | { error: string }> =>
     ipcRenderer.invoke("anchoran:fs-read-image-file", filePath),
   fsIsTextFile: (filePath: string): Promise<boolean> => ipcRenderer.invoke("anchoran:fs-is-text-file", filePath),
+  trashMove: (paths: string[]): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:trash-move", paths),
+  trashList: (): Promise<
+    { id: string; originalPath: string; name: string; isDirectory: boolean; deletedAt: number }[]
+  > => ipcRenderer.invoke("anchoran:trash-list"),
+  trashRestore: (id: string): Promise<{ success: boolean; error?: string; restoredTo?: string }> =>
+    ipcRenderer.invoke("anchoran:trash-restore", id),
+  trashDeletePermanently: (id: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:trash-delete-permanently", id),
+  trashEmpty: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke("anchoran:trash-empty"),
+  onDriveConnected: (callback: (drive: string) => void): void => {
+    ipcRenderer.on("anchoran:drive-connected", (_e, drive) => callback(drive));
+  },
+  onDriveDisconnected: (callback: (drive: string) => void): void => {
+    ipcRenderer.on("anchoran:drive-disconnected", (_e, drive) => callback(drive));
+  },
   fsReadBinary: (filePath: string): Promise<{ base64: string } | { error: string }> =>
     ipcRenderer.invoke("anchoran:fs-read-binary", filePath),
   fsWriteTextFile: (filePath: string, content: string): Promise<{ success: boolean; error?: string }> =>

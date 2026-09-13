@@ -105,6 +105,20 @@ export function Desktop({
     };
   }, [cycleFocus, setBounds, resizeWindow]);
 
+  // A clear, unmissable notification when a USB stick or network
+  // drive actually appears or disappears — previously the only way to
+  // notice was to happen to reopen Files and see a new drive letter
+  // already sitting there.
+  useEffect(() => {
+    window.anchoran?.onDriveConnected((drive) => {
+      pushNotification("Drive connected", `${drive} is now available in Files.`);
+    });
+    window.anchoran?.onDriveDisconnected((drive) => {
+      pushNotification("Drive disconnected", `${drive} was removed.`);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const recordClipboard = useClipboardHistoryStore((s) => s.record);
   useEffect(() => {
     function onCopy() {

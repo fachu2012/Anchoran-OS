@@ -649,7 +649,7 @@ ipcMain.handle("anchoran:fs-special-folders", () => ({
   videos: app.getPath("videos"),
 }));
 
-ipcMain.handle("anchoran:fs-list-drives", async () => {
+async function listDrivesRaw(): Promise<string[]> {
   if (process.platform !== "win32") return ["/"];
   const { stdout } = await new Promise<{ stdout: string }>((resolve) => {
     execFile("wmic", ["logicaldisk", "get", "name"], (_err, out) => resolve({ stdout: out ?? "" }));
@@ -660,7 +660,36 @@ ipcMain.handle("anchoran:fs-list-drives", async () => {
     .filter((l) => /^[A-Za-z]:$/.test(l))
     .map((l) => `${l}\\`);
   return drives.length > 0 ? drives : ["C:\\"];
-});
+}
+
+ipcMain.handle("anchoran:fs-list-drives", () => listDrivesRaw());
+
+// Polls for a drive letter appearing or disappearing — a USB stick or
+// a mapped network drive — and tells the renderer so it can surface a
+// clear, real "USB drive connected" notification instead of the
+// change only becoming visible the next time someone happens to
+// reopen Files. C: is never reported since it's always present.
+let knownDrives: Set<string> | null = null;
+function startDriveWatcher() {
+  setInterval(async () => {
+    const current = new Set(await listDrivesRaw());
+    if (knownDrives === null) {
+      knownDrives = current;
+      return;
+    }
+    for (const drive of current) {
+      if (!knownDrives.has(drive) && drive.toUpperCase() !== "C:\\") {
+        mainWindow?.webContents.send("anchoran:drive-connected", drive);
+      }
+    }
+    for (const drive of knownDrives) {
+      if (!current.has(drive) && drive.toUpperCase() !== "C:\\") {
+        mainWindow?.webContents.send("anchoran:drive-disconnected", drive);
+      }
+    }
+    knownDrives = current;
+  }, 4000);
+}
 
 interface FsEntry {
   name: string;
@@ -788,7 +817,7 @@ ipcMain.handle("anchoran:fs-rename", (_event, oldPath: string, newName: string) 
   }
 });
 
-/** Sends to the real Windows Recycle Bin — recoverable there, same as deleting in Explorer. Never a permanent unlink. */
+/** Sends to the real Windows Recycle Bin — recoverable there, same as deleting in Explorer. Never a permanent unlink. Kept for anywhere still using it; Files itself now uses Anchoran's own trash below instead. */
 ipcMain.handle("anchoran:fs-delete", async (_event, paths: string[]) => {
   const errors: string[] = [];
   for (const p of paths) {
@@ -799,6 +828,96 @@ ipcMain.handle("anchoran:fs-delete", async (_event, paths: string[]) => {
     }
   }
   return errors.length > 0 ? { success: false, error: errors.join("; ") } : { success: true };
+});
+
+/**
+ * Anchoran's own trash — separate from the real Windows Recycle Bin,
+ * so a deleted item can be browsed and restored entirely from inside
+ * Files, without switching to Windows Explorer's own bin. Trades away
+ * showing up in Windows' Recycle Bin (a real, deliberate difference —
+ * see CHANGELOG.md) for a trash Anchoran fully owns and controls.
+ */
+const trashDir = path.join(dataRoot, "trash");
+fs.mkdirSync(trashDir, { recursive: true });
+interface TrashItem {
+  id: string;
+  originalPath: string;
+  name: string;
+  isDirectory: boolean;
+  deletedAt: number;
+}
+const trashStore = new Store<{ items: TrashItem[] }>({ name: "trash-index", cwd: dataRoot, defaults: { items: [] } });
+
+function moveWithFallback(src: string, dest: string) {
+  try {
+    fs.renameSync(src, dest);
+  } catch {
+    fs.cpSync(src, dest, { recursive: true });
+    fs.rmSync(src, { recursive: true, force: true });
+  }
+}
+
+ipcMain.handle("anchoran:trash-move", (_event, paths: string[]) => {
+  const errors: string[] = [];
+  const items = trashStore.get("items");
+  for (const p of paths) {
+    try {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const stat = fs.statSync(p);
+      moveWithFallback(p, path.join(trashDir, id));
+      items.push({ id, originalPath: p, name: path.basename(p), isDirectory: stat.isDirectory(), deletedAt: Date.now() });
+    } catch (err) {
+      errors.push(`${path.basename(p)}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  trashStore.set("items", items);
+  return errors.length > 0 ? { success: false, error: errors.join("; ") } : { success: true };
+});
+
+ipcMain.handle("anchoran:trash-list", () => trashStore.get("items"));
+
+ipcMain.handle("anchoran:trash-restore", (_event, id: string) => {
+  const items = trashStore.get("items");
+  const item = items.find((i) => i.id === id);
+  if (!item) return { success: false, error: "Not found in trash." };
+  try {
+    let destination = item.originalPath;
+    if (fs.existsSync(destination)) {
+      const ext = path.extname(destination);
+      const base = ext ? destination.slice(0, -ext.length) : destination;
+      destination = `${base} (restored)${ext}`;
+    }
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    moveWithFallback(path.join(trashDir, item.id), destination);
+    trashStore.set("items", items.filter((i) => i.id !== id));
+    return { success: true, restoredTo: destination };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:trash-delete-permanently", (_event, id: string) => {
+  const items = trashStore.get("items");
+  const item = items.find((i) => i.id === id);
+  if (!item) return { success: false, error: "Not found in trash." };
+  try {
+    fs.rmSync(path.join(trashDir, item.id), { recursive: true, force: true });
+    trashStore.set("items", items.filter((i) => i.id !== id));
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:trash-empty", () => {
+  try {
+    fs.rmSync(trashDir, { recursive: true, force: true });
+    fs.mkdirSync(trashDir, { recursive: true });
+    trashStore.set("items", []);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
 });
 
 function copyRecursive(src: string, destDir: string) {
@@ -1699,6 +1818,7 @@ app.whenReady().then(() => {
   }
 
   createMainWindow();
+  startDriveWatcher();
   registerGlobalShortcuts();
   interceptWebviewDownloads();
   setupTrackerBlocking();

@@ -1,4 +1,4 @@
-import { TerminalConsole } from "./TerminalConsole";
+import { TerminalTabs } from "./TerminalTabs";
 
 /**
  * The normal, windowed Terminal — a thin wrapper around the shared
@@ -12,7 +12,7 @@ import { TerminalConsole } from "./TerminalConsole";
  */
 export function TerminalApp({ startAdmin, windowId }: { startAdmin?: boolean; windowId?: string }) {
   return (
-    <TerminalConsole
+    <TerminalTabs
       admin={!!startAdmin}
       windowId={windowId}
       greeting={startAdmin ? 'Administrator Terminal. Type "help" to see the extra commands.' : undefined}
