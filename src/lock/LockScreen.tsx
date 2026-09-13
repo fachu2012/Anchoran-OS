@@ -31,16 +31,18 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
 
   function selectProfile(id: string) {
     if (id === activeProfileId) return;
-    // Guest is a single permanent profile now — it stays in the list and
-    // resets itself the next time it's entered, so nothing to clean up here.
-    switchProfile(id);
+    const target = profiles.find((p) => p.id === id);
+    if (target?.isGuest) {
+      // Guest resets to its fixed defaults every time it's entered —
+      // createGuestProfile() does that reset, then switches into it,
+      // rather than a plain switchProfile() that would carry over
+      // whatever the last guest session left behind.
+      createGuestProfile();
+    } else {
+      switchProfile(id);
+    }
     setPinPromptOpen(false);
     setPinInput("");
-  }
-
-  function continueAsGuest() {
-    createGuestProfile();
-    requestUnlock();
   }
 
   function wake() {
@@ -168,27 +170,6 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
           />
         )}
         <div style={{ fontSize: 14, marginTop: 6 }}>{username}</div>
-
-        {!pinPromptOpen && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              continueAsGuest();
-            }}
-            style={{
-              marginTop: 14,
-              padding: "6px 14px",
-              borderRadius: 999,
-              border: "1px solid rgba(255,255,255,0.3)",
-              background: "rgba(255,255,255,0.08)",
-              color: "#fff",
-              fontSize: 12,
-              cursor: "pointer",
-            }}
-          >
-            Continue as Guest
-          </button>
-        )}
 
         {!pinPromptOpen ? (
           <div style={{ fontSize: 12, opacity: 0.7, marginTop: 40 }}>

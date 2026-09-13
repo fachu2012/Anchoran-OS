@@ -5,6 +5,15 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.9.8] - 2026-09-13
+
+### Changed
+- Removed the lock screen's separate "Continue as Guest" button — now
+  that Guest is a single permanent profile, it already shows up as its
+  own tile alongside every other profile, so a dedicated button was
+  redundant. Selecting the Guest tile still resets it to its fixed
+  defaults every time, exactly like the old button did.
+
 ## [2.9.7] - 2026-09-13
 
 ### Fixed
