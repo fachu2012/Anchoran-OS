@@ -59,19 +59,25 @@ export function usesOldVersionStyle(version: string): boolean {
 
 /**
  * The correct display label for naming one specific, possibly
- * historical, version — e.g. a past entry in the update history, or
- * one of the releases `anchoran changeto` lists — as opposed to
- * ANCHORAN_DISPLAY_VERSION above, which is always for the version
- * currently running. Picks old ("v2.9.7") or new ("Version 3 | Build
- * 3H0.1") style based on when that version actually shipped, and
- * optionally appends " I.P.U." when it's known to be an Insider
+ * historical, version — e.g. a past entry in the update history, one
+ * of the releases `anchoran changeto` lists, or an update being
+ * offered/installed — as opposed to ANCHORAN_DISPLAY_VERSION above,
+ * which is always for the version currently running. Picks old
+ * ("v2.9.7") or new ("Version 3 | Build 3H0.1") style based on when
+ * that version actually shipped, and appends " I.P.U." for an Insider
  * Preview build rather than a stable one — e.g. distinguishing the
  * v3.0.0 I.P.U. build from the v3.0.0 stable release, an update
  * history transition that would otherwise misleadingly read as
- * "v3.0.0 → v3.0.0", as if nothing happened.
+ * "v3.0.0 → v3.0.0", as if nothing happened. Defaults to reading the
+ * channel straight off `version`'s own "-IPU" suffix when `channel`
+ * isn't passed explicitly, since that suffix is real (see
+ * buildChannel.ts) — most callers naming a specific version string
+ * (already-suffixed if it's an I.P.U. one) don't need to track the
+ * channel separately just to pass it in here.
  */
 export function versionLabelFor(version: string, channel?: "stable" | "insider" | null): string {
+  const resolvedChannel = channel ?? (/-ipu/i.test(version) ? "insider" : "stable");
   const major = baseVersion(version).split(".")[0];
   const base = usesOldVersionStyle(version) ? `v${baseVersion(version)}` : `Version ${major} | Build ${buildNumberFor(version)}`;
-  return channel === "insider" ? `${base} I.P.U.` : base;
+  return resolvedChannel === "insider" ? `${base} I.P.U.` : base;
 }

@@ -5,9 +5,23 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.0.2] - 2026-09-13
+
+**Update type:** stability
+
+### Fixed
+- The "ready to install" screen showed the offered update's plain
+  version (e.g. "Anchoran OS 3.0.1-IPU is ready to install") instead
+  of the same display convention used everywhere else — now reads
+  "Anchoran OS Version 3 | Build 3H0.1 I.P.U. is ready to install".
+- `versionLabelFor()` now infers a version's I.P.U./stable channel
+  from its own "-IPU" suffix when no channel is passed explicitly,
+  instead of silently defaulting to "stable" — this was the root
+  cause of the naming bug above.
+
 ## [3.0.1] - 2026-09-13
 
-**Update type:** critical
+**Update type:** stability
 
 ### Fixed
 - **An Insider Preview device could never actually receive the stable

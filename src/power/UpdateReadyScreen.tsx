@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { fetchUpdateInfo } from "@/core/updateInfo";
+import { versionLabelFor } from "@/core/buildNumber";
 
 const btnBase: CSSProperties = {
   padding: "9px 18px",
@@ -58,7 +59,7 @@ export function UpdateReadyScreen({
     >
       <AnchoranLogo size={56} color={accentColor} style={{ opacity: 0.92 }} />
       <div style={{ color: "#F3F4F6", fontSize: 16, fontWeight: 300, letterSpacing: 0.4 }}>
-        Anchoran OS {version} is ready to install
+        Anchoran OS {versionLabelFor(version)} is ready to install
       </div>
       {updateLabel && (
         <span
