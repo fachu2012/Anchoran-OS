@@ -12,6 +12,7 @@ import { useAdminAuditStore } from "@/core/adminAuditStore";
 import { useSettingsChangeLogStore } from "@/theme/settingsChangeLogStore";
 import { useWallpaperSpotlightStore } from "@/theme/wallpaperSpotlightStore";
 import { useShortcutPrefsStore, MODIFIER_LABELS, type ModifierCombo } from "@/core/shortcutPrefsStore";
+import { renderMarkdown } from "@/core/markdown";
 import { useAnchoranStartupAppsStore } from "@/core/anchoranStartupAppsStore";
 import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import { APP_LIST, APP_REGISTRY } from "@/applications/registry";
@@ -24,6 +25,7 @@ import { useClipboardHistoryStore } from "@/core/clipboardHistoryStore";
 import { useNotificationSoundStore } from "@/notifications/notificationSoundStore";
 import type { NotificationSoundVariant } from "@/core/sound";
 import "@/applications/apps.css";
+import "@/applications/notes/notes.css";
 
 const DEFAULT_AVATAR = new URL("../../../assets/avatar/default-avatar.png", import.meta.url).href;
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"];
@@ -1468,7 +1470,43 @@ function AboutSection() {
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
   const [downloadedVersion, setDownloadedVersion] = useState<string | null>(null);
   const [diagnosticsPicker, setDiagnosticsPicker] = useState(false);
+  const [betaChannel, setBetaChannelState] = useState(false);
+  const [releaseNotes, setReleaseNotes] = useState<string | null>(null);
+  const [releaseNotesLoading, setReleaseNotesLoading] = useState(false);
   const pushNotification = useNotificationStore((s) => s.push);
+
+  // Release notes, in the app — the same raw CHANGELOG.md the
+  // Terminal's own `anchoran changelog` command already fetches, just
+  // surfaced as a real panel instead of only ever plain-text output,
+  // and defaulting to the version actually running right now.
+  async function showReleaseNotes() {
+    setReleaseNotesLoading(true);
+    try {
+      const res = await fetch("https://raw.githubusercontent.com/fachu2012/Anchoran-OS/main/CHANGELOG.md");
+      const text = await res.text();
+      const marker = `## [${ANCHORAN_VERSION}]`;
+      const start = text.indexOf(marker);
+      if (start === -1) {
+        setReleaseNotes(`No changelog entry found for v${ANCHORAN_VERSION}.`);
+        return;
+      }
+      const nextHeading = text.indexOf("\n## [", start + marker.length);
+      setReleaseNotes(text.slice(start, nextHeading === -1 ? undefined : nextHeading).trim());
+    } catch {
+      setReleaseNotes("Couldn't reach GitHub to fetch the release notes.");
+    } finally {
+      setReleaseNotesLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    window.anchoran?.getBetaChannel().then(setBetaChannelState);
+  }, []);
+
+  async function toggleBetaChannel(enabled: boolean) {
+    setBetaChannelState(enabled);
+    await window.anchoran?.setBetaChannel(enabled);
+  }
 
   async function onDiagnosticsConfirm(result: { path: string } | { dir: string; name: string }) {
     setDiagnosticsPicker(false);
@@ -1539,6 +1577,19 @@ function AboutSection() {
         <button className="app-toolbar-btn" onClick={() => setDiagnosticsPicker(true)}>
           Export diagnostics…
         </button>
+        <button className="app-toolbar-btn" onClick={showReleaseNotes} disabled={releaseNotesLoading}>
+          What's new
+        </button>
+      </div>
+      <div className="settings-row">
+        <div>
+          <div className="settings-row-label">Beta channel</div>
+          <div className="settings-row-desc">
+            Also install pre-release updates, not just full releases. There's nothing on the
+            beta channel yet — this just gets you the first one the moment it exists.
+          </div>
+        </div>
+        <input type="checkbox" checked={betaChannel} onChange={(e) => toggleBetaChannel(e.target.checked)} />
       </div>
       {updateStatus && (
         <p style={{ fontSize: 12, color: "var(--anchoran-text-secondary)", marginTop: 8 }}>{updateStatus}</p>
@@ -1552,6 +1603,31 @@ function AboutSection() {
           onConfirm={onDiagnosticsConfirm}
           onCancel={() => setDiagnosticsPicker(false)}
         />
+      )}
+      {releaseNotes !== null && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 900, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => setReleaseNotes(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(90%, 560px)",
+              maxHeight: "78vh",
+              overflowY: "auto",
+              background: "var(--anchoran-surface)",
+              borderRadius: "var(--anchoran-radius-lg)",
+              boxShadow: "var(--anchoran-shadow-window)",
+              padding: 22,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 500 }}>What's new</span>
+              <button className="app-toolbar-btn" onClick={() => setReleaseNotes(null)}>Close</button>
+            </div>
+            <div className="notes-preview" style={{ padding: 0 }} dangerouslySetInnerHTML={{ __html: renderMarkdown(releaseNotes) }} />
+          </div>
+        </div>
       )}
     </div>
   );

@@ -22,6 +22,7 @@ import { Onboarding } from "@/onboarding/Onboarding";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useUpdateAvailableStore } from "@/core/updateAvailableStore";
 import { useAnchoranStartupAppsStore, startupAppsReady } from "@/core/anchoranStartupAppsStore";
+import { preloadFrequentApps } from "@/core/preloadFrequentApps";
 import { useSystemModeStore } from "@/desktop/systemModeStore";
 import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 
@@ -201,6 +202,26 @@ export default function App() {
     setBooted(true);
     playLoginSound();
 
+    // Confirms to the main process that this launch actually reached
+    // a working desktop — clears the update-failure health check (see
+    // electron/main.ts's anchoran:boot-complete). Reaching this call
+    // at all, without having crashed first, is the real signal.
+    window.anchoran?.bootComplete();
+    window.anchoran?.getUpdateFailureInfo().then((info) => {
+      if (!info.failed || !info.lastKnownGoodVersion) return;
+      pushNotification(
+        "Anchoran",
+        `The update to this version didn't start cleanly last time. v${info.lastKnownGoodVersion} is the last version known to work.`,
+        {
+          label: `Reinstall v${info.lastKnownGoodVersion}`,
+          onClick: () =>
+            window.anchoran?.openExternal(
+              `https://github.com/fachu2012/Anchoran-OS/releases/download/v${info.lastKnownGoodVersion}/AnchoranOS-Setup-${info.lastKnownGoodVersion}.exe`
+            ),
+        }
+      );
+    });
+
     // System Mode now starts on by default every launch (not
     // persisted — a fresh, deliberate start each time, same safety
     // model as before, just flipped to auto-on instead of requiring a
@@ -231,6 +252,12 @@ export default function App() {
         if (item.minimized && windowId) useWindowStore.getState().minimizeWindow(windowId);
       }
     });
+
+    // Preloads whichever apps are actually opened most — a few
+    // seconds after boot, well clear of the startup-app windows and
+    // the welcome notification above, so it never competes with them
+    // for the network/disk.
+    setTimeout(() => preloadFrequentApps(), 4000);
 
     const alreadyWelcomed = await persistGet("config", WELCOMED_KEY, false);
     if (!alreadyWelcomed) {

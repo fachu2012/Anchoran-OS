@@ -5,6 +5,63 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.9.0] - 2026-09-13
+
+The final wave of the 94-item "what would you improve about the whole
+system" list — 10 items, numbered against the original list. Together
+with the four waves before it, this closes out every item that isn't
+blocked by needing a paid code-signing certificate (#20) or real
+ARM64 hardware to verify (#92). The minor version bump marks that: the
+whole backlog this was built against is now done.
+
+### Added
+- **#81 Reminders with real repeat modes** — Once / Every day /
+  Weekdays, instead of every reminder always firing daily; a one-time
+  reminder turns itself off after it fires.
+- **#82 Password Vault's own generator** — a "Generate" button right
+  in the entry form (16 characters, every class, a real CSPRNG), not
+  just a link out to the separate Password Generator app.
+- **#84 Smaller installer** — `compression: maximum`, plus excluding
+  React/Zustand/JSZip/jsPDF (already inlined into the Vite bundle —
+  Electron-builder was shipping their raw source a second time for
+  nothing) and common node_modules bloat (source maps, docs, tests)
+  from the packaged app.
+- **#85 Preloading frequently-used apps** — a few seconds after boot,
+  the JS chunks for whichever apps you actually open most start
+  fetching in the background, so their first real open doesn't wait on
+  the network/disk.
+- **#86 Optional beta update channel** — a working switch in Settings
+  → Updater. Honest scope note: Anchoran's own release workflow
+  doesn't publish pre-release builds yet, so there's nothing beta to
+  find until it does — the mechanism is real either way.
+- **#87 In-app release notes** — "What's new" in Settings → Updater
+  renders the current version's real CHANGELOG.md entry, instead of
+  only being available via the Terminal's `anchoran changelog`.
+- **#88 Automatic update-failure detection** — if a newly-updated
+  version never confirms a successful boot on its first launch, the
+  next launch surfaces a notice with a one-click reinstall of the last
+  version known to work. True silent binary rollback isn't attempted
+  (Anchoran doesn't retain old installer bytes) — this is the honest,
+  one-click-away version.
+- **#89 A real expansion of the automated tests** — from 7 to 34,
+  covering several of this session's own new stores. Caught two actual
+  bugs in the process: the markdown renderer's blockquotes never
+  rendered (the source was HTML-escaped before the `>` check ran), and
+  the Launcher's "frequently used" tie-breaking could tie on
+  millisecond-resolution timestamps — both fixed.
+- **#91 Lower idle memory: background tab discarding** — a Browser tab
+  left inactive for 15+ minutes unmounts its `<webview>` (a real
+  Chromium renderer process) entirely; reactivating it remounts fresh.
+  Pinned tabs are exempt.
+- **#93 Window embedding: resolved, not removed** — this session's
+  earlier fixes (process-tree walk, longer timeout) already addressed
+  the detection failures; this pass closes the remaining real gap — a
+  failed embed previously left a dead window with no way to retry —
+  by adding "Try again" / "Choose a different app" to the error state.
+
+### Verification
+`typecheck`, `build` (renderer + electron) and `test` (34/34) all pass.
+
 ## [2.8.18] - 2026-09-13
 
 Wave 4 of the remaining 94-item list — 15 more items, numbered against

@@ -121,6 +121,12 @@ contextBridge.exposeInMainWorld("anchoran", {
   setTrackerBlock: (enabled: boolean): Promise<{ success: boolean }> =>
     ipcRenderer.invoke("anchoran:set-tracker-block", enabled),
   getTrackerBlockCount: (): Promise<number> => ipcRenderer.invoke("anchoran:get-tracker-block-count"),
+  setBetaChannel: (enabled: boolean): Promise<{ success: boolean }> => ipcRenderer.invoke("anchoran:set-beta-channel", enabled),
+  getBetaChannel: (): Promise<boolean> => ipcRenderer.invoke("anchoran:get-beta-channel"),
+  getUpdateFailureInfo: (): Promise<{ failed: boolean; lastKnownGoodVersion: string | null }> =>
+    ipcRenderer.invoke("anchoran:get-update-failure-info"),
+  bootComplete: (): Promise<{ success: boolean }> => ipcRenderer.invoke("anchoran:boot-complete"),
+  openExternal: (url: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke("anchoran:open-external", url),
   savePageComplete: (
     webContentsId: number,
     targetDir: string,

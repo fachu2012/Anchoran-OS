@@ -149,8 +149,39 @@ export function EmbeddedApp({ windowId, embedPath }: { windowId?: string; embedP
     <div ref={containerRef} className="embeddedapp-stage">
       {status !== "embedded" && (
         <div className="embeddedapp-overlay">
-          {status === "error" ? errorMessage ?? "Couldn't embed this app." : "Starting…"}
+          <span>{status === "error" ? errorMessage ?? "Couldn't embed this app." : "Starting…"}</span>
+          {status === "error" && (
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                className="app-toolbar-btn"
+                onClick={() => {
+                  // Re-runs the launch effect by cycling embedPath through
+                  // a real state change — closing and reopening this same
+                  // window at the same path is the simplest reliable way
+                  // to retry without duplicating the effect's own logic.
+                  if (windowId) {
+                    closeWindow(windowId);
+                    openApp("embeddedApp", { embedPath, title: embedPath.slice(Math.max(embedPath.lastIndexOf("\\"), embedPath.lastIndexOf("/")) + 1) });
+                  }
+                }}
+              >
+                Try again
+              </button>
+              <button className="app-toolbar-btn" onClick={() => setPicker(true)}>
+                Choose a different app…
+              </button>
+            </div>
+          )}
         </div>
+      )}
+      {picker && (
+        <AnchoranFilePicker
+          mode="open"
+          title="Choose a Windows app"
+          extensions={[".exe"]}
+          onConfirm={onPickExe}
+          onCancel={() => setPicker(false)}
+        />
       )}
     </div>
   );

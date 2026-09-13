@@ -3,82 +3,9 @@ import { Icon } from "@/components/Icon";
 import { printTextAsPdf } from "@/core/print";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
+import { renderMarkdown } from "@/core/markdown";
 import "@/applications/apps.css";
 import "./notes.css";
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-/** Inline markdown spans — code, bold, italic, links — applied within a single already-HTML-escaped line. */
-function renderInline(text: string): string {
-  return text
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-}
-
-/**
- * A compact, self-written markdown renderer — headers, bold/italic,
- * inline and fenced code, links, lists, blockquotes and rules —
- * rather than adding an external markdown library for one preview
- * pane, matching how icons/wallpapers/sounds elsewhere in Anchoran are
- * generated in code instead of pulled in as assets. The source text is
- * HTML-escaped before any markdown syntax is applied, so pasted HTML
- * in a note renders as literal text, not live markup.
- */
-function renderMarkdown(source: string): string {
-  const lines = escapeHtml(source).split("\n");
-  let html = "";
-  let inList = false;
-  let inCode = false;
-  for (const raw of lines) {
-    if (raw.trim().startsWith("```")) {
-      inCode = !inCode;
-      html += inCode ? "<pre><code>" : "</code></pre>";
-      continue;
-    }
-    if (inCode) {
-      html += `${raw}\n`;
-      continue;
-    }
-    const heading = raw.match(/^(#{1,6})\s+(.*)/);
-    if (heading) {
-      if (inList) {
-        html += "</ul>";
-        inList = false;
-      }
-      const level = heading[1].length;
-      html += `<h${level}>${renderInline(heading[2])}</h${level}>`;
-      continue;
-    }
-    if (/^\s*>\s?/.test(raw)) {
-      html += `<blockquote>${renderInline(raw.replace(/^\s*>\s?/, ""))}</blockquote>`;
-      continue;
-    }
-    if (/^\s*([-*+])\s+/.test(raw)) {
-      if (!inList) {
-        html += "<ul>";
-        inList = true;
-      }
-      html += `<li>${renderInline(raw.replace(/^\s*([-*+])\s+/, ""))}</li>`;
-      continue;
-    }
-    if (inList) {
-      html += "</ul>";
-      inList = false;
-    }
-    if (/^\s*(-{3,}|\*{3,})\s*$/.test(raw)) {
-      html += "<hr/>";
-      continue;
-    }
-    html += raw.trim() === "" ? "<br/>" : `<p>${renderInline(raw)}</p>`;
-  }
-  if (inList) html += "</ul>";
-  if (inCode) html += "</code></pre>";
-  return html;
-}
 
 /**
  * Notes is now a real Notepad-style editor: it can open, edit and save

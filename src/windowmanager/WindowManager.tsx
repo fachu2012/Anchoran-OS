@@ -5,8 +5,12 @@ import type { AppId } from "@/core/types";
 
 // Each app is its own lazy chunk: Anchoran's initial load only ships
 // the desktop shell, not every application's code — an app's bundle
-// is fetched the first time a window for it actually opens.
-const APP_COMPONENTS: Record<
+// is fetched the first time a window for it actually opens. Exported
+// so App.tsx can preload a few of these chunks in the background for
+// whichever apps are actually used most (see preloadFrequentApps.ts)
+// — the first real open of one of those then never has to wait on the
+// fetch, without shipping every app's code up front.
+export const APP_COMPONENTS: Record<
   AppId,
   React.LazyExoticComponent<
     (props: { openPath?: string; startAdmin?: boolean; windowId?: string; embedPath?: string }) => JSX.Element

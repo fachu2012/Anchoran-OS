@@ -2,6 +2,11 @@ appId: com.anchoran.os
 productName: Anchoran OS
 copyright: Anchoran
 
+# Smaller installer at the cost of a slightly slower build — a
+# one-time cost during release, not something the end user ever
+# waits on.
+compression: maximum
+
 directories:
   output: release
   buildResources: build
@@ -11,6 +16,27 @@ files:
   - dist-electron/**/*
   - version.json
   - package.json
+  # electron-builder bundles every "dependencies" package from
+  # package.json by default. React/Zustand/JSZip/jsPDF are renderer-
+  # only — Vite already inlines them into dist/assets/*.js above, and
+  # only electron/main.ts's own imports (electron-store,
+  # electron-updater) actually run as real node_modules in the
+  # packaged app — so shipping the raw source of the renderer-only
+  # ones a second time is pure installer bloat with nothing using it.
+  - '!node_modules/react/**/*'
+  - '!node_modules/react-dom/**/*'
+  - '!node_modules/zustand/**/*'
+  - '!node_modules/jszip/**/*'
+  - '!node_modules/jspdf/**/*'
+  - '!node_modules/scheduler/**/*'
+  # Common non-runtime bloat inside whatever node_modules remain —
+  # source maps, TypeScript type declarations, docs and test fixtures
+  # no packaged app ever reads.
+  - '!node_modules/**/*.map'
+  - '!node_modules/**/*.ts'
+  - '!node_modules/**/*.md'
+  - '!node_modules/**/{test,tests,__tests__,example,examples,docs}/**/*'
+  - '!node_modules/**/{README*,CHANGELOG*,LICENSE*,.github}'
 
 extraResources:
   - from: assets

@@ -17,6 +17,18 @@ interface VaultEntry {
 const SALT_KEY = "vaultSalt";
 const BLOB_KEY = "vaultBlob";
 
+// A real generator right in the entry form — not just a link out to
+// the separate Password Generator app — 16 characters, every
+// character class, drawn from a real CSPRNG (crypto.getRandomValues).
+const GEN_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}";
+function generatePassword(length = 16): string {
+  const bytes = new Uint32Array(length);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (let i = 0; i < length; i++) out += GEN_CHARS[bytes[i] % GEN_CHARS.length];
+  return out;
+}
+
 type Stage = "loading" | "setup" | "locked" | "unlocked";
 
 export function PasswordVaultApp() {
@@ -168,11 +180,22 @@ export function PasswordVaultApp() {
               value={form.username}
               onChange={(e) => setForm({ ...form, username: e.target.value })}
             />
-            <input
-              placeholder="Password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                placeholder="Password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                style={{ flex: 1 }}
+              />
+              <button
+                className="app-toolbar-btn"
+                type="button"
+                title="Generate a strong password"
+                onClick={() => setForm({ ...form, password: generatePassword() })}
+              >
+                <Icon name="restart" size={13} /> Generate
+              </button>
+            </div>
             <input placeholder="URL" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
             <div style={{ display: "flex", gap: 6 }}>
               <button className="app-toolbar-btn" onClick={saveForm}>

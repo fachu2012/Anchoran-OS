@@ -82,7 +82,18 @@ interface Tab {
   pinned: boolean;
   /** Which tab group this tab belongs to, or null — see TAB_GROUP_COLORS below. */
   groupId: string | null;
+  /** Last time this tab was the active one — drives background-tab discarding, see DISCARD_AFTER_MS below. */
+  lastActiveAt: number;
 }
+
+// A background tab left untouched this long unmounts its <webview>
+// entirely (a real Chromium renderer process, real memory) rather
+// than keeping every ever-opened tab alive forever — the same "tab
+// discarding" real browsers do to hold idle memory down. Reactivating
+// a discarded tab just remounts it fresh from its own URL; pinned
+// tabs are exempt, matching how pinned tabs behave in real browsers
+// too.
+const DISCARD_AFTER_MS = 15 * 60_000;
 
 const TAB_GROUP_COLORS = ["#E5484D", "#F76B15", "#F5D90A", "#30A46C", "#3E7BFA", "#8E4EC6"];
 
@@ -108,6 +119,7 @@ function newTab(url = NEW_TAB_URL, incognito = false): Tab {
     zoom: 1,
     pinned: false,
     groupId: null,
+    lastActiveAt: Date.now(),
   };
 }
 
@@ -306,6 +318,20 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
   const [savePagePicker, setSavePagePicker] = useState(false);
   const [tabMenu, setTabMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [activeId, setActiveId] = useState(tabs[0].id);
+
+  // Tracks when each tab last became active (for background-tab
+  // discarding below), and periodically re-renders so a long-idle
+  // background tab's webview actually unmounts once it crosses
+  // DISCARD_AFTER_MS, rather than only checking on the next unrelated
+  // render.
+  useEffect(() => {
+    setTabs((prev) => prev.map((t) => (t.id === activeId ? { ...t, lastActiveAt: Date.now() } : t)));
+  }, [activeId]);
+  const [, forceDiscardCheck] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => forceDiscardCheck((n) => n + 1), 60_000);
+    return () => clearInterval(interval);
+  }, []);
   const [addressInput, setAddressInput] = useState(HOME_URL);
   const [addressFocused, setAddressFocused] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
@@ -1067,9 +1093,13 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
       </div>
 
       <div className="app-content browser-content" style={{ padding: 0 }}>
-        {tabs.map((t) => (
-          <BrowserTabView key={t.id} tab={t} active={t.id === activeId} trackerBlock={trackerBlock} onUpdate={updateTab} onNewTab={openTab} registerRef={registerRef} />
-        ))}
+        {tabs.map((t) => {
+          const isDiscarded = t.id !== activeId && !t.pinned && Date.now() - t.lastActiveAt > DISCARD_AFTER_MS;
+          if (isDiscarded) return null; // unmounted — see DISCARD_AFTER_MS above; reactivating remounts fresh from t.url
+          return (
+            <BrowserTabView key={t.id} tab={t} active={t.id === activeId} trackerBlock={trackerBlock} onUpdate={updateTab} onNewTab={openTab} registerRef={registerRef} />
+          );
+        })}
       </div>
 
       {panel === "history" && (

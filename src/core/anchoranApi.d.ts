@@ -74,6 +74,11 @@ declare global {
     showDownloadInExplorer: (filePath: string) => void;
     setTrackerBlock: (enabled: boolean) => Promise<{ success: boolean }>;
     getTrackerBlockCount: () => Promise<number>;
+    setBetaChannel: (enabled: boolean) => Promise<{ success: boolean }>;
+    getBetaChannel: () => Promise<boolean>;
+    getUpdateFailureInfo: () => Promise<{ failed: boolean; lastKnownGoodVersion: string | null }>;
+    bootComplete: () => Promise<{ success: boolean }>;
+    openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
     savePageComplete: (
       webContentsId: number,
       targetDir: string,

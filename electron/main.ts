@@ -1427,6 +1427,24 @@ autoUpdater.logger = {
 // update), which always goes through UpdateTheater first.
 autoUpdater.autoInstallOnAppQuit = false;
 
+// Optional beta channel: when enabled, electron-updater also
+// considers GitHub releases marked "pre-release" as valid updates,
+// not only full releases. Honest scope note: this makes the switch
+// itself real and working, but Anchoran's own release workflow
+// doesn't currently publish any pre-release builds — so until it
+// does, turning this on has nothing beta to actually find yet.
+// The persisted value is applied once configStore is the real,
+// possibly-encrypted store (see app.whenReady() below) rather than
+// read here, before that swap has happened.
+
+ipcMain.handle("anchoran:set-beta-channel", (_event, enabled: boolean) => {
+  configStore.set("betaChannel", enabled);
+  autoUpdater.allowPrerelease = enabled;
+  return { success: true };
+});
+
+ipcMain.handle("anchoran:get-beta-channel", () => configStore.get("betaChannel", false) as boolean);
+
 type UpdateStatus =
   | { state: "checking" }
   | { state: "available"; version: string }
@@ -1848,6 +1866,52 @@ app.whenReady().then(() => {
   if (!encryptionKey) {
     logToDisk("encryption", "safeStorage unavailable — preferences/filesystem stores stay unencrypted on disk.");
   }
+  autoUpdater.allowPrerelease = configStore.get("betaChannel", false) as boolean;
+
+  // Automatic update-failure detection: the first launch of a newly
+  // updated version starts a health check that only clears once the
+  // renderer actually confirms the desktop finished booting (see
+  // anchoran:boot-complete below). If that confirmation is still
+  // missing from the *previous* launch of this exact version — it
+  // crashed or hung before ever reaching a working desktop — this
+  // flags a real update failure, surfaced via anchoran:get-update-
+  // failure-info so the UI can offer reinstalling the last version
+  // that's known to have actually worked. True binary rollback (auto-
+  // reinstalling the old build without the user's involvement) isn't
+  // attempted here — Anchoran doesn't retain old installer bytes long
+  // enough for that — this is the honest, one-click-away version.
+  const lastKnownGoodVersion = configStore.get("lastKnownGoodVersion", null) as string | null;
+  let updateFailureDetected = false;
+  if (lastKnownGoodVersion && lastKnownGoodVersion !== ANCHORAN_VERSION) {
+    const pending = configStore.get("pendingHealthCheck", null) as { version: string } | null;
+    if (pending && pending.version === ANCHORAN_VERSION) {
+      updateFailureDetected = true;
+      logToDisk("updater", `v${ANCHORAN_VERSION} never confirmed a successful boot on its previous launch — flagging as a failed update.`);
+    }
+    configStore.set("pendingHealthCheck", { version: ANCHORAN_VERSION });
+  } else {
+    configStore.delete("pendingHealthCheck");
+  }
+
+  ipcMain.handle("anchoran:get-update-failure-info", () => ({
+    failed: updateFailureDetected,
+    lastKnownGoodVersion,
+  }));
+
+  ipcMain.handle("anchoran:boot-complete", () => {
+    configStore.set("lastKnownGoodVersion", ANCHORAN_VERSION);
+    configStore.delete("pendingHealthCheck");
+    return { success: true };
+  });
+
+  // A real external-browser opener, restricted to https:// — used by
+  // the update-failure notice's "Reinstall" link (a real GitHub
+  // release download) rather than a webview navigation.
+  ipcMain.handle("anchoran:open-external", (_event, url: string) => {
+    if (!/^https:\/\//i.test(url)) return { success: false, error: "Only https:// URLs are allowed." };
+    shell.openExternal(url);
+    return { success: true };
+  });
 
   createMainWindow();
   startDriveWatcher();
