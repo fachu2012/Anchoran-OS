@@ -5,6 +5,29 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.0.1] - 2026-09-13
+
+**Update type:** critical
+
+### Fixed
+- **An Insider Preview device could never actually receive the stable
+  release of the same version.** v3.0.0-IPU and v3.0.0 stable
+  deliberately shared an identical version number, which meant
+  electron-updater's real version comparison saw them as equal and
+  reported "up to date" — `anchoran changeto` had the same problem.
+  I.P.U. builds now get a real semver prerelease suffix baked into
+  their own version.json at build time only (e.g. "3.0.0" becomes
+  "3.0.1-IPU" for that specific build, never committed to the repo) —
+  SemVer defines a prerelease version as always lower precedence than
+  the same X.Y.Z without one, so the stable release now correctly
+  compares as newer and is actually offered. `src/core/buildChannel.ts`
+  now derives the "Insider Preview build" badge straight from that
+  same suffix instead of a separate build-time marker file, which is
+  removed. This fix only takes effect starting with this version —
+  anyone stuck on the already-shipped v3.0.0-IPU build should download
+  the stable v3.0.0 installer directly rather than waiting for an
+  update prompt that build's older code can never generate.
+
 ## [3.0.0] - 2026-09-13
 
 **Update type:** feature

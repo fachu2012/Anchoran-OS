@@ -127,17 +127,31 @@ jobs:
       # run directly (see the next step), but it's what electron-updater
       # silently downloads later for in-place updates, and it's the
       # payload AnchoranSetup bundles for a first install.
-      # Bakes which channel THIS specific binary was built from into the
-      # bundle itself (src/core/buildChannel.json, committed as
-      # "stable") — the one thing Anchover shows that version.json alone
-      # can never answer, since an I.P.U. build and its later stable
-      # release of the same version deliberately share the same version
-      # number. See src/core/buildChannel.ts.
-      - name: Set build channel
+      # An I.P.U. build's OWN version.json gets a real semver prerelease
+      # suffix appended here — never committed to the repo, just baked
+      # into this specific build — so e.g. "3.0.0" becomes "3.0.0-IPU"
+      # for the build only. This isn't cosmetic: semver defines a
+      # prerelease version as always LOWER precedence than the same
+      # X.Y.Z without one, so electron-updater's real version comparison
+      # correctly sees the eventual "3.0.0" stable release as newer and
+      # actually offers it — without this, both builds carry the exact
+      # same version number and compare as equal, silently stranding an
+      # Insider Preview device on that build forever (no update ever
+      # detected). src/core/buildChannel.ts also derives BUILD_CHANNEL
+      # straight from this same suffix at runtime, so Anchover's
+      # "Insider Preview build" badge needs no separate marker file.
+      - name: Set I.P.U. version suffix
         if: steps.channel.outputs.is_ipu == 'true'
         shell: bash
         run: |
-          echo '{ "channel": "insider" }' > src/core/buildChannel.json
+          node -e "
+            const fs = require('fs');
+            const f = 'version.json';
+            const v = JSON.parse(fs.readFileSync(f, 'utf-8'));
+            v.version = v.version + '-IPU';
+            fs.writeFileSync(f, JSON.stringify(v, null, 2) + '\n');
+            console.log('version.json ->', v.version);
+          "
 
       - name: Build AnchoranOS installer
         run: |

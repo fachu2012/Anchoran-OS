@@ -37,15 +37,24 @@ function extractSection(text, ver) {
   return text.slice(start, nextHeading === -1 ? undefined : nextHeading);
 }
 
-const section = extractSection(changelog, version);
+// An I.P.U. build's version.json carries a real semver prerelease
+// suffix by the time this script runs (e.g. "3.0.0-IPU" — see the
+// release workflow's "Set I.P.U. version suffix" step), but the
+// CHANGELOG entry itself is written against the plain base version, so
+// look that up rather than the suffixed one. The suffixed `version` is
+// still what gets written into update-info.json below, since that's
+// what the app's fetchUpdateInfo() looks up by (status.version, which
+// electron-updater also reports with the suffix for an I.P.U. release).
+const baseVersion = version.split("-")[0];
+const section = extractSection(changelog, baseVersion);
 let type = "maintenance";
 
 if (!section) {
-  console.warn(`[generate-update-info] No CHANGELOG.md section found for v${version} — defaulting type to "maintenance".`);
+  console.warn(`[generate-update-info] No CHANGELOG.md section found for v${baseVersion} — defaulting type to "maintenance".`);
 } else {
   const match = section.match(/\*\*Update type:\*\*\s*([A-Za-z]+)/);
   if (!match) {
-    console.warn(`[generate-update-info] No "**Update type:**" line in the v${version} CHANGELOG section — defaulting to "maintenance".`);
+    console.warn(`[generate-update-info] No "**Update type:**" line in the v${baseVersion} CHANGELOG section — defaulting to "maintenance".`);
   } else {
     const found = match[1].toLowerCase();
     if (!VALID_TYPES.includes(found)) {

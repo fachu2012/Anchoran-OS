@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { usePreferencesStore, DEFAULT_PREFERENCES } from "@/theme/preferencesStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { ANCHORAN_VERSION } from "@/core/version";
-import { ANCHORAN_DISPLAY_VERSION, versionLabelFor } from "@/core/buildNumber";
+import { ANCHORAN_DISPLAY_VERSION, versionLabelFor, baseVersion } from "@/core/buildNumber";
 import { WALLPAPERS, getWallpaper } from "@/desktop/wallpapers";
 import { playNotificationSound } from "@/core/sound";
 import { useUpdateHistoryStore } from "@/core/updateHistory";
@@ -1536,7 +1536,7 @@ function AboutSection() {
     try {
       const res = await fetch("https://raw.githubusercontent.com/fachu2012/Anchoran-OS/main/CHANGELOG.md");
       const text = await res.text();
-      const marker = `## [${ANCHORAN_VERSION}]`;
+      const marker = `## [${baseVersion(ANCHORAN_VERSION)}]`;
       const start = text.indexOf(marker);
       if (start === -1) {
         setReleaseNotes(`No changelog entry found for ${ANCHORAN_DISPLAY_VERSION}.`);
@@ -1550,7 +1550,7 @@ function AboutSection() {
       // exactly what this device was actually running before, so that's
       // the real lower bound — not just "the previous version number".
       const fromVersion = useUpdateHistoryStore.getState().history[0]?.fromVersion ?? null;
-      const endMarker = fromVersion ? `## [${fromVersion}]` : null;
+      const endMarker = fromVersion ? `## [${baseVersion(fromVersion)}]` : null;
       const end = endMarker ? text.indexOf(endMarker, start + marker.length) : -1;
       setReleaseNotes(text.slice(start, end === -1 ? undefined : end).trim());
     } catch {

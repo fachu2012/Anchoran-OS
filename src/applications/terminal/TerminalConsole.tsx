@@ -9,7 +9,7 @@ import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import { APP_LIST } from "@/applications/registry";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { ANCHORAN_VERSION } from "@/core/version";
-import { versionLabelFor } from "@/core/buildNumber";
+import { versionLabelFor, baseVersion } from "@/core/buildNumber";
 import { getAppUptimeSeconds } from "@/core/appUptime";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import type { AppId } from "@/core/types";
@@ -582,7 +582,7 @@ export function TerminalConsole({
           try {
             const res = await fetch("https://raw.githubusercontent.com/fachu2012/Anchoran-OS/main/CHANGELOG.md");
             const text = await res.text();
-            const wantedVersion = (subArgs[0] ?? ANCHORAN_VERSION).replace(/^v/i, "");
+            const wantedVersion = baseVersion((subArgs[0] ?? ANCHORAN_VERSION).replace(/^v/i, ""));
             const lines = text.split(/\r?\n/);
             const startIndex = lines.findIndex((l) => l.startsWith(`## [${wantedVersion}]`));
             if (startIndex < 0) {

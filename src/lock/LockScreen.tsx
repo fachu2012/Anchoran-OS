@@ -63,14 +63,14 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   // Windows key/Ctrl+Alt+L still open it there. Anything not aimed at
   // the lock screen's own elements (the PIN field once it's open)
   // never reaches the desktop while locked. Without a PIN, any key
-  // unlocks (matching the "press any key" hint below); with one,
-  // Space opens the PIN entry the same as a click does.
+  // unlocks (matching the "press any key" hint below); with one, Space
+  // or any digit key opens the PIN entry the same as a click does.
   useEffect(() => {
     function guard(e: KeyboardEvent) {
       if (containerRef.current?.contains(e.target as Node)) return;
       e.stopPropagation();
       e.preventDefault();
-      if (!lockPin || e.key === " " || e.key === "Spacebar") wake();
+      if (!lockPin || e.key === " " || e.key === "Spacebar" || /^[0-9]$/.test(e.key)) wake();
     }
     window.addEventListener("keydown", guard, true);
     return () => window.removeEventListener("keydown", guard, true);
