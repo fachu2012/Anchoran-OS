@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Icon } from "@/components/Icon";
 import { useNotificationStore, type AnchoranNotification } from "./notificationStore";
 
@@ -49,6 +50,7 @@ interface Group {
   title: string;
   latest: AnchoranNotification;
   count: number;
+  unreadCount: number;
   ids: string[];
 }
 
@@ -65,11 +67,12 @@ function groupNotifications(notifications: AnchoranNotification[]): Group[] {
     const existing = byTitle.get(n.title);
     if (existing) {
       existing.count += 1;
+      if (!n.read) existing.unreadCount += 1;
       existing.ids.push(n.id);
       // notifications arrives newest-first, so the first one seen per
       // title is already the most recent — nothing to update here.
     } else {
-      byTitle.set(n.title, { title: n.title, latest: n, count: 1, ids: [n.id] });
+      byTitle.set(n.title, { title: n.title, latest: n, count: 1, unreadCount: n.read ? 0 : 1, ids: [n.id] });
     }
   }
   return Array.from(byTitle.values()).sort((a, b) => b.latest.createdAt - a.latest.createdAt);
@@ -84,6 +87,13 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const setDoNotDisturb = useNotificationStore((s) => s.setDoNotDisturb);
 
   const groups = groupNotifications(notifications);
+
+  // Everything currently listed counts as "seen" once the panel has
+  // actually been opened — mirrors the taskbar badge's own unread
+  // count (see Taskbar.tsx), which this naturally clears.
+  useEffect(() => {
+    useNotificationStore.getState().markAllRead();
+  }, []);
 
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 690 }} onClick={onClose}>
@@ -205,6 +215,20 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                     {group.count > 1 && (
                       <span style={{ fontSize: 10.5, color: "var(--anchoran-text-secondary)" }}>
                         ({group.count})
+                      </span>
+                    )}
+                    {group.unreadCount > 0 && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 600,
+                          color: "#fff",
+                          background: "var(--anchoran-accent)",
+                          borderRadius: 8,
+                          padding: "1px 6px",
+                        }}
+                      >
+                        {group.unreadCount} new
                       </span>
                     )}
                   </div>

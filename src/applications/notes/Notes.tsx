@@ -6,6 +6,80 @@ import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 import "@/applications/apps.css";
 import "./notes.css";
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Inline markdown spans — code, bold, italic, links — applied within a single already-HTML-escaped line. */
+function renderInline(text: string): string {
+  return text
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+}
+
+/**
+ * A compact, self-written markdown renderer — headers, bold/italic,
+ * inline and fenced code, links, lists, blockquotes and rules —
+ * rather than adding an external markdown library for one preview
+ * pane, matching how icons/wallpapers/sounds elsewhere in Anchoran are
+ * generated in code instead of pulled in as assets. The source text is
+ * HTML-escaped before any markdown syntax is applied, so pasted HTML
+ * in a note renders as literal text, not live markup.
+ */
+function renderMarkdown(source: string): string {
+  const lines = escapeHtml(source).split("\n");
+  let html = "";
+  let inList = false;
+  let inCode = false;
+  for (const raw of lines) {
+    if (raw.trim().startsWith("```")) {
+      inCode = !inCode;
+      html += inCode ? "<pre><code>" : "</code></pre>";
+      continue;
+    }
+    if (inCode) {
+      html += `${raw}\n`;
+      continue;
+    }
+    const heading = raw.match(/^(#{1,6})\s+(.*)/);
+    if (heading) {
+      if (inList) {
+        html += "</ul>";
+        inList = false;
+      }
+      const level = heading[1].length;
+      html += `<h${level}>${renderInline(heading[2])}</h${level}>`;
+      continue;
+    }
+    if (/^\s*>\s?/.test(raw)) {
+      html += `<blockquote>${renderInline(raw.replace(/^\s*>\s?/, ""))}</blockquote>`;
+      continue;
+    }
+    if (/^\s*([-*+])\s+/.test(raw)) {
+      if (!inList) {
+        html += "<ul>";
+        inList = true;
+      }
+      html += `<li>${renderInline(raw.replace(/^\s*([-*+])\s+/, ""))}</li>`;
+      continue;
+    }
+    if (inList) {
+      html += "</ul>";
+      inList = false;
+    }
+    if (/^\s*(-{3,}|\*{3,})\s*$/.test(raw)) {
+      html += "<hr/>";
+      continue;
+    }
+    html += raw.trim() === "" ? "<br/>" : `<p>${renderInline(raw)}</p>`;
+  }
+  if (inList) html += "</ul>";
+  if (inCode) html += "</code></pre>";
+  return html;
+}
+
 /**
  * Notes is now a real Notepad-style editor: it can open, edit and save
  * any real text file on Windows (via the native Open/Save As dialogs),
@@ -22,6 +96,7 @@ export function NotesApp({ openPath }: { openPath?: string }) {
   const [dirty, setDirty] = useState(false);
   const [openPicker, setOpenPicker] = useState(false);
   const [savePicker, setSavePicker] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
   const pushNotification = useNotificationStore((s) => s.push);
 
   // Unsaved edits are real, user-typed text — losing them silently to
@@ -119,19 +194,26 @@ export function NotesApp({ openPath }: { openPath?: string }) {
         <button className="app-toolbar-btn" onClick={() => printTextAsPdf(title.replace(/\.[^.]+$/, ""), content)}>
           Print
         </button>
+        <button className="app-toolbar-btn" data-op={previewMode} onClick={() => setPreviewMode((v) => !v)}>
+          {previewMode ? "Edit" : "Preview"}
+        </button>
         <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--anchoran-text-secondary)" }}>{title}</span>
       </div>
       <div className="notes-editor">
-        <textarea
-          className="notes-textarea"
-          placeholder="Start typing…"
-          value={content}
-          onChange={(e) => {
-            setContent(e.target.value);
-            setDirty(true);
-          }}
-          autoFocus
-        />
+        {previewMode ? (
+          <div className="notes-preview" dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }} />
+        ) : (
+          <textarea
+            className="notes-textarea"
+            placeholder="Start typing… (Markdown supported — click Preview to see it rendered)"
+            value={content}
+            onChange={(e) => {
+              setContent(e.target.value);
+              setDirty(true);
+            }}
+            autoFocus
+          />
+        )}
       </div>
       {openPicker && (
         <AnchoranFilePicker

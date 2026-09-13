@@ -120,6 +120,13 @@ contextBridge.exposeInMainWorld("anchoran", {
   },
   setTrackerBlock: (enabled: boolean): Promise<{ success: boolean }> =>
     ipcRenderer.invoke("anchoran:set-tracker-block", enabled),
+  getTrackerBlockCount: (): Promise<number> => ipcRenderer.invoke("anchoran:get-tracker-block-count"),
+  savePageComplete: (
+    webContentsId: number,
+    targetDir: string,
+    fileName: string
+  ): Promise<{ success: boolean; error?: string; path?: string }> =>
+    ipcRenderer.invoke("anchoran:save-page-complete", webContentsId, targetDir, fileName),
   fetchImageAsDataUrl: (url: string): Promise<{ dataUrl: string } | { error: string }> =>
     ipcRenderer.invoke("anchoran:fetch-image-as-data-url", url),
   clearBrowserData: (): Promise<{ success: boolean; error?: string }> =>

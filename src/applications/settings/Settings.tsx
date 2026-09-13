@@ -634,6 +634,7 @@ function NotificationsSection() {
   // of every app that *could* is mostly dead rows, since most never
   // will.
   const knownApps = Array.from(new Set(notifications.map((n) => n.title))).sort();
+  const [historyExportPicker, setHistoryExportPicker] = useState(false);
 
   return (
     <>
@@ -682,10 +683,34 @@ function NotificationsSection() {
           <div className="settings-row-label">History</div>
           <div className="settings-row-desc">{count} notification{count === 1 ? "" : "s"} stored.</div>
         </div>
-        <button className="app-toolbar-btn" onClick={clearAll} disabled={count === 0}>
-          Clear all
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="app-toolbar-btn" onClick={() => setHistoryExportPicker(true)} disabled={count === 0}>
+            Export…
+          </button>
+          <button className="app-toolbar-btn" onClick={clearAll} disabled={count === 0}>
+            Clear all
+          </button>
+        </div>
       </div>
+      {historyExportPicker && (
+        <AnchoranFilePicker
+          mode="save"
+          title="Export notification history"
+          defaultName="anchoran-notifications.txt"
+          onConfirm={async (result) => {
+            setHistoryExportPicker(false);
+            if (!("dir" in result) || !window.anchoran) return;
+            const report = notifications
+              .slice()
+              .reverse()
+              .map((n) => `${new Date(n.createdAt).toLocaleString()}  [${n.title}]  ${n.message}`)
+              .join("\n");
+            const name = /\.[^.\\/]+$/.test(result.name) ? result.name : `${result.name}.txt`;
+            await window.anchoran.fsWriteTextFile(`${result.dir}\\${name}`, report);
+          }}
+          onCancel={() => setHistoryExportPicker(false)}
+        />
+      )}
       {knownApps.length > 0 && (
         <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
           <div>

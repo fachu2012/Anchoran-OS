@@ -33,6 +33,7 @@ export type IconName =
   | "restore"
   | "restart"
   | "userSwitch"
+  | "globe"
   | "chevronRight"
   | "folder"
   | "file"
@@ -143,6 +144,7 @@ const PATHS: Record<IconName, string> = {
   restore: "M8.5 4.5h11v11h-3M4.5 8.5h11v11h-11v-11Z",
   restart: "M18.5 8a6.5 6.5 0 1 0 1.3 5.5M18.5 4v4.5H14",
   userSwitch: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8c0-3.3 3.1-6 7-6s7 2.7 7 6M17 3l3 3-3 3",
+  globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 0c2.5 2.3 3.8 5.3 3.8 9s-1.3 6.7-3.8 9c-2.5-2.3-3.8-5.3-3.8-9s1.3-6.7 3.8-9ZM3.5 9h17M3.5 15h17",
   chevronRight: "M9.5 5.5 16 12l-6.5 6.5",
   folder: "M3.5 7A1.5 1.5 0 0 1 5 5.5h4l1.6 2H19a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18V7Z",
   file: "M7 3.5h7l4 4v13H7v-17Zm7 0v4h4",

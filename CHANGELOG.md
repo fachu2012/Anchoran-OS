@@ -5,6 +5,61 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.8.18] - 2026-09-13
+
+Wave 4 of the remaining 94-item list — 15 more items, numbered against
+the original list. This wave finishes the Notificaciones and
+Navegador categories entirely, and starts Apps núcleo.
+
+### Added
+- **#62 Exportable notification history** — Settings → Notifications
+  → Export… saves the full history as a plain-text file.
+- **#65 Persistent update-available indicator** — a small badge in the
+  taskbar tray as soon as an update is found, stays until it's
+  installed, independent of whichever screen triggered the check.
+- **#66 Reorderable Quick Settings** — drag the Focus/Night Light/
+  Power profile/Window Spotlight rows into whatever order you want.
+- **#68 Real unread tracking, per app** — notifications now have an
+  actual read/unread state (previously the badge just showed the
+  total count); the taskbar badge shows unread only, and each app's
+  group in the panel shows its own "N new".
+- **#69 Browser tab groups** — color-coded groups via the tab context
+  menu (new group / add to group / remove / close group).
+- **#71 Real tab thumbnail previews** — hovering a tab now shows an
+  actual screenshot of it, not just a title list — `<webview>`'s own
+  capturePage(), no IPC needed.
+- **#72 Reading mode** — a clean, serif article view; extracts
+  whichever container has the most paragraph text and pulls out plain
+  text (deliberately not raw HTML, so no page content ever needs
+  sanitizing before render).
+- **#73 Page translation** — opens the current page through Google's
+  public, key-free translate.google.com proxy in a new tab. Honest
+  scope note: Anchoran has no translation engine or paid API of its
+  own.
+- **#74 Live search suggestions** — the address bar now also shows
+  real autocomplete suggestions from a public, key-free suggest
+  endpoint, alongside the existing history/bookmark matches.
+- **#75 More robust ad blocking** — the network-level blocklist grew
+  from 14 to ~45 real ad/tracker domains, plus new cosmetic CSS hiding
+  for common ad containers, plus a visible "N blocked" counter.
+- **#76 Full-page screenshot** — scrolls and stitches the entire
+  page (not just the viewport) into one PNG.
+- **#77 Save complete page** — the real Electron "HTMLComplete" save
+  (HTML + every asset, its own folder), distinct from the screenshot
+  above — an actual offline-viewable copy of the page.
+- **#78 Bookmark folders** — type a folder name on any bookmark to
+  file it; the Bookmarks panel groups by folder.
+- **#79 Notes markdown rendering** — a Preview toggle renders
+  markdown (headers, bold/italic, code, links, lists, quotes) via a
+  small built-in renderer, matching how icons/wallpapers/sounds
+  elsewhere in Anchoran are generated in code rather than pulled in as
+  a library.
+- **#80 Calendar week/day views** — Month/Week/Day toggle in the
+  toolbar, alongside the existing month grid.
+
+### Verification
+`typecheck`, `build` (renderer + electron) and `test` (7/7) all pass.
+
 ## [2.8.15] - 2026-09-13
 
 Wave 3 of the remaining 94-item list — 15 more items, numbered against

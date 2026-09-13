@@ -73,6 +73,12 @@ declare global {
     openDownload: (filePath: string) => Promise<{ success: boolean; error?: string }>;
     showDownloadInExplorer: (filePath: string) => void;
     setTrackerBlock: (enabled: boolean) => Promise<{ success: boolean }>;
+    getTrackerBlockCount: () => Promise<number>;
+    savePageComplete: (
+      webContentsId: number,
+      targetDir: string,
+      fileName: string
+    ) => Promise<{ success: boolean; error?: string; path?: string }>;
     fetchImageAsDataUrl: (url: string) => Promise<{ dataUrl: string } | { error: string }>;
     clearBrowserData: () => Promise<{ success: boolean; error?: string }>;
 

@@ -12,6 +12,8 @@ export interface AnchoranNotification {
   silent: boolean;
   /** An optional one-click action shown right on the notification — e.g. "Open Files" on a drive-connected notice — so the app it's about doesn't need opening first. Not persisted, same as the rest of this store. */
   action?: { label: string; onClick: () => void };
+  /** False until the notification has actually been seen — opening the notification panel marks every currently-listed one read. Drives the taskbar badge and the per-app unread counts in the panel. */
+  read: boolean;
 }
 
 const DND_KEY = "doNotDisturb";
@@ -48,6 +50,7 @@ interface NotificationState {
   clearAll: () => void;
   setDoNotDisturb: (on: boolean) => void;
   setDndSchedule: (schedule: Partial<DndSchedule>) => void;
+  markAllRead: () => void;
 }
 
 let counter = 0;
@@ -66,10 +69,12 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       createdAt: Date.now(),
       silent: dnd,
       action,
+      read: false,
     };
     set((s) => ({ notifications: [notification, ...s.notifications] }));
     if (!dnd) playNotificationSound(useNotificationSoundStore.getState().soundFor(title));
   },
+  markAllRead: () => set((s) => ({ notifications: s.notifications.map((n) => (n.read ? n : { ...n, read: true })) })),
   dismiss: (id) => set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) })),
   snooze: (id, minutes) => {
     const target = get().notifications.find((n) => n.id === id);

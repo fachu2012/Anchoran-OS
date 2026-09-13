@@ -11,6 +11,8 @@ export interface Bookmark {
   url: string;
   title: string;
   addedAt: number;
+  /** null/undefined = the flat, top-level bookmark list, matching every bookmark's behavior before folders existed. */
+  folder?: string | null;
 }
 
 const HISTORY_KEY = "browserHistory";
@@ -27,6 +29,7 @@ interface BrowserDataState {
   addBookmark: (url: string, title: string) => void;
   removeBookmark: (url: string) => void;
   isBookmarked: (url: string) => boolean;
+  setBookmarkFolder: (url: string, folder: string | null) => void;
 }
 
 function persistHistory(history: HistoryEntry[]) {
@@ -79,6 +82,12 @@ export const useBrowserStore = create<BrowserDataState>((set, get) => ({
   },
 
   isBookmarked: (url) => get().bookmarks.some((b) => b.url === url),
+
+  setBookmarkFolder: (url, folder) => {
+    const bookmarks = get().bookmarks.map((b) => (b.url === url ? { ...b, folder } : b));
+    set({ bookmarks });
+    persistBookmarks(bookmarks);
+  },
 }));
 
 Promise.all([

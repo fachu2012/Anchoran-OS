@@ -4,8 +4,9 @@ import { useWebviewContextMenu } from "@/core/useWebviewContextMenu";
 import { useWebviewVolume } from "@/core/useWebviewVolume";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { ContextMenu, type ContextMenuEntry } from "@/desktop/ContextMenu";
-import { useBrowserStore } from "./browserStore";
+import { useBrowserStore, type Bookmark } from "./browserStore";
 import { useShortcutsStore } from "@/desktop/shortcutsStore";
+import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 import "@/applications/apps.css";
 import "./browser.css";
 
@@ -79,6 +80,16 @@ interface Tab {
   darkMode: boolean;
   zoom: number;
   pinned: boolean;
+  /** Which tab group this tab belongs to, or null — see TAB_GROUP_COLORS below. */
+  groupId: string | null;
+}
+
+const TAB_GROUP_COLORS = ["#E5484D", "#F76B15", "#F5D90A", "#30A46C", "#3E7BFA", "#8E4EC6"];
+
+interface TabGroup {
+  id: string;
+  name: string;
+  color: string;
 }
 
 let tabCounter = 0;
@@ -96,6 +107,7 @@ function newTab(url = NEW_TAB_URL, incognito = false): Tab {
     darkMode: false,
     zoom: 1,
     pinned: false,
+    groupId: null,
   };
 }
 
@@ -164,15 +176,30 @@ function NewTabPage({ onGo }: { onGo: (url: string) => void }) {
   );
 }
 
+// Cosmetic filtering — hides common ad/promo containers via CSS the
+// moment a page loads, on top of the network-level host blocking in
+// electron/main.ts. This is the other half of a "robust" ad blocker:
+// network blocking alone still leaves an empty gap where a blocked
+// ad's iframe/div used to sit; this collapses it instead.
+const AD_HIDE_SELECTOR = [
+  '[id*="google_ads" i]', '[id*="banner-ad" i]', '[class*="banner-ad" i]',
+  '[id^="div-gpt-ad"]', '[class*="adsbygoogle" i]', '[class*="ad-container" i]',
+  '[class*="ad-slot" i]', '[class*="advert" i]', '[class^="ad-" i]',
+  '[data-ad-slot]', '[data-ad-client]', 'ins.adsbygoogle',
+  '[class*="sponsored" i]', '[id*="taboola" i]', '[id*="outbrain" i]',
+].join(",");
+
 function BrowserTabView({
   tab,
   active,
+  trackerBlock,
   onUpdate,
   onNewTab,
   registerRef,
 }: {
   tab: Tab;
   active: boolean;
+  trackerBlock: boolean;
   onUpdate: (id: string, patch: Partial<Tab>) => void;
   onNewTab: (url: string) => void;
   registerRef: (id: string, el: HTMLElement | null) => void;
@@ -215,6 +242,9 @@ function BrowserTabView({
           .insertCSS("html { filter: invert(1) hue-rotate(180deg); } img, video, picture { filter: invert(1) hue-rotate(180deg); }")
           .catch(() => {});
       }
+      if (trackerBlock) {
+        (el as WebviewTag).insertCSS(`${AD_HIDE_SELECTOR} { display: none !important; }`).catch(() => {});
+      }
     }
 
     el.addEventListener("page-title-updated", onTitle);
@@ -236,7 +266,7 @@ function BrowserTabView({
       el.removeEventListener("dom-ready", onDomReady);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab.id, tab.darkMode]);
+  }, [tab.id, tab.darkMode, trackerBlock]);
 
   if (tab.loadUrl === NEW_TAB_URL) {
     return (
@@ -267,6 +297,13 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
   // search results, or any future caller) opens straight to it instead
   // of the usual new-tab page.
   const [tabs, setTabs] = useState<Tab[]>(() => [newTab(openPath || HOME_URL)]);
+  const [groups, setGroups] = useState<TabGroup[]>([]);
+  const [tabPreview, setTabPreview] = useState<{ id: string; dataUrl: string } | null>(null);
+  const tabPreviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [readerContent, setReaderContent] = useState<{ title: string; paragraphs: string[] } | null>(null);
+  const [readerLoading, setReaderLoading] = useState(false);
+  const [translateMenuOpen, setTranslateMenuOpen] = useState(false);
+  const [savePagePicker, setSavePagePicker] = useState(false);
   const [tabMenu, setTabMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [activeId, setActiveId] = useState(tabs[0].id);
   const [addressInput, setAddressInput] = useState(HOME_URL);
@@ -279,10 +316,18 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
     { id: string; fileName: string; path: string; receivedBytes: number; totalBytes: number; state: string }[]
   >([]);
   const [trackerBlock, setTrackerBlock] = useState(false);
+  const [blockedCount, setBlockedCount] = useState(0);
+  useEffect(() => {
+    if (!trackerBlock || !window.anchoran) return;
+    const poll = () => window.anchoran!.getTrackerBlockCount().then(setBlockedCount);
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, [trackerBlock]);
   const closedStack = useRef<Tab[]>([]);
   const webviewNodes = useRef<Map<string, WebviewTag>>(new Map());
   const pushNotification = useNotificationStore((s) => s.push);
-  const { recordVisit, bookmarks, addBookmark, removeBookmark, isBookmarked, history, clearHistory, removeHistoryEntry } =
+  const { recordVisit, bookmarks, addBookmark, removeBookmark, isBookmarked, setBookmarkFolder, history, clearHistory, removeHistoryEntry } =
     useBrowserStore();
 
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
@@ -385,6 +430,109 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
       const rest = toggled.filter((t) => !t.pinned);
       return [...pinned, ...rest];
     });
+  }
+
+  function createGroup(tabId: string) {
+    const existing = tabs.find((t) => t.id === tabId);
+    if (!existing) return;
+    const color = TAB_GROUP_COLORS[groups.length % TAB_GROUP_COLORS.length];
+    const group: TabGroup = { id: `group-${Date.now()}`, name: `Group ${groups.length + 1}`, color };
+    setGroups((prev) => [...prev, group]);
+    setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, groupId: group.id } : t)));
+  }
+
+  function addToGroup(tabId: string, groupId: string) {
+    setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, groupId } : t)));
+  }
+
+  function removeFromGroup(tabId: string) {
+    setTabs((prev) => {
+      const next = prev.map((t) => (t.id === tabId ? { ...t, groupId: null } : t));
+      // A group with no tabs left in it isn't worth keeping around.
+      const stillUsed = new Set(next.filter((t) => t.groupId).map((t) => t.groupId));
+      setGroups((g) => g.filter((grp) => stillUsed.has(grp.id)));
+      return next;
+    });
+  }
+
+  function closeGroup(groupId: string) {
+    setTabs((prev) => prev.filter((t) => t.groupId !== groupId));
+    setGroups((prev) => prev.filter((g) => g.id !== groupId));
+  }
+
+  // A real visual thumbnail, not just the title — <webview>'s own
+  // capturePage() runs entirely in the renderer, no IPC needed, so
+  // grabbing a still of a background tab is cheap enough to do on
+  // hover. Debounced so a quick mouse pass across the tab strip
+  // doesn't fire a capture per tab.
+  function scheduleTabPreview(tabId: string) {
+    if (tabPreviewTimer.current) clearTimeout(tabPreviewTimer.current);
+    tabPreviewTimer.current = setTimeout(async () => {
+      const webview = webviewNodes.current.get(tabId) as (WebviewTag & { capturePage: () => Promise<{ toDataURL: () => string }> }) | undefined;
+      if (!webview) return;
+      try {
+        const image = await webview.capturePage();
+        setTabPreview({ id: tabId, dataUrl: image.toDataURL() });
+      } catch {
+        // A background/unmounted webview can't be captured — no preview, not an error worth surfacing.
+      }
+    }, 350);
+  }
+
+  function cancelTabPreview() {
+    if (tabPreviewTimer.current) clearTimeout(tabPreviewTimer.current);
+    setTabPreview(null);
+  }
+
+  // Reading mode: a simple, honest extraction — picks whichever
+  // container has the most total paragraph text (the same signal real
+  // readability heuristics lean on), then pulls its paragraphs out as
+  // *plain text*, not HTML. That sidesteps needing an HTML sanitizer
+  // for content coming out of an arbitrary web page, at the cost of
+  // losing inline formatting/links — a real trade-off, not an
+  // oversight.
+  const READER_EXTRACT_SCRIPT = `(() => {
+    const candidates = Array.from(document.querySelectorAll('article, main, [role="main"], .post, .article, #content, .content, body'));
+    let best = document.body;
+    let bestScore = -1;
+    for (const el of candidates) {
+      let score = 0;
+      for (const p of el.querySelectorAll('p')) score += (p.innerText || '').length;
+      if (score > bestScore) { bestScore = score; best = el; }
+    }
+    const paragraphs = Array.from(best.querySelectorAll('p'))
+      .map((p) => (p.innerText || '').trim())
+      .filter((t) => t.length > 40);
+    return { title: document.title, paragraphs };
+  })()`;
+
+  async function openReaderMode() {
+    const webview = webviewNodes.current.get(activeId) as (WebviewTag & { executeJavaScript: (code: string) => Promise<{ title: string; paragraphs: string[] }> }) | undefined;
+    if (!webview) return;
+    setReaderLoading(true);
+    try {
+      const result = await webview.executeJavaScript(READER_EXTRACT_SCRIPT);
+      if (!result?.paragraphs?.length) {
+        pushNotification("Browser", "Couldn't find readable article text on this page.");
+      } else {
+        setReaderContent(result);
+      }
+    } catch {
+      pushNotification("Browser", "Reading mode isn't available on this page.");
+    } finally {
+      setReaderLoading(false);
+    }
+  }
+
+  // Translation, honestly scoped: Anchoran has no translation engine
+  // or paid API key of its own, so this opens Google's public
+  // translate.google.com proxy for the current page — the same
+  // no-API-key trick many browsers' own "quick translate" fallback
+  // uses — in a new tab, rather than pretending to translate in place.
+  function translatePage(targetLang: string) {
+    if (!active || active.url === NEW_TAB_URL) return;
+    setTranslateMenuOpen(false);
+    openTab(`https://translate.google.com/translate?sl=auto&tl=${targetLang}&u=${encodeURIComponent(active.url)}`);
   }
 
   function reopenClosed() {
@@ -492,6 +640,72 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
     if (active?.url) navigator.clipboard?.writeText(active.url);
   }
 
+  // "Save complete page" — the real Electron savePage API (HTML +
+  // every referenced asset, into its own folder), distinct from the
+  // full-page *screenshot* above: this saves the actual page, viewable
+  // offline in a real browser, not just a picture of it.
+  async function onSavePageComplete(result: { path: string } | { dir: string; name: string }) {
+    setSavePagePicker(false);
+    if (!("path" in result) || !window.anchoran || !active) return;
+    const wv = webviewNodes.current.get(activeId) as (WebviewTag & { getWebContentsId: () => number }) | undefined;
+    if (!wv) return;
+    const fileName = `${(active.title || "page").replace(/[\\/:*?"<>|]/g, "_")}.html`;
+    const saved = await window.anchoran.savePageComplete(wv.getWebContentsId(), result.path, fileName);
+    pushNotification("Browser", saved.success ? `Page saved to ${saved.path}.` : saved.error ?? "Couldn't save this page.");
+  }
+
+  // Full-page screenshot: capturePage() (used for the tab hover
+  // preview too) only grabs the visible viewport, so this scrolls
+  // through the page in viewport-height steps, captures each step,
+  // and stitches them onto one tall canvas — capped at 20 steps so an
+  // effectively infinite-scroll page doesn't hang forever.
+  async function captureFullPage() {
+    const wv = webviewNodes.current.get(activeId) as
+      | (WebviewTag & { executeJavaScript: (code: string) => Promise<unknown>; capturePage: () => Promise<{ toDataURL: () => string }> })
+      | undefined;
+    if (!wv || !active || !window.anchoran) return;
+    try {
+      const dims = (await wv.executeJavaScript(
+        "({ width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight, viewportHeight: window.innerHeight, viewportWidth: window.innerWidth })"
+      )) as { width: number; height: number; viewportHeight: number; viewportWidth: number };
+
+      const MAX_STEPS = 20;
+      const steps: { dataUrl: string; y: number }[] = [];
+      let y = 0;
+      while (y < dims.height && steps.length < MAX_STEPS) {
+        await wv.executeJavaScript(`window.scrollTo(0, ${y})`);
+        await new Promise((r) => setTimeout(r, 150));
+        const image = await wv.capturePage();
+        steps.push({ dataUrl: image.toDataURL(), y });
+        y += dims.viewportHeight;
+      }
+      await wv.executeJavaScript("window.scrollTo(0, 0)");
+
+      const totalHeight = Math.min(dims.height, dims.viewportHeight * MAX_STEPS);
+      const canvas = document.createElement("canvas");
+      canvas.width = dims.viewportWidth;
+      canvas.height = totalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("no canvas context");
+      for (const step of steps) {
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const el = new Image();
+          el.onload = () => resolve(el);
+          el.onerror = reject;
+          el.src = step.dataUrl;
+        });
+        ctx.drawImage(img, 0, step.y);
+      }
+
+      const base64 = canvas.toDataURL("image/png").split(",")[1];
+      const name = `${(active.title || "page").replace(/[\\/:*?"<>|]/g, "_")}-full-page.png`;
+      const result = await window.anchoran.saveAndOpenFile(name, base64);
+      pushNotification("Browser", result.success ? "Full-page screenshot saved." : result.error ?? "Couldn't save the screenshot.");
+    } catch {
+      pushNotification("Browser", "Couldn't capture this page.");
+    }
+  }
+
   function onToggleTrackerBlock() {
     const next = !trackerBlock;
     setTrackerBlock(next);
@@ -511,6 +725,35 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
     const seen = new Set<string>();
     return [...fromBookmarks, ...fromHistory].filter((s) => (seen.has(s.url) ? false : (seen.add(s.url), true))).slice(0, 6);
   }, [addressInput, addressFocused, history, bookmarks]);
+
+  // Live search-query suggestions — a query typed that doesn't look
+  // like a URL fetches real autocomplete suggestions from Google's
+  // public, key-free suggest endpoint (the same one several real
+  // browsers' own address bars call), debounced so it only fires once
+  // typing pauses.
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+  useEffect(() => {
+    const q = addressInput.trim();
+    const looksLikeUrl = /^https?:\/\//i.test(q) || /^[\w-]+(\.[\w-]+)+/.test(q);
+    if (!q || !addressFocused || looksLikeUrl) {
+      setSearchSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://suggestqueries.google.com/complete/search?client=firefox&q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (!cancelled) setSearchSuggestions(Array.isArray(data?.[1]) ? data[1].slice(0, 5) : []);
+      } catch {
+        if (!cancelled) setSearchSuggestions([]);
+      }
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [addressInput, addressFocused]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -557,12 +800,18 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
             className="browser-tab"
             data-active={t.id === activeId}
             data-pinned={t.pinned}
+            style={{
+              position: "relative",
+              ...(t.groupId ? { boxShadow: `inset 0 2px 0 ${groups.find((g) => g.id === t.groupId)?.color ?? "transparent"}` } : {}),
+            }}
             onClick={() => setActiveId(t.id)}
             onContextMenu={(e) => {
               e.preventDefault();
               e.stopPropagation();
               setTabMenu({ x: e.clientX, y: e.clientY, id: t.id });
             }}
+            onMouseEnter={() => scheduleTabPreview(t.id)}
+            onMouseLeave={cancelTabPreview}
           >
             {t.loading ? (
               <div className="browser-tab-spinner" />
@@ -584,6 +833,12 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
               >
                 <Icon name="close" size={11} />
               </button>
+            )}
+            {tabPreview?.id === t.id && (
+              <div className="browser-tab-preview">
+                <img src={tabPreview.dataUrl} alt="" />
+                <div className="browser-tab-preview-title">{t.title || "New Tab"}</div>
+              </div>
             )}
           </div>
         ))}
@@ -620,6 +875,19 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
                   ]
                 : []),
               { separator: true },
+              ...(t?.groupId
+                ? [
+                    { label: "Remove from group", onSelect: () => removeFromGroup(tabMenu.id) },
+                    { label: "Close group", danger: true, onSelect: () => closeGroup(t.groupId!) },
+                  ]
+                : [
+                    { label: "New group from this tab", onSelect: () => createGroup(tabMenu.id) },
+                    ...groups.map((g) => ({
+                      label: `Add to "${g.name}"`,
+                      onSelect: () => addToGroup(tabMenu.id, g.id),
+                    })),
+                  ]),
+              { separator: true },
               { label: "Close others", onSelect: () => closeOthers(tabMenu.id) },
               { label: "Close tabs to the right", onSelect: () => closeToRight(tabMenu.id) },
               { separator: true },
@@ -651,8 +919,14 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
             placeholder="Search or enter address"
             className="browser-address-input"
           />
-          {suggestions.length > 0 && (
+          {(suggestions.length > 0 || searchSuggestions.length > 0) && (
             <div className="browser-suggestions">
+              {searchSuggestions.map((q) => (
+                <button key={`search-${q}`} className="browser-suggestion-row" onMouseDown={() => go(q)}>
+                  <Icon name="search" size={12} />
+                  <span className="browser-suggestion-title">{q}</span>
+                </button>
+              ))}
               {suggestions.map((s) => (
                 <button key={s.url} className="browser-suggestion-row" onMouseDown={() => go(s.url)}>
                   <Icon name="search" size={12} />
@@ -669,6 +943,39 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
         <button className="app-toolbar-btn" onClick={() => setFindOpen(true)} title="Find in page">
           <Icon name="search" size={13} />
         </button>
+        <button
+          className="app-toolbar-btn"
+          onClick={openReaderMode}
+          disabled={!active || active.url === NEW_TAB_URL || readerLoading}
+          title="Reading mode"
+        >
+          <Icon name="document" size={13} />
+        </button>
+        <div style={{ position: "relative" }}>
+          <button
+            className="app-toolbar-btn"
+            onClick={() => setTranslateMenuOpen((v) => !v)}
+            disabled={!active || active.url === NEW_TAB_URL}
+            title="Translate page"
+          >
+            <Icon name="globe" size={13} />
+          </button>
+          {translateMenuOpen && (
+            <div className="browser-translate-menu">
+              {[
+                ["en", "English"],
+                ["es", "Español"],
+                ["pt", "Português"],
+                ["fr", "Français"],
+                ["de", "Deutsch"],
+              ].map(([code, label]) => (
+                <button key={code} onClick={() => translatePage(code)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <button className="app-toolbar-btn" data-op={panel === "history"} onClick={() => setPanel(panel === "history" ? null : "history")}>
           History
         </button>
@@ -736,6 +1043,12 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
         <button className="app-toolbar-btn" onClick={saveAsPdf}>
           Save as PDF
         </button>
+        <button className="app-toolbar-btn" onClick={captureFullPage}>
+          Full-page screenshot
+        </button>
+        <button className="app-toolbar-btn" onClick={() => setSavePagePicker(true)}>
+          Save page…
+        </button>
         <button className="app-toolbar-btn" onClick={copyLink}>
           Copy link
         </button>
@@ -755,7 +1068,7 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
 
       <div className="app-content browser-content" style={{ padding: 0 }}>
         {tabs.map((t) => (
-          <BrowserTabView key={t.id} tab={t} active={t.id === activeId} onUpdate={updateTab} onNewTab={openTab} registerRef={registerRef} />
+          <BrowserTabView key={t.id} tab={t} active={t.id === activeId} trackerBlock={trackerBlock} onUpdate={updateTab} onNewTab={openTab} registerRef={registerRef} />
         ))}
       </div>
 
@@ -792,20 +1105,47 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
             <span>Bookmarks</span>
           </div>
           {bookmarks.length === 0 && <div className="browser-panel-empty">No bookmarks yet — click the pin icon to add one.</div>}
-          {bookmarks.map((b) => (
-            <div key={b.url} className="browser-panel-row" onClick={() => go(b.url)}>
-              <span className="browser-panel-title">{b.title || b.url}</span>
-              <button
-                className="browser-panel-remove"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeBookmark(b.url);
-                }}
-              >
-                <Icon name="close" size={11} />
-              </button>
-            </div>
-          ))}
+          {(() => {
+            const folders = Array.from(new Set(bookmarks.map((b) => b.folder).filter((f): f is string => !!f))).sort();
+            const unfiled = bookmarks.filter((b) => !b.folder);
+            function bookmarkRow(b: Bookmark) {
+              return (
+                <div key={b.url} className="browser-panel-row" onClick={() => go(b.url)}>
+                  <span className="browser-panel-title">{b.title || b.url}</span>
+                  <input
+                    className="browser-bookmark-folder-input"
+                    defaultValue={b.folder ?? ""}
+                    placeholder="Folder…"
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={(e) => setBookmarkFolder(b.url, e.target.value.trim() || null)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                  />
+                  <button
+                    className="browser-panel-remove"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeBookmark(b.url);
+                    }}
+                  >
+                    <Icon name="close" size={11} />
+                  </button>
+                </div>
+              );
+            }
+            return (
+              <>
+                {folders.map((folder) => (
+                  <div key={folder}>
+                    <div className="browser-bookmark-folder-label">
+                      <Icon name="folder" size={12} /> {folder}
+                    </div>
+                    {bookmarks.filter((b) => b.folder === folder).map(bookmarkRow)}
+                  </div>
+                ))}
+                {unfiled.map(bookmarkRow)}
+              </>
+            );
+          })()}
         </div>
       )}
 
@@ -845,7 +1185,35 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
         <button className="browser-clear-data-btn" onClick={clearBrowsingData}>
           Clear browsing data
         </button>
+        {trackerBlock && blockedCount > 0 && (
+          <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--anchoran-text-secondary)" }}>
+            {blockedCount} ads/trackers blocked this session
+          </span>
+        )}
       </div>
+
+      {savePagePicker && (
+        <AnchoranFilePicker
+          mode="folder"
+          title="Save page to…"
+          onConfirm={onSavePageComplete}
+          onCancel={() => setSavePagePicker(false)}
+        />
+      )}
+
+      {readerContent && (
+        <div className="browser-reader-overlay" onClick={() => setReaderContent(null)}>
+          <div className="browser-reader-page" onClick={(e) => e.stopPropagation()}>
+            <button className="browser-reader-close" onClick={() => setReaderContent(null)} aria-label="Exit reading mode">
+              <Icon name="close" size={16} />
+            </button>
+            <h1 className="browser-reader-title">{readerContent.title}</h1>
+            {readerContent.paragraphs.map((p, i) => (
+              <p key={i}>{p}</p>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

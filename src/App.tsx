@@ -20,6 +20,7 @@ import "@/theme/settingsChangeLogStore";
 import "@/theme/wallpaperSpotlightStore";
 import { Onboarding } from "@/onboarding/Onboarding";
 import { useWindowStore } from "@/windowmanager/windowStore";
+import { useUpdateAvailableStore } from "@/core/updateAvailableStore";
 import { useAnchoranStartupAppsStore, startupAppsReady } from "@/core/anchoranStartupAppsStore";
 import { useSystemModeStore } from "@/desktop/systemModeStore";
 import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
@@ -131,6 +132,13 @@ export default function App() {
     // check was started from.
     window.anchoran?.onUpdateStatus((status) => {
       if (status.state === "downloaded") setUpdateReadyVersion(status.version);
+      // Keeps a persistent taskbar indicator in sync with the real
+      // updater lifecycle, regardless of which screen triggered the
+      // check — see updateAvailableStore.ts / Taskbar.tsx.
+      if (status.state === "available") useUpdateAvailableStore.getState().set("available", status.version);
+      else if (status.state === "downloading") useUpdateAvailableStore.setState({ status: "downloading" });
+      else if (status.state === "downloaded") useUpdateAvailableStore.getState().set("downloaded", status.version);
+      else if (status.state === "not-available") useUpdateAvailableStore.getState().set("none");
     });
 
   }, []);

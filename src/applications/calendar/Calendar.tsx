@@ -26,6 +26,11 @@ function todayKey() {
   return toKey(t.getFullYear(), t.getMonth(), t.getDate());
 }
 
+function keyToDate(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export function CalendarApp() {
   const [cursor, setCursor] = useState(() => {
     const t = new Date();
@@ -34,6 +39,7 @@ export function CalendarApp() {
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [draft, setDraft] = useState("");
+  const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
 
   useEffect(() => {
     persistGet<CalEvent[]>("data", STORAGE_KEY, []).then(setEvents);
@@ -76,22 +82,51 @@ export function CalendarApp() {
 
   const selectedEvents = eventsByDate.get(selectedDate) ?? [];
 
+  // The 7-day week containing the currently selected date, for the
+  // week view — not tied to `cursor`'s month, since a week can span
+  // two months.
+  const weekCells = useMemo(() => {
+    const anchor = keyToDate(selectedDate);
+    const start = new Date(anchor);
+    start.setDate(anchor.getDate() - anchor.getDay());
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return toKey(d.getFullYear(), d.getMonth(), d.getDate());
+    });
+  }, [selectedDate]);
+
+  function step(direction: 1 | -1) {
+    if (viewMode === "month") {
+      setCursor((c) =>
+        direction === -1
+          ? c.month === 0
+            ? { year: c.year - 1, month: 11 }
+            : { year: c.year, month: c.month - 1 }
+          : c.month === 11
+            ? { year: c.year + 1, month: 0 }
+            : { year: c.year, month: c.month + 1 }
+      );
+      return;
+    }
+    const days = viewMode === "week" ? 7 : 1;
+    const next = keyToDate(selectedDate);
+    next.setDate(next.getDate() + days * direction);
+    const key = toKey(next.getFullYear(), next.getMonth(), next.getDate());
+    setSelectedDate(key);
+    setCursor({ year: next.getFullYear(), month: next.getMonth() });
+  }
+
   return (
     <div className="app-root">
       <div className="app-toolbar">
-        <button
-          className="app-toolbar-btn"
-          onClick={() => setCursor((c) => (c.month === 0 ? { year: c.year - 1, month: 11 } : { year: c.year, month: c.month - 1 }))}
-        >
+        <button className="app-toolbar-btn" onClick={() => step(-1)}>
           <Icon name="chevronRight" size={13} style={{ transform: "rotate(180deg)" }} />
         </button>
         <span style={{ fontSize: 13, fontWeight: 500, minWidth: 130, textAlign: "center" }}>
-          {MONTHS[cursor.month]} {cursor.year}
+          {viewMode === "day" ? keyToDate(selectedDate).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" }) : `${MONTHS[cursor.month]} ${cursor.year}`}
         </span>
-        <button
-          className="app-toolbar-btn"
-          onClick={() => setCursor((c) => (c.month === 11 ? { year: c.year + 1, month: 0 } : { year: c.year, month: c.month + 1 }))}
-        >
+        <button className="app-toolbar-btn" onClick={() => step(1)}>
           <Icon name="chevronRight" size={13} />
         </button>
         <button
@@ -101,34 +136,67 @@ export function CalendarApp() {
             setCursor({ year: t.getFullYear(), month: t.getMonth() });
             setSelectedDate(todayKey());
           }}
-          style={{ marginLeft: "auto" }}
         >
           Today
         </button>
-      </div>
-      <div className="app-content calendar-content">
-        <div className="calendar-grid">
-          {WEEKDAYS.map((w) => (
-            <div key={w} className="calendar-weekday">
-              {w}
-            </div>
-          ))}
-          {cells.map((c) => (
-            <button
-              key={c.key}
-              className="calendar-cell"
-              disabled={c.day === null}
-              data-today={c.key === todayKey()}
-              data-selected={c.key === selectedDate}
-              data-has-events={eventsByDate.has(c.key)}
-              onClick={() => c.day !== null && setSelectedDate(c.key)}
-            >
-              {c.day}
-              {eventsByDate.has(c.key) && <span className="calendar-dot" />}
+        <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+          {(["month", "week", "day"] as const).map((v) => (
+            <button key={v} className="app-toolbar-btn" data-op={viewMode === v} onClick={() => setViewMode(v)}>
+              {v[0].toUpperCase() + v.slice(1)}
             </button>
           ))}
         </div>
-        <div className="calendar-side">
+      </div>
+      <div className="app-content calendar-content">
+        {viewMode === "month" && (
+          <div className="calendar-grid">
+            {WEEKDAYS.map((w) => (
+              <div key={w} className="calendar-weekday">
+                {w}
+              </div>
+            ))}
+            {cells.map((c) => (
+              <button
+                key={c.key}
+                className="calendar-cell"
+                disabled={c.day === null}
+                data-today={c.key === todayKey()}
+                data-selected={c.key === selectedDate}
+                data-has-events={eventsByDate.has(c.key)}
+                onClick={() => c.day !== null && setSelectedDate(c.key)}
+              >
+                {c.day}
+                {eventsByDate.has(c.key) && <span className="calendar-dot" />}
+              </button>
+            ))}
+          </div>
+        )}
+        {viewMode === "week" && (
+          <div className="calendar-week-grid">
+            {weekCells.map((key) => {
+              const d = keyToDate(key);
+              return (
+                <button
+                  key={key}
+                  className="calendar-week-day"
+                  data-today={key === todayKey()}
+                  data-selected={key === selectedDate}
+                  onClick={() => setSelectedDate(key)}
+                >
+                  <div className="calendar-week-day-label">
+                    {WEEKDAYS[d.getDay()]} {d.getDate()}
+                  </div>
+                  <div className="calendar-week-day-events">
+                    {(eventsByDate.get(key) ?? []).map((e) => (
+                      <div key={e.id} className="calendar-week-event">{e.title}</div>
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <div className="calendar-side" style={viewMode === "day" ? { width: "100%", maxWidth: 480, margin: "0 auto" } : undefined}>
           <div className="calendar-side-title">{selectedDate}</div>
           <div className="calendar-events">
             {selectedEvents.length === 0 && (

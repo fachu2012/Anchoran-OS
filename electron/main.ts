@@ -538,27 +538,40 @@ function interceptWebviewDownloads() {
  * subscription. Toggled from Settings; off by default changes nothing
  * about how sites behave.
  */
+// A meaningfully broader list than a token gesture — every major ad
+// network/exchange and analytics/tracking pixel provider with real
+// market share, not just Google's and Meta's own. Still a hostname
+// blocklist (fast, simple, no filter-list-parsing engine), paired
+// with the cosmetic CSS hiding in Browser.tsx's BrowserTabView for the
+// "robust" half real ad blockers also do.
 const TRACKER_HOSTS = [
-  "doubleclick.net",
-  "googlesyndication.com",
-  "googleadservices.com",
-  "google-analytics.com",
-  "googletagmanager.com",
-  "googletagservices.com",
-  "facebook.com/tr",
-  "connect.facebook.net",
-  "adnxs.com",
-  "scorecardresearch.com",
-  "outbrain.com",
-  "taboola.com",
-  "criteo.com",
-  "adsrvr.org",
+  // Google's ad/analytics stack
+  "doubleclick.net", "googlesyndication.com", "googleadservices.com",
+  "google-analytics.com", "googletagmanager.com", "googletagservices.com",
+  "adservice.google.com", "pagead2.googlesyndication.com",
+  // Meta / Facebook
+  "facebook.com/tr", "connect.facebook.net",
+  // Major ad exchanges/networks
+  "adnxs.com", "adsrvr.org", "criteo.com", "rubiconproject.com",
+  "openx.net", "pubmatic.com", "casalemedia.com", "contextweb.com",
+  "smartadserver.com", "advertising.com", "adform.net", "bidswitch.net",
+  "yieldmo.com", "sharethrough.com", "33across.com", "media.net",
+  // Amazon / Microsoft ad platforms
+  "amazon-adsystem.com", "adsystem.amazon.com", "ads.microsoft.com", "bing.com/ads",
+  // Native/content recommendation ("chumbox") networks
+  "outbrain.com", "taboola.com", "revcontent.com", "mgid.com",
+  // Analytics/tracking pixels beyond Google's own
+  "scorecardresearch.com", "quantserve.com", "hotjar.com", "mixpanel.com",
+  "segment.io", "segment.com", "amplitude.com", "crazyegg.com",
+  "chartbeat.com", "newrelic.com", "bugsnag.com",
 ];
 let trackerBlockEnabled = false;
+let trackerBlockedCount = 0;
 
 function setupTrackerBlocking() {
   session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
     if (trackerBlockEnabled && TRACKER_HOSTS.some((host) => details.url.includes(host))) {
+      trackerBlockedCount += 1;
       callback({ cancel: true });
     } else {
       callback({ cancel: false });
@@ -570,6 +583,23 @@ ipcMain.handle("anchoran:set-tracker-block", (_event, enabled: boolean) => {
   trackerBlockEnabled = enabled;
   return { success: true };
 });
+
+ipcMain.handle("anchoran:get-tracker-block-count", () => trackerBlockedCount);
+
+/** "Save complete page" — the standard Electron savePage, given a webview's own webContentsId (not the main window's), so it's the actual page shown, not Anchoran's own shell. */
+ipcMain.handle(
+  "anchoran:save-page-complete",
+  async (_event, webContentsId: number, targetDir: string, fileName: string) => {
+    try {
+      const wc = webContents.fromId(webContentsId);
+      if (!wc) return { success: false, error: "That page is no longer open." };
+      await wc.savePage(path.join(targetDir, fileName), "HTMLComplete");
+      return { success: true, path: path.join(targetDir, fileName) };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+);
 
 /**
  * Default browser permission policy — camera/mic/location denied

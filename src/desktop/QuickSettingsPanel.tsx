@@ -6,6 +6,8 @@ import { useSystemStatus } from "./systemStatus";
 import { useVolumeMixerStore, MIXER_APP_IDS } from "./volumeMixerStore";
 import { APP_REGISTRY } from "@/applications/registry";
 import { useEnergyProfileStore, POWER_PROFILE_LABELS, type PowerProfile } from "@/theme/energyProfileStore";
+import { useQuickSettingsOrderStore, type QuickSettingRowKey } from "./quickSettingsOrderStore";
+import { useState, type DragEvent } from "react";
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -88,6 +90,31 @@ export function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
   const getLevel = useVolumeMixerStore((s) => s.getLevel);
   const setVolume = useVolumeMixerStore((s) => s.setVolume);
   const setMuted = useVolumeMixerStore((s) => s.setMuted);
+  const rowOrder = useQuickSettingsOrderStore((s) => s.order);
+  const reorderRows = useQuickSettingsOrderStore((s) => s.reorder);
+  const [dragOverKey, setDragOverKey] = useState<QuickSettingRowKey | null>(null);
+
+  const ROW_RENDER: Record<QuickSettingRowKey, JSX.Element> = {
+    focus: (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 12.5 }}>Focus (Do Not Disturb)</span>
+        <Toggle checked={doNotDisturb} onChange={setDoNotDisturb} />
+      </div>
+    ),
+    nightLight: (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 12.5 }}>Night Light</span>
+        <Toggle checked={prefs.nightLightEnabled} onChange={prefs.setNightLightEnabled} />
+      </div>
+    ),
+    powerProfile: <PowerProfileRow />,
+    windowSpotlight: (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 12.5 }}>Window Spotlight (dim other windows)</span>
+        <Toggle checked={focusMode} onChange={setFocusMode} />
+      </div>
+    ),
+  };
 
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 690 }} onClick={onClose}>
@@ -207,20 +234,34 @@ export function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
           />
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 12.5 }}>Focus (Do Not Disturb)</span>
-            <Toggle checked={doNotDisturb} onChange={setDoNotDisturb} />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 12.5 }}>Night Light</span>
-            <Toggle checked={prefs.nightLightEnabled} onChange={prefs.setNightLightEnabled} />
-          </div>
-          <PowerProfileRow />
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 12.5 }}>Window Spotlight (dim other windows)</span>
-            <Toggle checked={focusMode} onChange={setFocusMode} />
-          </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {rowOrder.map((key, index) => (
+            <div
+              key={key}
+              draggable
+              onDragStart={(e: DragEvent) => e.dataTransfer.setData("text/plain", String(index))}
+              onDragOver={(e: DragEvent) => {
+                e.preventDefault();
+                setDragOverKey(key);
+              }}
+              onDragLeave={() => setDragOverKey((k) => (k === key ? null : k))}
+              onDrop={(e: DragEvent) => {
+                e.preventDefault();
+                setDragOverKey(null);
+                const fromIndex = Number(e.dataTransfer.getData("text/plain"));
+                if (!Number.isNaN(fromIndex) && fromIndex !== index) reorderRows(fromIndex, index);
+              }}
+              style={{
+                padding: "6px 4px",
+                borderRadius: 6,
+                cursor: "grab",
+                outline: dragOverKey === key ? "1.5px dashed var(--anchoran-accent)" : "none",
+                outlineOffset: -2,
+              }}
+            >
+              {ROW_RENDER[key]}
+            </div>
+          ))}
         </div>
 
         <button

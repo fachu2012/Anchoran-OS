@@ -12,6 +12,7 @@ import { Clock } from "./Clock";
 import { AdminPinPrompt } from "@/core/AdminPinPrompt";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { usePreferencesStore } from "@/theme/preferencesStore";
+import { useUpdateAvailableStore } from "@/core/updateAvailableStore";
 import type { AppId } from "@/core/types";
 
 const DRAG_MIME = "application/x-anchoran-taskbar-app";
@@ -48,8 +49,10 @@ export function Taskbar({
   // The taskbar only lists windows on the current virtual desktop —
   // the same "what's actually visible right now" list a real OS shows.
   const windows = allWindows.filter((w) => w.desktopId === activeDesktopId);
-  const notificationCount = useNotificationStore((s) => s.notifications.length);
+  const notificationCount = useNotificationStore((s) => s.notifications.filter((n) => !n.read).length);
   const accentColor = usePreferencesStore((s) => s.accentColor);
+  const updateStatus = useUpdateAvailableStore((s) => s.status);
+  const updateVersion = useUpdateAvailableStore((s) => s.version);
   const status = useSystemStatus();
 
   const pinned = useTaskbarStore((s) => s.pinned);
@@ -254,6 +257,23 @@ export function Taskbar({
         <div className="taskbar-spacer" />
 
         <div className="taskbar-tray">
+          {updateStatus !== "none" && (
+            <button
+              className="taskbar-btn"
+              onClick={() => openApp("settings")}
+              aria-label={`Update ${updateStatus}${updateVersion ? `: v${updateVersion}` : ""}`}
+              title={
+                updateStatus === "downloaded"
+                  ? `Update v${updateVersion} ready — restart to install`
+                  : updateStatus === "downloading"
+                    ? "Downloading update…"
+                    : `Update v${updateVersion} available`
+              }
+            >
+              <Icon name="restart" size={15} style={{ color: "var(--anchoran-accent)" }} />
+              <span className="taskbar-dot" />
+            </button>
+          )}
           <button className="taskbar-btn" onClick={onToggleNotifications} aria-label="Notifications">
             <Icon name="notification" size={16} />
             {notificationCount > 0 && <span className="taskbar-badge">{notificationCount}</span>}
