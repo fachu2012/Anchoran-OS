@@ -5,6 +5,23 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.0.4] - 2026-09-13
+
+**Update type:** feature
+
+### Changed
+- `anchoran changeto` now lists and installs Insider Preview releases
+  too, not just stable ones — its list previously excluded every
+  I.P.U. release outright.
+- New-style versions in that list now show as just "Build #H#.#[
+  I.P.U.]" instead of repeating "Version # | " on every line.
+- Installing a new-style version no longer requires typing its full
+  name — the short build number alone works too (`anchoran changeto
+  3H0.4`), optionally followed by "-IPU" or " I.P.U." to specifically
+  target the Insider Preview build instead of its stable counterpart
+  when both exist for the same build number. The full name (`v3.0.4`,
+  `3.0.4-IPU`, …) still works exactly as before.
+
 ## [3.0.3] - 2026-09-13
 
 **Update type:** stability

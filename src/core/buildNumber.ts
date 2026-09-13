@@ -81,3 +81,49 @@ export function versionLabelFor(version: string, channel?: "stable" | "insider" 
   const base = usesOldVersionStyle(version) ? `v${baseVersion(version)}` : `Version ${major} | Build ${buildNumberFor(version)}`;
   return resolvedChannel === "insider" ? `${base} I.P.U.` : base;
 }
+
+/**
+ * Same idea as versionLabelFor, but compact — drops the "Version # | "
+ * part for a new-style version, leaving just "Build #H#.#[ I.P.U.]".
+ * Used where every entry is already understood to be an Anchoran OS
+ * release and repeating "Version 3 | " on each line (`anchoran
+ * changeto`'s list) would just be noise old-style entries don't have
+ * an equivalent of anyway.
+ */
+export function shortLabelFor(version: string, channel?: "stable" | "insider" | null): string {
+  const resolvedChannel = channel ?? (/-ipu/i.test(version) ? "insider" : "stable");
+  const base = usesOldVersionStyle(version) ? `v${baseVersion(version)}` : `Build ${buildNumberFor(version)}`;
+  return resolvedChannel === "insider" ? `${base} I.P.U.` : base;
+}
+
+/**
+ * Resolves what a person typed at `anchoran changeto` against the real
+ * list of installable release tags. Accepts the exact tag as-is
+ * (however it's spelled — "3.0.3", "v3.0.3", "3.0.3-IPU", "v3.0.3-
+ * IPU"), or — for a new-style version — its short build number alone
+ * ("3H0.3"), optionally followed by "-IPU"/" I.P.U." (any spacing/case)
+ * to specifically target the Insider Preview build rather than its
+ * stable counterpart when both exist under the same build number. A
+ * bare build number with no I.P.U. marker prefers the stable release
+ * when one exists for that build number, falling back to the I.P.U.
+ * one when that's the only release with it (e.g. before the stable cut
+ * has shipped yet).
+ */
+export function resolveVersionTarget(
+  input: string,
+  releases: { tag: string; isIPU: boolean }[]
+): string | null {
+  const raw = input.trim();
+  const strippedV = raw.replace(/^v/i, "");
+  const exact = releases.find((r) => r.tag === raw || r.tag === strippedV);
+  if (exact) return exact.tag;
+
+  const buildMatch = raw.match(/^(\d+)H(\d+)\.(\d+)\s*(-?\s*I\.?\s*P\.?\s*U\.?)?$/i);
+  if (!buildMatch) return null;
+  const wantedBuild = `${buildMatch[1]}H${buildMatch[2]}.${buildMatch[3]}`;
+  const wantsIPU = !!buildMatch[4];
+  const candidates = releases.filter((r) => buildNumberFor(r.tag) === wantedBuild);
+  const stable = candidates.find((r) => !r.isIPU);
+  const insider = candidates.find((r) => r.isIPU);
+  return wantsIPU ? (insider?.tag ?? null) : (stable?.tag ?? insider?.tag ?? null);
+}

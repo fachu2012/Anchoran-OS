@@ -9,7 +9,7 @@ import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import { APP_LIST } from "@/applications/registry";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { ANCHORAN_VERSION } from "@/core/version";
-import { versionLabelFor, baseVersion, ANCHORAN_DISPLAY_VERSION } from "@/core/buildNumber";
+import { versionLabelFor, shortLabelFor, resolveVersionTarget, baseVersion, ANCHORAN_DISPLAY_VERSION } from "@/core/buildNumber";
 import { getAppUptimeSeconds } from "@/core/appUptime";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import type { AppId } from "@/core/types";
@@ -398,7 +398,7 @@ export function TerminalConsole({
                   "  df, du <path>, emptyrecyclebin, clearcache, backup, restore, wipe --confirm",
                   "  set NAME=value, get [NAME], unset NAME — persistent env vars, expand as $NAME",
                   "  theme light|dark, wallpaper <name>, accent <hex>, scale <value>",
-                  "  logs, logs --errors, crashinfo, exportlogs, anchoran changeto [vX.Y.Z]",
+                  "  logs, logs --errors, crashinfo, exportlogs, anchoran changeto [vX.Y.Z | #H#.#]",
                   "  shutdown, restart, sleep, resetpin --confirm",
                   "  listprofiles, delprofile <id>, regquery <key>",
                   "  netcheck, ping <host>, myip",
@@ -641,33 +641,45 @@ export function TerminalConsole({
           try {
             const res = await fetch("https://api.github.com/repos/fachu2012/Anchoran-OS/releases?per_page=100");
             const data: { tag_name: string; body: string | null; draft: boolean; prerelease: boolean }[] = await res.json();
-            const installable = data
-              .filter((r) => !r.draft && !r.prerelease && typeof r.body === "string" && !r.body.includes("installation option has been disabled"))
-              .map((r) => r.tag_name.replace(/^v/i, ""));
-            // Every release, old-style "vX.Y.Z" naming or the current
-            // "Version # | Build #H#.#" naming, is still tagged with a
-            // real, permanent semver version underneath (tag_name here)
-            // — the naming style only ever changed the release's
-            // cosmetic display title, never the tag itself, so matching
-            // and installing by version number works identically for
-            // every release regardless of which style it shipped under.
-            // versionLabelFor() shows each one the way it actually
+            // I.P.U. releases are real, installable releases too — only
+            // draft and explicitly-disabled ones are excluded. Every
+            // release, old-style "vX.Y.Z" naming or the current "Version
+            // # | Build #H#.#" naming, is still tagged with a real,
+            // permanent semver version underneath (tag_name here) — the
+            // naming style only ever changed the release's cosmetic
+            // display title, never the tag itself, so matching and
+            // installing by version number works identically for every
+            // release regardless of which style or channel it shipped
+            // under. shortLabelFor() shows each one the way it actually
             // shipped (old-style for v3.0.0 and earlier, new-style
-            // after) rather than relabeling history in the new style.
+            // after, " I.P.U." appended for a prerelease) rather than
+            // relabeling history, and without repeating "Version # | "
+            // on every line the way the full versionLabelFor() would.
+            const installable = data
+              .filter((r) => !r.draft && typeof r.body === "string" && !r.body.includes("installation option has been disabled"))
+              .map((r) => ({ tag: r.tag_name.replace(/^v/i, ""), isIPU: r.prerelease }));
             if (!subArgs[0]) {
               print(
                 installable.length > 0
                   ? installable
-                      .map((v) => `  ${versionLabelFor(v)}${v === ANCHORAN_VERSION ? " (current)" : ""}`)
+                      .map(
+                        (r) =>
+                          `  ${shortLabelFor(r.tag, r.isIPU ? "insider" : "stable")}${r.tag === ANCHORAN_VERSION ? " (current)" : ""}`
+                      )
                       .join("\n")
                   : "Couldn't fetch the release list."
               );
             } else {
-              const target = subArgs[0].replace(/^v/i, "");
-              if (!installable.includes(target)) {
-                print(`anchoran changeto: v${target} isn't an installable release. Run "anchoran changeto" with no arguments to see the list.`);
+              // subRest, not just subArgs[0]: a build-number target can
+              // include a space before its I.P.U. marker ("3H0.3 I.P.U."),
+              // which the command line splits into separate args.
+              const target = resolveVersionTarget(subRest, installable);
+              if (!target) {
+                print(
+                  `anchoran changeto: "${subRest}" isn't an installable release. Run "anchoran changeto" with no arguments to see the list.`
+                );
               } else if (target === ANCHORAN_VERSION) {
-                print(`anchoran changeto: v${target} is already the version running.`);
+                print(`anchoran changeto: ${versionLabelFor(target)} is already the version running.`);
               } else {
                 pendingChangeTo.current = target;
                 print(`Change to ${versionLabelFor(target)}? Anchoran will close and reopen on that version. [y/n]`);
