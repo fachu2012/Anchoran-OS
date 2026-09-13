@@ -43,6 +43,7 @@ const CURATED: Partial<Record<IconName, string>> = {
   subtitle: "#7C7C7C",
   photoViewer: "#B54EE0",
   recycleBin: "#6E7787",
+  star: "#F5A524",
 
   // Flagship system apps
   terminal: "#1F2933",

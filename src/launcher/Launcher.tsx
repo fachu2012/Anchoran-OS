@@ -9,6 +9,7 @@ import { useDesktopIconsStore } from "@/desktop/desktopIconsStore";
 import { useInstalledAppsStore, isProtectedApp } from "@/applications/installedAppsStore";
 import { ContextMenu, type ContextMenuEntry } from "@/desktop/ContextMenu";
 import { AdminPinPrompt } from "@/core/AdminPinPrompt";
+import { useAppUsageStore } from "@/core/appUsageStore";
 import "./launcher.css";
 
 // Mirrors Settings.tsx's SECTIONS — kept here as a plain list rather
@@ -136,6 +137,8 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
   const unpinFromDesktop = useDesktopIconsStore((s) => s.unpinApp);
   const installed = useInstalledAppsStore((s) => s.installed);
   const uninstall = useInstalledAppsStore((s) => s.uninstall);
+  const recordUsage = useAppUsageStore((s) => s.record);
+  const topApps = useAppUsageStore((s) => s.topApps);
 
   const [menu, setMenu] = useState<{ x: number; y: number; app: AppDefinition } | null>(null);
   const [adminPinPrompt, setAdminPinPrompt] = useState(false);
@@ -209,6 +212,7 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
   }, [letterJumpOpen]);
 
   function launch(appId: AppId) {
+    recordUsage(appId);
     openApp(appId);
     onClose();
   }
@@ -279,6 +283,14 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
   const hasQuery = query.trim().length > 0;
   const calcResult = hasQuery ? evalArithmetic(query) : null;
 
+  const frequentApps = useMemo(() => {
+    const installedSet = installed;
+    return topApps(6)
+      .filter((id) => installedSet.has(id))
+      .map((id) => sortedApps.find((a) => a.id === id))
+      .filter((a): a is AppDefinition => Boolean(a));
+  }, [topApps, installed, sortedApps]);
+
   return (
     <div className="launcher-backdrop" onClick={onClose}>
       <div
@@ -320,6 +332,14 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
           )}
           {!hasQuery ? (
             <>
+              {frequentApps.length > 0 && (
+                <>
+                  <div className="launcher-section-label">Frequently used</div>
+                  {frequentApps.map((app) => (
+                    <AppRow key={`frequent-${app.id}`} app={app} showHint={false} />
+                  ))}
+                </>
+              )}
               {JUMP_LETTERS.filter((l) => groupedApps.has(l)).map((letter, sectionIndex) => (
                 <div
                   key={letter}

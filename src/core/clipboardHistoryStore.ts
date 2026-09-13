@@ -17,14 +17,18 @@ export interface ClipboardEntry {
 }
 
 const STORAGE_KEY = "clipboardHistory";
+const RETENTION_KEY = "clipboardRetentionMinutes";
 const MAX_ENTRIES = 50;
 
 interface ClipboardHistoryState {
   entries: ClipboardEntry[];
   hydrated: boolean;
+  /** Minutes after which an entry is auto-purged from history; 0 means "keep forever". A privacy option for anything sensitive that briefly passes through the clipboard. */
+  retentionMinutes: number;
   record: (text: string) => void;
   remove: (id: string) => void;
   clear: () => void;
+  setRetentionMinutes: (minutes: number) => void;
 }
 
 function persist(entries: ClipboardEntry[]) {
@@ -34,6 +38,7 @@ function persist(entries: ClipboardEntry[]) {
 export const useClipboardHistoryStore = create<ClipboardHistoryState>((set, get) => ({
   entries: [],
   hydrated: false,
+  retentionMinutes: 0,
 
   record: (text) => {
     const trimmed = text.trim();
@@ -57,8 +62,31 @@ export const useClipboardHistoryStore = create<ClipboardHistoryState>((set, get)
     set({ entries: [] });
     persist([]);
   },
+
+  setRetentionMinutes: (minutes) => {
+    set({ retentionMinutes: minutes });
+    persistSet("config", RETENTION_KEY, minutes);
+  },
 }));
 
 persistGet<ClipboardEntry[]>("data", STORAGE_KEY, []).then((entries) => {
   useClipboardHistoryStore.setState({ entries, hydrated: true });
 });
+
+persistGet<number>("config", RETENTION_KEY, 0).then((retentionMinutes) => {
+  useClipboardHistoryStore.setState({ retentionMinutes });
+});
+
+// Purges entries older than the configured retention window every
+// minute — a no-op while retentionMinutes is 0 (the default: keep
+// everything, same as before this feature existed).
+setInterval(() => {
+  const { retentionMinutes, entries } = useClipboardHistoryStore.getState();
+  if (!retentionMinutes) return;
+  const cutoff = Date.now() - retentionMinutes * 60_000;
+  const kept = entries.filter((e) => e.copiedAt >= cutoff);
+  if (kept.length !== entries.length) {
+    useClipboardHistoryStore.setState({ entries: kept });
+    persist(kept);
+  }
+}, 60_000);

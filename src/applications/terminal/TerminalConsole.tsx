@@ -47,6 +47,19 @@ function formatUptime(totalSeconds: number) {
   return `${h}h ${m}m`;
 }
 
+// Lightweight color coding for output lines — inferred from the text
+// itself rather than tagged at every print() call site, so every
+// existing command gets it for free. A typed command line (the
+// "user@anchoran:~$ ..." echo) is deliberately left neutral.
+function lineKind(text: string): "error" | "success" | "neutral" {
+  if (/^(root|user)@anchoran:/.test(text)) return "neutral";
+  if (/error|couldn't|can't|failed|refused|not found|not available|invalid/i.test(text)) return "error";
+  if (/^(installed|opening|closed|unset|removed|alias .* set|change to v.* \? |download complete|update|wallpaper set|theme set|accent color set|interface scale set)/i.test(text)) {
+    return "success";
+  }
+  return "neutral";
+}
+
 /** Matches an app by its internal id or its display title (case-insensitive) — what a user actually types is the title, most of the time. */
 function findApp(query: string) {
   const q = query.toLowerCase();
@@ -89,12 +102,18 @@ export function TerminalConsole({
   // sessions now — a fresh Terminal window used to start with a
   // completely blank ↑-history and forget any `alias` you'd set.
   const aliases = useRef<Record<string, string>>({});
+  // Admin-only persistent environment variables (`set`/`get`/`unset`) —
+  // expanded as `$NAME` anywhere in a command line before it runs.
+  const envVars = useRef<Record<string, string>>({});
   useEffect(() => {
     persistGet<string[]>("config", "terminalHistory", []).then((saved) => {
       commandHistory.current = saved;
     });
     persistGet<Record<string, string>>("config", "terminalAliases", {}).then((saved) => {
       aliases.current = saved;
+    });
+    persistGet<Record<string, string>>("config", "terminalEnv", {}).then((saved) => {
+      envVars.current = saved;
     });
   }, []);
   const [historyCursor, setHistoryCursor] = useState<number | null>(null);
@@ -258,7 +277,7 @@ export function TerminalConsole({
     // An alias expands to its full definition before anything else
     // touches the line — recursion-safe up to a handful of hops so a
     // typo'd self-referencing alias can't hang the terminal.
-    let expanded = line;
+    let expanded = line.replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (m, name) => envVars.current[name] ?? m);
     for (let hops = 0; hops < 5; hops++) {
       const firstWord = expanded.split(/\s+/)[0];
       const def = aliases.current[firstWord];
@@ -317,6 +336,7 @@ export function TerminalConsole({
                   "  whoami, uptime, sysinfo, ps, taskkill <pid>, forcequit <app>, killall",
                   "  startup, startup remove <name>, systemmode on|off",
                   "  df, du <path>, emptyrecyclebin, clearcache, backup, restore, wipe --confirm",
+                  "  set NAME=value, get [NAME], unset NAME — persistent env vars, expand as $NAME",
                   "  theme light|dark, wallpaper <name>, accent <hex>, scale <value>",
                   "  logs, logs --errors, crashinfo, exportlogs, anchoran changeto [vX.Y.Z]",
                   "  shutdown, restart, sleep, resetpin --confirm",
@@ -676,9 +696,60 @@ export function TerminalConsole({
         else
           print(
             usage.drives
-              .map((d) => `${d.caption}  ${formatBytes(d.total - d.free)} used of ${formatBytes(d.total)}`)
+              .map((d) => {
+                const pct = d.total > 0 ? (d.total - d.free) / d.total : 0;
+                const barWidth = 20;
+                const filled = Math.round(pct * barWidth);
+                const bar = "#".repeat(filled) + "-".repeat(barWidth - filled);
+                return `${d.caption}  [${bar}] ${Math.round(pct * 100)}%  ${formatBytes(d.total - d.free)} used of ${formatBytes(d.total)}`;
+              })
               .join("\n")
           );
+        break;
+      }
+      case "set": {
+        if (!isAdmin) break;
+        if (!rest) {
+          print("set: usage: set NAME=value");
+          break;
+        }
+        const eq = rest.indexOf("=");
+        if (eq < 0) {
+          print("set: usage: set NAME=value");
+          break;
+        }
+        const name = rest.slice(0, eq).trim();
+        const value = rest.slice(eq + 1).trim();
+        if (!name) {
+          print("set: usage: set NAME=value");
+          break;
+        }
+        envVars.current = { ...envVars.current, [name]: value };
+        persistSet("config", "terminalEnv", envVars.current);
+        print(`${name}=${value}`);
+        break;
+      }
+      case "get": {
+        if (!isAdmin) break;
+        if (!args[0]) {
+          const entries = Object.entries(envVars.current);
+          print(entries.length ? entries.map(([k, v]) => `${k}=${v}`).join("\n") : "No variables set.");
+        } else {
+          print(args[0] in envVars.current ? envVars.current[args[0]] : `get: "${args[0]}" is not set.`);
+        }
+        break;
+      }
+      case "unset": {
+        if (!isAdmin) break;
+        if (!args[0] || !(args[0] in envVars.current)) {
+          print(`unset: "${args[0] ?? ""}" is not set.`);
+          break;
+        }
+        const next = { ...envVars.current };
+        delete next[args[0]];
+        envVars.current = next;
+        persistSet("config", "terminalEnv", next);
+        print(`Unset "${args[0]}".`);
         break;
       }
       case "emptyrecyclebin": {
@@ -965,7 +1036,7 @@ export function TerminalConsole({
       }}
     >
       {history.map((entry) => (
-        <div key={entry.id} className="terminal-line">
+        <div key={entry.id} className="terminal-line" data-kind={lineKind(entry.text)}>
           {entry.text}
         </div>
       ))}

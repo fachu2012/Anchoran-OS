@@ -8,6 +8,8 @@ import { ContextMenu, type ContextMenuEntry } from "@/desktop/ContextMenu";
 import { QuickLook } from "./QuickLook";
 import { FileProperties } from "./FileProperties";
 import { iconForFile } from "./fileTypes";
+import { useRecentFilesStore } from "./recentFilesStore";
+import { useFavoritesStore } from "./favoritesStore";
 import JSZip from "jszip";
 import { addPathToZip, extractZipTo } from "@/core/zipHelpers";
 import "@/applications/apps.css";
@@ -90,6 +92,11 @@ export function FilesApp() {
   const [renameValue, setRenameValue] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; entry: Entry | null } | null>(null);
   const [quickLookEntry, setQuickLookEntry] = useState<Entry | null>(null);
+  const recentFiles = useRecentFilesStore((s) => s.files);
+  const recordRecent = useRecentFilesStore((s) => s.record);
+  const [recentOpen, setRecentOpen] = useState(false);
+  const favoritePaths = useFavoritesStore((s) => s.paths);
+  const toggleFavorite = useFavoritesStore((s) => s.toggle);
   const [addressInput, setAddressInput] = useState("This PC");
   const [addressError, setAddressError] = useState<string | null>(null);
   const [driveSpace, setDriveSpace] = useState<{ caption: string; free: number; total: number } | null>(null);
@@ -227,6 +234,7 @@ export function FilesApp() {
       setCurrentPath(entry.path);
       return;
     }
+    recordRecent(entry.path, entry.name);
     async function openExternally() {
       const result = await window.anchoran!.fsOpenPath(entry!.path);
       if (!result.success) pushNotification("Files", result.error ?? `Couldn't open ${entry!.name}.`);
@@ -435,6 +443,10 @@ export function FilesApp() {
       ...(!entry.isDirectory && entry.name.toLowerCase().endsWith(".zip")
         ? [{ label: "Extract here", onSelect: () => extractZip(entry) }]
         : []),
+      {
+        label: favoritePaths.has(entry.path) ? "Remove from Favorites" : "Add to Favorites",
+        onSelect: () => toggleFavorite(entry.path),
+      },
       { label: "Show in Explorer", onSelect: () => window.anchoran!.fsShowInExplorer(entry.path) },
       { separator: true },
       { label: paths.length > 1 ? `Delete ${paths.length} items` : "Delete", onSelect: () => deletePaths(paths), danger: true },
@@ -503,6 +515,9 @@ export function FilesApp() {
             </option>
           ))}
         </select>
+        <button className="app-toolbar-btn" onClick={() => setRecentOpen(true)} disabled={recentFiles.length === 0}>
+          Recent
+        </button>
         <button className="app-toolbar-btn" onClick={() => setViewMode((v) => (v === "grid" ? "list" : "grid"))} style={{ marginLeft: "auto" }}>
           {viewMode === "grid" ? "List view" : "Grid view"}
         </button>
@@ -602,7 +617,14 @@ export function FilesApp() {
                   setMenu({ x: e.clientX, y: e.clientY, entry });
                 }}
               >
-                <IconTile name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={38} glyphScale={0.56} />
+                <div style={{ position: "relative" }}>
+                  <IconTile name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={38} glyphScale={0.56} />
+                  {favoritePaths.has(entry.path) && (
+                    <span className="files-favorite-badge">
+                      <IconTile name="star" size={14} glyphScale={0.75} />
+                    </span>
+                  )}
+                </div>
                 {renamingPath === entry.path ? (
                   <input
                     autoFocus
@@ -652,6 +674,9 @@ export function FilesApp() {
                     <IconTile name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={20} glyphScale={0.6} />
                     <span>
                       {entry.name}
+                      {favoritePaths.has(entry.path) && (
+                        <IconTile name="star" size={13} glyphScale={0.75} style={{ display: "inline-flex", verticalAlign: "middle", marginLeft: 5 }} />
+                      )}
                       {searchingSubfolders && (
                         <div style={{ fontSize: 11, color: "var(--anchoran-text-secondary)" }}>
                           {entry.path.slice(currentPath.length + 1, entry.path.length - entry.name.length - 1) || "."}
@@ -672,6 +697,35 @@ export function FilesApp() {
       )}
       {quickLookEntry && <QuickLook entry={quickLookEntry} onClose={() => setQuickLookEntry(null)} />}
       {propertiesEntry && <FileProperties entry={propertiesEntry} onClose={() => setPropertiesEntry(null)} />}
+      {recentOpen && (
+        <div
+          style={{ position: "absolute", inset: 0, zIndex: 55, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => setRecentOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "min(90%, 420px)", maxHeight: "70vh", overflowY: "auto", background: "var(--anchoran-surface)", borderRadius: "var(--anchoran-radius-lg)", boxShadow: "var(--anchoran-shadow-window)", padding: 16 }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Recently opened</div>
+            {recentFiles.map((f) => (
+              <div
+                key={f.path}
+                className="files-item"
+                style={{ flexDirection: "row", justifyContent: "flex-start", width: "100%", padding: "7px 8px" }}
+                onClick={async () => {
+                  setRecentOpen(false);
+                  if (!window.anchoran) return;
+                  const result = await window.anchoran.fsOpenPath(f.path);
+                  if (!result.success) pushNotification("Files", result.error ?? `Couldn't open ${f.name}.`);
+                }}
+              >
+                <IconTile name={iconForFile(f.name)} size={22} glyphScale={0.58} />
+                <span style={{ marginLeft: 8, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {batchRenamePaths && (
         <div
           style={{ position: "absolute", inset: 0, zIndex: 55, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}

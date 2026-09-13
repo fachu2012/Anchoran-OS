@@ -10,6 +10,11 @@ import "./window.css";
 const TASKBAR_HEIGHT = 78;
 const EXIT_ANIMATION_MS = 150;
 const SNAP_ZONE_PX = 24;
+// Keeps an "always on top" window above every ordinary window no
+// matter how recently the others were focused, without needing a
+// second stacking context — regular z-index values never get close
+// to this range in a real session.
+const ALWAYS_ON_TOP_ZINDEX_OFFSET = 100000;
 
 type ResizeDirection = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
@@ -54,6 +59,7 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
   const setBounds = useWindowStore((s) => s.setBounds);
   const setSnapPreview = useWindowStore((s) => s.setSnapPreview);
   const focusMode = useWindowStore((s) => s.focusMode);
+  const toggleAlwaysOnTop = useWindowStore((s) => s.toggleAlwaysOnTop);
   const [exiting, setExiting] = useState<"closing" | "minimizing" | null>(null);
 
   // The component instance is reused across minimize <-> restore (it
@@ -164,9 +170,10 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
   // while any window is maximized (see Taskbar.tsx), so there's no
   // reason to reserve space for it here the way snapping-to-an-edge
   // still does.
+  const effectiveZIndex = win.alwaysOnTop ? win.zIndex + ALWAYS_ON_TOP_ZINDEX_OFFSET : win.zIndex;
   const style = win.isMaximized
-    ? { left: 0, top: 0, width: "100%", height: "100%", zIndex: win.zIndex }
-    : { left: win.x, top: win.y, width: win.width, height: win.height, zIndex: win.zIndex };
+    ? { left: 0, top: 0, width: "100%", height: "100%", zIndex: effectiveZIndex }
+    : { left: win.x, top: win.y, width: win.width, height: win.height, zIndex: effectiveZIndex };
 
   return (
     <div
@@ -181,6 +188,15 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
       <div className="wm-titlebar" onPointerDown={onTitlePointerDown} onDoubleClick={() => toggleMaximize(win.windowId)}>
         <span className="wm-titlebar-title">{win.title}</span>
         <div className="wm-titlebar-controls">
+          <button
+            className="wm-control-btn"
+            data-active={win.alwaysOnTop}
+            onClick={() => toggleAlwaysOnTop(win.windowId)}
+            aria-label={win.alwaysOnTop ? "Unpin from top" : "Keep on top"}
+            title={win.alwaysOnTop ? "Unpin from top" : "Keep on top"}
+          >
+            <Icon name="pin" size={13} />
+          </button>
           <button className="wm-control-btn" onClick={requestMinimize} aria-label="Minimize">
             <Icon name="minimize" size={14} />
           </button>

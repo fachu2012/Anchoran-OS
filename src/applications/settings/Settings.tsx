@@ -11,6 +11,7 @@ import { usePinAttemptsStore } from "@/core/pinAttemptsStore";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 import { useDefaultAppsStore } from "@/core/defaultAppsStore";
+import { useClipboardHistoryStore } from "@/core/clipboardHistoryStore";
 import "@/applications/apps.css";
 
 const DEFAULT_AVATAR = new URL("../../../assets/avatar/default-avatar.png", import.meta.url).href;
@@ -857,6 +858,8 @@ function SystemModeSection() {
 function PrivacySection() {
   const [status, setStatus] = useState<string | null>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
+  const retentionMinutes = useClipboardHistoryStore((s) => s.retentionMinutes);
+  const setRetentionMinutes = useClipboardHistoryStore((s) => s.setRetentionMinutes);
 
   async function onExport() {
     const result = await window.anchoran?.exportData();
@@ -894,6 +897,23 @@ function PrivacySection() {
           <button className="app-toolbar-btn" onClick={onExport}>Export…</button>
           <button className="app-toolbar-btn" onClick={onImport}>Import…</button>
         </div>
+      </div>
+      <div className="settings-row">
+        <div>
+          <div className="settings-row-label">Clipboard auto-clear</div>
+          <div className="settings-row-desc">Automatically forget clipboard history older than this, for anything sensitive that briefly passes through it.</div>
+        </div>
+        <select
+          className="app-toolbar-btn"
+          value={retentionMinutes}
+          onChange={(e) => setRetentionMinutes(Number(e.target.value))}
+        >
+          <option value={0}>Never</option>
+          <option value={5}>After 5 minutes</option>
+          <option value={30}>After 30 minutes</option>
+          <option value={60}>After 1 hour</option>
+          <option value={1440}>After 1 day</option>
+        </select>
       </div>
       <div className="settings-row">
         <div>

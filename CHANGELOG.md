@@ -5,6 +5,40 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.8.7] - 2026-09-12
+
+A second, smaller pass at the same 94-item list, picking up items that
+don't need a code-signing certificate or an actual ARM64 machine to
+verify (both still blocked, see 2.8.4's entry below).
+
+### Added
+- Files: a visible favorite/star indicator on favorited files and
+  folders, in both grid and list view — the "Add to Favorites" toggle
+  from 2.8.4 had no visual marker of its own until now.
+- Window management: "Keep on top" — a per-window pin in the title bar
+  that keeps that window rendered above every other, unpinned window
+  regardless of focus order (a Calculator or Clock staying visible
+  over a maximized app, for example).
+- Security/Privacy: clipboard history auto-clear — a new "Clipboard
+  auto-clear" setting under Settings → Privacy lets you forget
+  clipboard entries after 5 minutes, 30 minutes, 1 hour or 1 day,
+  instead of only ever clearing it by hand.
+- Launcher: a "Frequently used" row at the top of the app list (shown
+  only with an empty search) tracking real open counts per app, so
+  the apps you actually use surface before the full alphabetical list.
+
+### Not implemented, still blocked
+- Code-signing certificate (Windows SmartScreen warnings) — needs a
+  real certificate purchase, not something this session can do.
+- Native ARM64 build — needs real ARM64 hardware to verify; building
+  blind for an architecture nobody can test here isn't safe to ship.
+- The remaining ~80 items from the original 94-item list are still
+  open. Two batches in, the highest-value, most self-contained items
+  are done; what's left mostly needs either a longer, focused session
+  per item (virtual desktops, Files column view, full multi-window
+  browser reading mode) or product decisions this session shouldn't
+  make alone (which of several competing UI conventions to adopt).
+
 ## [2.8.4] - 2026-09-12
 
 A curated batch from a 94-item "what would you improve about the whole

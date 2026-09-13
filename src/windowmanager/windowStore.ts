@@ -29,6 +29,8 @@ export interface AnchoranWindow {
   startAdmin?: boolean;
   /** embeddedApp only: the real .exe this window reparents into itself — see EmbeddedApp.tsx. */
   embedPath?: string;
+  /** Keeps this window rendered above every non-pinned window regardless of focus order — a small utility window (Calculator, Clock) staying visible over a maximized one. */
+  alwaysOnTop?: boolean;
 }
 
 export interface OpenAppOptions {
@@ -67,6 +69,7 @@ interface WindowManagerState {
   cycleFocus: (direction: 1 | -1) => void;
   /** Forgets every app's remembered window position/size — the next time each one opens, it starts at the default cascade spot again. */
   resetWindowLayout: () => void;
+  toggleAlwaysOnTop: (windowId: string) => void;
 }
 
 let windowCounter = 0;
@@ -279,6 +282,14 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
   resetWindowLayout: () => {
     set({ rememberedBounds: {} });
     persistSet("config", REMEMBERED_BOUNDS_KEY, {});
+  },
+
+  toggleAlwaysOnTop: (windowId) => {
+    set((s) => ({
+      windows: s.windows.map((w) =>
+        w.windowId === windowId ? { ...w, alwaysOnTop: !w.alwaysOnTop } : w
+      ),
+    }));
   },
 }));
 

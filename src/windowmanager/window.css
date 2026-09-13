@@ -146,6 +146,11 @@
   color: #FFFFFF;
 }
 
+.wm-control-btn[data-active="true"] {
+  background: var(--anchoran-accent-soft);
+  color: var(--anchoran-accent);
+}
+
 .wm-body {
   flex: 1;
   min-height: 0;
