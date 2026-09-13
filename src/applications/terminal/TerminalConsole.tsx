@@ -9,7 +9,7 @@ import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import { APP_LIST } from "@/applications/registry";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { ANCHORAN_VERSION } from "@/core/version";
-import { versionLabelFor, shortLabelFor, resolveVersionTarget, baseVersion, ANCHORAN_DISPLAY_VERSION } from "@/core/buildNumber";
+import { versionLabelFor, shortLabelFor, resolveVersionTarget, baseVersion, needsDataWipeFor, ANCHORAN_DISPLAY_VERSION } from "@/core/buildNumber";
 import { getAppUptimeSeconds } from "@/core/appUptime";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import type { AppId } from "@/core/types";
@@ -155,6 +155,11 @@ export function TerminalConsole({
   const awaitingUpdate = useRef(false);
   const awaitingChangeTo = useRef(false);
   const pendingChangeTo = useRef<string | null>(null);
+  // Set instead of pendingChangeTo when the target predates the v2.9.2
+  // encryption fix — see needsDataWipeFor() — so the next line has to be
+  // the literal word "delete", not just any y/yes, before anything
+  // destructive happens.
+  const pendingChangeToWipeTarget = useRef<string | null>(null);
   // Which version is currently downloading — read by the "downloaded"
   // status handler below (which fires from an IPC event with no version
   // of its own) to know which version to ask App.tsx's cinematic for.
@@ -306,6 +311,38 @@ export function TerminalConsole({
     const line = raw.trim();
     print(`${isAdmin ? "root@anchoran:~#" : "user@anchoran:~$"} ${raw}`);
     if (!line) return;
+
+    // A destructive "changeto" downgrade needs the literal word
+    // "delete", not a plain y/n, before it wipes local data and
+    // installs a version too old to read it.
+    if (pendingChangeToWipeTarget.current) {
+      const version = pendingChangeToWipeTarget.current;
+      pendingChangeToWipeTarget.current = null;
+      if (line.trim().toLowerCase() !== "delete") {
+        print("changeto: cancelled — local data was not touched.");
+        return;
+      }
+      if (!window.anchoran) {
+        print("changeto: not available outside the Anchoran desktop app.");
+        return;
+      }
+      print("Deleting local Anchoran data…");
+      const wipe = await window.anchoran.deleteLocalDataForDowngrade();
+      if (!wipe.success) {
+        print(`changeto: couldn't delete local data (${wipe.error ?? "unknown error"}) — aborting, nothing was installed.`);
+        return;
+      }
+      print("Local data deleted.");
+      awaitingChangeTo.current = true;
+      pendingChangeToInstallVersion.current = version;
+      print(`Downloading v${version}…`);
+      const result = await window.anchoran.changeToDownload(version);
+      if (!result.success) {
+        awaitingChangeTo.current = false;
+        print(`changeto: ${result.error ?? "failed."}`);
+      }
+      return;
+    }
 
     // A "changeto" confirmation is pending — this line answers it
     // instead of being parsed as a new command.
@@ -680,6 +717,13 @@ export function TerminalConsole({
                 );
               } else if (target === ANCHORAN_VERSION) {
                 print(`anchoran changeto: ${versionLabelFor(target)} is already the version running.`);
+              } else if (needsDataWipeFor(target)) {
+                pendingChangeToWipeTarget.current = target;
+                print(
+                  `⚠ ${versionLabelFor(target)} predates the v2.9.2 encryption fix. Your local Anchoran data is already encrypted, and that old version can't read it — it would fail to start.\n` +
+                    `Continuing will PERMANENTLY DELETE your local Anchoran data (preferences, the files list, everything Anchoran itself stores — not your real files) before installing ${versionLabelFor(target)}.\n` +
+                    `Type "delete" to confirm, or anything else to cancel.`
+                );
               } else {
                 pendingChangeTo.current = target;
                 print(`Change to ${versionLabelFor(target)}? Anchoran will close and reopen on that version. [y/n]`);

@@ -2,6 +2,8 @@ import { create } from "zustand";
 import type { AppId } from "@/core/types";
 import { APP_REGISTRY } from "@/applications/registry";
 import { persistGet, persistSet } from "@/core/persist";
+import { useProfilesStore } from "@/core/profilesStore";
+import { useNotificationStore } from "@/notifications/notificationStore";
 
 export interface Bounds {
   x: number;
@@ -138,6 +140,16 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
   activeDesktopId: DEFAULT_DESKTOP_ID,
 
   openApp: (appId, options) => {
+    // The Terminal — plain or admin-elevated, there's no separate
+    // "admin Terminal" app id, just a startAdmin flag on this same one
+    // — is entirely off-limits to Guest. Guest can't set a PIN (see
+    // profilesStore.ts / Settings' lockdown for it), so it could never
+    // elevate anyway, but it shouldn't even reach a plain, unelevated
+    // shell either.
+    if (appId === "terminal" && useProfilesStore.getState().profiles.find((p) => p.id === useProfilesStore.getState().activeProfileId)?.isGuest) {
+      useNotificationStore.getState().push("Terminal", "Not available for the Guest profile.");
+      return "";
+    }
     // Recycle Bin used to launch the real Windows one — now that
     // Anchoran has its own Trash (see Files.tsx), the desktop/taskbar/
     // Launcher icon opens straight into that instead, the same way any

@@ -20,6 +20,11 @@
   --anchoran-surface: #FFFFFF;
   --anchoran-surface-raised: #FFFFFF;
   --anchoran-surface-overlay: rgba(255, 255, 255, 0.86);
+  /* Deliberately more translucent than --anchoran-surface-overlay —
+     only the taskbar/dock's own background uses this, so panels that
+     share the overlay token (context menus, the notification panel,
+     …) stay exactly as opaque as before. */
+  --anchoran-taskbar-bg: rgba(255, 255, 255, 0.52);
   --anchoran-border: rgba(15, 23, 42, 0.09);
   --anchoran-border-strong: rgba(15, 23, 42, 0.16);
 
@@ -53,6 +58,7 @@
   --anchoran-surface: #101218;
   --anchoran-surface-raised: #171A22;
   --anchoran-surface-overlay: rgba(16, 18, 24, 0.82);
+  --anchoran-taskbar-bg: rgba(16, 18, 24, 0.5);
   --anchoran-border: rgba(255, 255, 255, 0.07);
   --anchoran-border-strong: rgba(255, 255, 255, 0.14);
 

@@ -1633,6 +1633,36 @@ function downloadToFile(url: string, destPath: string, onProgress: (percent: num
 // resolves, and only calls changeto-install once that cinematic
 // finishes — so "changeto" now looks and behaves exactly like a normal
 // update, instead of just vanishing with no visible transition.
+/**
+ * A downgrade to a version older than v2.9.2 (the encryption feature's
+ * real fix — see CHANGELOG) needs more than the ordinary "Reset
+ * Anchoran" (anchoran:reset-data, which clears through the *current*,
+ * still-encrypted store — the file it writes back is still ciphertext,
+ * just for an empty object) — an old build that predates encryption
+ * entirely, or that shipped it in its broken 2.8.9–2.9.1 state, would
+ * still fail trying to JSON.parse that ciphertext. This deletes the
+ * actual files on disk (preferences.json, filesystem.json, and the
+ * DPAPI-wrapped encryption key itself) so the old version starts
+ * completely fresh, the same as a real first install. Called by the
+ * Terminal's `anchoran changeto` right before downloading an
+ * installer for a version that old, and only after an explicit
+ * "delete" confirmation — see TerminalConsole.tsx.
+ */
+ipcMain.handle("anchoran:delete-local-data-for-downgrade", () => {
+  try {
+    for (const file of [
+      path.join(configDir, "preferences.json"),
+      path.join(dataDir, "filesystem.json"),
+      path.join(dataRoot, ".store.key"),
+    ]) {
+      if (fs.existsSync(file)) fs.unlinkSync(file);
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
 ipcMain.handle("anchoran:changeto-download", async (_event, rawVersion: string) => {
   if (isDev) return { success: false, error: "Not available in development mode." };
   const version = String(rawVersion).replace(/^v/i, "");

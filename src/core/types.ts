@@ -63,7 +63,8 @@ export type AppId =
   | "narrator"
   | "recycleBin"
   | "embeddedApp"
-  | "anchover";
+  | "anchover"
+  | "releaseRanking";
 
 export type AppCategory = "System" | "Productivity" | "Utilities" | "Internet" | "Games";
 

@@ -97,6 +97,7 @@ declare global {
     quitAndInstallUpdate: () => void;
     consumePendingUpdate: () => Promise<string | null>;
 
+    deleteLocalDataForDowngrade: () => Promise<{ success: boolean; error?: string }>;
     changeToDownload: (version: string) => Promise<{ success: boolean; error?: string }>;
     changeToInstall: () => Promise<{ success: boolean; error?: string }>;
     onChangeToStatus: (callback: (status: AnchoranChangeToStatus) => void) => void;

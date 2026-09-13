@@ -63,7 +63,7 @@
   gap: 4px;
   max-width: calc(100vw - 28px);
   padding: 7px 10px;
-  background: var(--anchoran-surface-overlay);
+  background: var(--anchoran-taskbar-bg);
   backdrop-filter: blur(20px) saturate(1.4);
   border: 1px solid var(--anchoran-border);
   border-radius: var(--anchoran-radius-lg);

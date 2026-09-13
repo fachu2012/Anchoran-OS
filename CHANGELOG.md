@@ -21,6 +21,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.M
   target the Insider Preview build instead of its stable counterpart
   when both exist for the same build number. The full name (`v3.0.4`,
   `3.0.4-IPU`, …) still works exactly as before.
+- `anchoran changeto` to a version older than v2.9.2 (the real fix for
+  the encryption boot-crash saga) now requires typing the literal word
+  "delete" before it proceeds — that old a version can't read the
+  encrypted preferences/filesystem data a current install always has,
+  and would fail to start the same way the original incident did.
+  Confirming deletes the actual local data files (not just clears them
+  through the still-encrypted store, which wouldn't be enough) before
+  downloading and installing that old version.
+- The taskbar's own background is now noticeably more translucent — a
+  dedicated `--anchoran-taskbar-bg` token, distinct from the shared
+  overlay token every other panel (context menus, the notification
+  panel, …) still uses, so only the dock itself got more see-through,
+  not its icons or anything layered on top of it.
+
+### Added
+- **Release Ranking** — a new, preinstalled, unremovable app: Anchoran
+  grading its own release history, one score (1-10) per stable
+  version, for "if I had to stay on this version forever, how well off
+  would I be" rather than "how much did it add". Kept in sync with the
+  published Artifact of the same name.
+
+### Fixed
+- Guest can no longer open the Terminal at all, plain or admin —
+  previously nothing stopped Guest from reaching an unelevated shell,
+  even though it could never actually elevate (Guest can't set a PIN).
 
 ## [3.0.3] - 2026-09-13
 

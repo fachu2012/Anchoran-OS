@@ -36,7 +36,7 @@ export const ANCHORAN_DISPLAY_VERSION = `Version ${ANCHORAN_MAJOR_VERSION} | Bui
 /** v3.0.0 is the newest version that was ever actually released under the old "vX.Y.Z" naming — everything after it only ever existed under the new one. */
 const OLD_STYLE_CUTOFF = "3.0.0";
 
-function compareVersions(a: string, b: string): number {
+export function compareVersions(a: string, b: string): number {
   const pa = baseVersion(a).split(".").map(Number);
   const pb = baseVersion(b).split(".").map(Number);
   for (let i = 0; i < 3; i++) {
@@ -44,6 +44,20 @@ function compareVersions(a: string, b: string): number {
     if (diff !== 0) return diff;
   }
   return 0;
+}
+
+/**
+ * v2.9.2 is the real, complete fix for the boot-crash saga around
+ * preferences/filesystem encryption (see CHANGELOG) — anything older
+ * either has no encryption at all or shipped it in a broken state. A
+ * device's local data, once on any version from v2.8.9 onward, is
+ * always encrypted going forward; installing a version older than
+ * v2.9.2 on top of that data reliably fails to boot, the same way the
+ * original incident did. Used to gate `anchoran changeto` into an old
+ * version behind a mandatory data-wipe confirmation.
+ */
+export function needsDataWipeFor(version: string): boolean {
+  return compareVersions(version, "2.9.2") < 0;
 }
 
 /**

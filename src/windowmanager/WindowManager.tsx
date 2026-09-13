@@ -130,6 +130,9 @@ export const APP_COMPONENTS: Record<
     import("@/applications/embeddedapp/EmbeddedApp").then((m) => ({ default: m.EmbeddedApp }))
   ),
   anchover: lazy(() => import("@/applications/anchover/Anchover").then((m) => ({ default: m.AnchoverApp }))),
+  releaseRanking: lazy(() =>
+    import("@/applications/releaseranking/ReleaseRanking").then((m) => ({ default: m.ReleaseRankingApp }))
+  ),
 };
 
 function AppLoadingFallback() {

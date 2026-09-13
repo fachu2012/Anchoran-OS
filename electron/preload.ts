@@ -158,6 +158,8 @@ contextBridge.exposeInMainWorld("anchoran", {
   },
   consumePendingUpdate: (): Promise<string | null> => ipcRenderer.invoke("anchoran:consume-pending-update"),
 
+  deleteLocalDataForDowngrade: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:delete-local-data-for-downgrade"),
   changeToDownload: (version: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("anchoran:changeto-download", version),
   changeToInstall: (): Promise<{ success: boolean; error?: string }> =>

@@ -574,5 +574,15 @@
     "hiddenFromLauncher": true,
     "defaultSize": { "width": 380, "height": 340 },
     "minSize": { "width": 380, "height": 340 }
+  },
+  {
+    "id": "releaseRanking",
+    "title": "Release Ranking",
+    "icon": "star",
+    "category": "System",
+    "description": "Anchoran OS grading its own release history — which version to actually install and stay on, not just the newest one.",
+    "core": true,
+    "defaultSize": { "width": 900, "height": 620 },
+    "minSize": { "width": 620, "height": 420 }
   }
 ]
