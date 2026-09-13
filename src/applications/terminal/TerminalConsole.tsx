@@ -102,6 +102,10 @@ export function TerminalConsole({
   const awaitingUpdate = useRef(false);
   const awaitingChangeTo = useRef(false);
   const pendingChangeTo = useRef<string | null>(null);
+  // Which version is currently downloading — read by the "downloaded"
+  // status handler below (which fires from an IPC event with no version
+  // of its own) to know which version to ask App.tsx's cinematic for.
+  const pendingChangeToInstallVersion = useRef<string | null>(null);
   // The line currently being live-updated in place (a download's
   // percent ticking up) rather than appended as a new line each time —
   // set while one is in progress, cleared once it's done so the next
@@ -173,9 +177,12 @@ export function TerminalConsole({
       if (!awaitingChangeTo.current) return;
       if (status.state === "downloading") {
         printProgress(`Downloading… ${status.percent}%`);
+      } else if (status.state === "downloaded") {
+        print("Download complete.");
+        awaitingChangeTo.current = false;
+        window.dispatchEvent(new CustomEvent("anchoran-request-changeto-theater", { detail: pendingChangeToInstallVersion.current }));
       } else if (status.state === "installing") {
         print("Installing — Anchoran will restart shortly to finish.");
-        awaitingChangeTo.current = false;
       } else if (status.state === "error") {
         print(`changeto: ${status.message}`);
         awaitingChangeTo.current = false;
@@ -222,8 +229,9 @@ export function TerminalConsole({
           return;
         }
         awaitingChangeTo.current = true;
+        pendingChangeToInstallVersion.current = version;
         print(`Downloading v${version}…`);
-        const result = await window.anchoran.changeToVersion(version);
+        const result = await window.anchoran.changeToDownload(version);
         if (!result.success) {
           awaitingChangeTo.current = false;
           print(`changeto: ${result.error ?? "failed."}`);

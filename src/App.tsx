@@ -27,6 +27,7 @@ export default function App() {
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [updateReadyVersion, setUpdateReadyVersion] = useState<string | null>(null);
   const [updateTheaterVersion, setUpdateTheaterVersion] = useState<string | null>(null);
+  const [changeToTheaterVersion, setChangeToTheaterVersion] = useState<string | null>(null);
   // undefined = still checking; null = this boot is not finishing an
   // update. Gates BootScreen's first mount so it never briefly renders
   // with the wrong (generic) status stages before this resolves.
@@ -155,17 +156,29 @@ export default function App() {
         setUpdateTheaterVersion(version);
       }
     }
+    // The Terminal's `anchoran changeto vX.Y.Z` asks for the same
+    // cinematic too, once its own download has finished — see
+    // TerminalConsole.tsx. A separate slot from the one above since its
+    // onComplete calls a different IPC method (changeToInstall, not
+    // quitAndInstallUpdate — changeto downloads a specific release
+    // directly rather than going through electron-updater's own feed).
+    function onRequestChangeToTheater(e: Event) {
+      const version = (e as CustomEvent<string>).detail;
+      if (booted && version) setChangeToTheaterVersion(version);
+    }
     window.addEventListener("anchoran-request-lock", onRequestLock);
     window.addEventListener("anchoran-request-restart", onRequestRestart);
     window.addEventListener("anchoran-request-shutdown", onRequestShutdown);
     window.addEventListener("anchoran-request-sleep", onRequestSleep);
     window.addEventListener("anchoran-request-update-theater", onRequestUpdateTheater);
+    window.addEventListener("anchoran-request-changeto-theater", onRequestChangeToTheater);
     return () => {
       window.removeEventListener("anchoran-request-lock", onRequestLock);
       window.removeEventListener("anchoran-request-restart", onRequestRestart);
       window.removeEventListener("anchoran-request-shutdown", onRequestShutdown);
       window.removeEventListener("anchoran-request-sleep", onRequestSleep);
       window.removeEventListener("anchoran-request-update-theater", onRequestUpdateTheater);
+      window.removeEventListener("anchoran-request-changeto-theater", onRequestChangeToTheater);
     };
   }, [booted]);
 
@@ -279,6 +292,13 @@ export default function App() {
             mode="update"
             targetVersion={updateTheaterVersion}
             onComplete={() => window.anchoran?.quitAndInstallUpdate()}
+          />
+        )}
+        {changeToTheaterVersion && (
+          <UpdateTheater
+            mode="update"
+            targetVersion={changeToTheaterVersion}
+            onComplete={() => window.anchoran?.changeToInstall()}
           />
         )}
         {exitMode && <ShutdownScreen mode={exitMode} onComplete={handleExitComplete} />}

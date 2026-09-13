@@ -5,6 +5,20 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.6.18] - 2026-09-12
+
+### Fixed
+
+- `anchoran changeto vX.Y.Z` used to just quit with no cinematic and
+  never reopen on its own, leaving the user to relaunch Anchoran by
+  hand — now split into a download phase and an install phase: once
+  the download finishes, the same fullscreen UpdateTheater every other
+  update path uses plays first, and only *then* does it actually run
+  the installer, this time with the exact `--updated --force-run`
+  arguments electron-updater itself uses for a silent install that
+  relaunches the app afterward. `changeto` now looks and behaves
+  exactly like a normal update, upgrade or downgrade alike.
+
 ## [2.6.17] - 2026-09-12
 
 ### Fixed

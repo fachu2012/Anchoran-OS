@@ -1276,8 +1276,16 @@ ipcMain.on("anchoran:quit-and-install-update", () => {
  */
 type ChangeToStatus =
   | { state: "downloading"; percent: number }
+  | { state: "downloaded" }
   | { state: "installing" }
   | { state: "error"; message: string };
+
+// Set once changeto-download finishes, consumed by changeto-install — this
+// is what lets the renderer show the same UpdateTheater cinematic in
+// between "downloaded" and "actually install and quit", instead of those
+// two happening back-to-back with no visible transition.
+let pendingChangeToPath: string | null = null;
+let pendingChangeToVersion: string | null = null;
 
 function sendChangeToStatus(status: ChangeToStatus) {
   mainWindow?.webContents.send("anchoran:changeto-status", status);
@@ -1321,7 +1329,12 @@ function downloadToFile(url: string, destPath: string, onProgress: (percent: num
   });
 }
 
-ipcMain.handle("anchoran:change-to-version", async (_event, rawVersion: string) => {
+// Phase 1: download only. The renderer shows the real UpdateTheater
+// cinematic (the same one every other update path uses) after this
+// resolves, and only calls changeto-install once that cinematic
+// finishes — so "changeto" now looks and behaves exactly like a normal
+// update, instead of just vanishing with no visible transition.
+ipcMain.handle("anchoran:changeto-download", async (_event, rawVersion: string) => {
   if (isDev) return { success: false, error: "Not available in development mode." };
   const version = String(rawVersion).replace(/^v/i, "");
   if (!/^\d+\.\d+\.\d+(-[\w.]+)?$/.test(version)) {
@@ -1340,11 +1353,28 @@ ipcMain.handle("anchoran:change-to-version", async (_event, rawVersion: string) 
     return { success: false, error: message };
   }
 
+  pendingChangeToPath = destPath;
+  pendingChangeToVersion = version;
+  sendChangeToStatus({ state: "downloaded" });
+  return { success: true };
+});
+
+// Phase 2: actually run the already-downloaded installer and quit —
+// only ever called from UpdateTheater's onComplete, after its cinematic
+// has played. `--updated --force-run` (the exact args electron-updater
+// itself passes for a silent, auto-relaunching NSIS install — see
+// node_modules/electron-updater/out/NsisUpdater.js) is what makes
+// Anchoran actually reopen on its own afterward, instead of leaving the
+// user to launch it back up manually.
+ipcMain.handle("anchoran:changeto-install", () => {
+  if (!pendingChangeToPath || !pendingChangeToVersion) {
+    return { success: false, error: "No downloaded version pending — run changeto again." };
+  }
   isQuittingConfirmed = true;
-  configStore.set("pendingUpdateVersion", version);
+  configStore.set("pendingUpdateVersion", pendingChangeToVersion);
   sendChangeToStatus({ state: "installing" });
   try {
-    spawn(destPath, ["/S"], { detached: true, stdio: "ignore" }).unref();
+    spawn(pendingChangeToPath, ["--updated", "/S", "--force-run"], { detached: true, stdio: "ignore" }).unref();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     sendChangeToStatus({ state: "error", message });

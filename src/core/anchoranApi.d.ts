@@ -86,7 +86,8 @@ declare global {
     quitAndInstallUpdate: () => void;
     consumePendingUpdate: () => Promise<string | null>;
 
-    changeToVersion: (version: string) => Promise<{ success: boolean; error?: string }>;
+    changeToDownload: (version: string) => Promise<{ success: boolean; error?: string }>;
+    changeToInstall: () => Promise<{ success: boolean; error?: string }>;
     onChangeToStatus: (callback: (status: AnchoranChangeToStatus) => void) => void;
 
     systemModeStart: () => Promise<{ success: boolean; error?: string }>;
@@ -143,6 +144,7 @@ declare global {
 
   type AnchoranChangeToStatus =
     | { state: "downloading"; percent: number }
+    | { state: "downloaded" }
     | { state: "installing" }
     | { state: "error"; message: string };
 

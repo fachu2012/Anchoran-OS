@@ -145,8 +145,10 @@ contextBridge.exposeInMainWorld("anchoran", {
   },
   consumePendingUpdate: (): Promise<string | null> => ipcRenderer.invoke("anchoran:consume-pending-update"),
 
-  changeToVersion: (version: string): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("anchoran:change-to-version", version),
+  changeToDownload: (version: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:changeto-download", version),
+  changeToInstall: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:changeto-install"),
   onChangeToStatus: (callback: (status: unknown) => void): void => {
     ipcRenderer.on("anchoran:changeto-status", (_e, status) => callback(status));
   },
