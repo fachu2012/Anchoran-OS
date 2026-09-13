@@ -5,6 +5,32 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.3.6] - 2026-09-13
+
+**Update type:** feature
+
+### Added
+- **Third-party plugin apps** — the Anchoran Webstore's new Community
+  section lists and installs real, downloadable plugin apps published
+  in the separate [Anchoran-Webstore](https://github.com/fachu2012/Anchoran-Webstore)
+  repo, versioned and released independently of Anchoran OS itself. A
+  plugin never ships inside Anchoran OS and never touches its internal
+  modules — it's built against the new **Anchoran App SDK**
+  (`src/core/anchoranSDK.ts`, `window.AnchoranSDK`, currently v1.0.0:
+  `React`, `ReactDOM`, `Icon`, `IconTile`, `pushNotification`,
+  `getAccentColor`, `getThemeMode`) and exports one `mount(container,
+  sdk, ctx)` function. Anchoran downloads a plugin's one built file on
+  Install, serves it to the renderer through a new privileged
+  `anchoran-plugin://` protocol scoped to that plugin's own folder
+  (registered in `electron/main.ts`), and opens it in a new generic
+  `PluginHost` window. Each plugin shows its own version and the
+  oldest Anchoran OS build it needs. See the README's new "Anchoran
+  App SDK" section and the Anchoran-Webstore repo's own README for the
+  full design and the one pilot plugin ("Hello, Anchoran") proving the
+  whole pipeline end to end.
+- The Anchoran Webstore now shows Anchoran OS's own version in the
+  bottom-left corner of its sidebar.
+
 ## [3.1.2] - 2026-09-13
 
 **Update type:** critical

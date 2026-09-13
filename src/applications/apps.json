@@ -584,5 +584,17 @@
     "core": true,
     "defaultSize": { "width": 900, "height": 620 },
     "minSize": { "width": 620, "height": 420 }
+  },
+  {
+    "id": "pluginHost",
+    "title": "Plugin",
+    "icon": "appCenter",
+    "category": "Utilities",
+    "description": "Generic window for a downloaded third-party plugin app — see the Anchoran Webstore's Community section.",
+    "core": true,
+    "hiddenFromLauncher": true,
+    "allowMultipleInstances": true,
+    "defaultSize": { "width": 640, "height": 480 },
+    "minSize": { "width": 360, "height": 260 }
   }
 ]

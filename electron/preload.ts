@@ -158,6 +158,13 @@ contextBridge.exposeInMainWorld("anchoran", {
   },
   consumePendingUpdate: (): Promise<string | null> => ipcRenderer.invoke("anchoran:consume-pending-update"),
 
+  pluginInstall: (pluginId: string, entryUrl: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:plugin-install", pluginId, entryUrl),
+  pluginUninstall: (pluginId: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:plugin-uninstall", pluginId),
+  pluginIsInstalled: (pluginId: string): Promise<boolean> => ipcRenderer.invoke("anchoran:plugin-is-installed", pluginId),
+  pluginEntryPath: (pluginId: string): Promise<string | null> => ipcRenderer.invoke("anchoran:plugin-entry-path", pluginId),
+
   deleteLocalDataForDowngrade: (): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("anchoran:delete-local-data-for-downgrade"),
   changeToDownload: (version: string): Promise<{ success: boolean; error?: string }> =>

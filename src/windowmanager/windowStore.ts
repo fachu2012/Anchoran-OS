@@ -31,6 +31,8 @@ export interface AnchoranWindow {
   startAdmin?: boolean;
   /** embeddedApp only: the real .exe this window reparents into itself — see EmbeddedApp.tsx. */
   embedPath?: string;
+  /** pluginHost only: which downloaded third-party plugin this window mounts — see PluginHost.tsx and src/core/anchoranSDK.ts. */
+  pluginId?: string;
   /** Keeps this window rendered above every non-pinned window regardless of focus order — a small utility window (Calculator, Clock) staying visible over a maximized one. */
   alwaysOnTop?: boolean;
   /** Which virtual desktop this window lives on — see desktops/activeDesktopId below. */
@@ -41,6 +43,7 @@ export interface OpenAppOptions {
   openPath?: string;
   startAdmin?: boolean;
   embedPath?: string;
+  pluginId?: string;
   /** Overrides the app's registry title for this one window — e.g. an embedded app is titled after its own exe, not the generic "Windows App Window". */
   title?: string;
 }
@@ -220,6 +223,7 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
       openPath: options?.openPath,
       startAdmin: options?.startAdmin,
       embedPath: options?.embedPath,
+      pluginId: options?.pluginId,
       desktopId: state.activeDesktopId,
     };
 

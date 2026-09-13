@@ -97,6 +97,11 @@ declare global {
     quitAndInstallUpdate: () => void;
     consumePendingUpdate: () => Promise<string | null>;
 
+    pluginInstall: (pluginId: string, entryUrl: string) => Promise<{ success: boolean; error?: string }>;
+    pluginUninstall: (pluginId: string) => Promise<{ success: boolean; error?: string }>;
+    pluginIsInstalled: (pluginId: string) => Promise<boolean>;
+    pluginEntryPath: (pluginId: string) => Promise<string | null>;
+
     deleteLocalDataForDowngrade: () => Promise<{ success: boolean; error?: string }>;
     changeToDownload: (version: string) => Promise<{ success: boolean; error?: string }>;
     changeToInstall: () => Promise<{ success: boolean; error?: string }>;

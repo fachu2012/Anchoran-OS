@@ -1,12 +1,32 @@
-import { app, BrowserWindow, Menu, clipboard, desktopCapturer, dialog, globalShortcut, ipcMain, nativeImage, safeStorage, screen, session, shell, webContents } from "electron";
+import { app, BrowserWindow, Menu, clipboard, desktopCapturer, dialog, globalShortcut, ipcMain, nativeImage, net, protocol, safeStorage, screen, session, shell, webContents } from "electron";
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
 import crypto from "node:crypto";
 import https from "node:https";
+import { pathToFileURL } from "node:url";
 import { execFile, spawn } from "node:child_process";
 import Store from "electron-store";
 import { autoUpdater } from "electron-updater";
+
+/**
+ * A downloaded plugin's entry file is loaded into the renderer via
+ * `import("anchoran-plugin://<id>/index.js")` (see PluginHost.tsx) —
+ * a real, privileged custom protocol, registered before the app is
+ * ready as this API requires, rather than a raw `file://` path. Plain
+ * `file://` dynamic imports across two different file:// directories
+ * are unreliable under Chromium's default `webSecurity` (each file://
+ * path is its own opaque origin, so a cross-path ES module fetch can
+ * get blocked) — a registered scheme marked `standard`+`corsEnabled`
+ * behaves like a normal, fetchable origin instead, without needing to
+ * weaken webSecurity for the whole window just for this one feature.
+ * The handler itself (registered inside app.whenReady() below) is the
+ * only thing that ever decides what a request for this scheme reads —
+ * scoped to exactly one directory, see pluginsDir.
+ */
+protocol.registerSchemesAsPrivileged([
+  { scheme: "anchoran-plugin", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
+]);
 
 const isDev = process.env.ANCHORAN_DEV === "1";
 
@@ -1628,6 +1648,63 @@ function downloadToFile(url: string, destPath: string, onProgress: (percent: num
   });
 }
 
+/**
+ * Third-party plugin apps — see src/core/anchoranSDK.ts and the
+ * Anchoran-Webstore repo's own README for the whole design. A plugin
+ * is never bundled into Anchoran OS itself: this downloads exactly one
+ * file (a plugin's built entry, from whatever URL the live catalog
+ * names) into Anchoran's own userData folder, so the renderer can
+ * dynamically import() it from a real local file:// path — see
+ * PluginHost.tsx. Restricted to raw.githubusercontent.com and GitHub
+ * release-download URLs specifically (see isTrustedPluginEntryUrl),
+ * since this downloads and later executes arbitrary code — never
+ * anywhere the catalog's own `entry` field could otherwise point an
+ * attacker's chosen host at.
+ */
+const pluginsDir = path.join(dataRoot, "plugins");
+fs.mkdirSync(pluginsDir, { recursive: true });
+
+function isTrustedPluginEntryUrl(url: string): boolean {
+  return /^https:\/\/(raw\.githubusercontent\.com\/|github\.com\/[^/]+\/[^/]+\/releases\/download\/)/.test(url);
+}
+
+ipcMain.handle("anchoran:plugin-install", async (_event, pluginId: string, entryUrl: string) => {
+  if (typeof pluginId !== "string" || !/^[\w-]+$/.test(pluginId)) {
+    return { success: false, error: "Invalid plugin id." };
+  }
+  if (typeof entryUrl !== "string" || !isTrustedPluginEntryUrl(entryUrl)) {
+    return { success: false, error: "Refused: untrusted plugin entry URL." };
+  }
+  try {
+    const dir = path.join(pluginsDir, pluginId);
+    fs.mkdirSync(dir, { recursive: true });
+    const destPath = path.join(dir, "index.js");
+    await downloadToFile(entryUrl, destPath, () => {});
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:plugin-uninstall", (_event, pluginId: string) => {
+  try {
+    const dir = path.join(pluginsDir, String(pluginId));
+    if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("anchoran:plugin-is-installed", (_event, pluginId: string) =>
+  fs.existsSync(path.join(pluginsDir, String(pluginId), "index.js"))
+);
+
+ipcMain.handle("anchoran:plugin-entry-path", (_event, pluginId: string) => {
+  const p = path.join(pluginsDir, String(pluginId), "index.js");
+  return fs.existsSync(p) ? p : null;
+});
+
 // Phase 1: download only. The renderer shows the real UpdateTheater
 // cinematic (the same one every other update path uses) after this
 // resolves, and only calls changeto-install once that cinematic
@@ -1946,6 +2023,21 @@ ipcMain.handle("anchoran:embed-stop", (_event, windowId: string) => {
 });
 
 app.whenReady().then(() => {
+  // Serves a downloaded plugin's files under anchoran-plugin://<id>/…
+  // — scoped to exactly pluginsDir, nothing else on disk is reachable
+  // through this scheme regardless of what a request asks for.
+  protocol.handle("anchoran-plugin", (request) => {
+    const url = new URL(request.url);
+    const pluginId = url.host;
+    const requestedPath = decodeURIComponent(url.pathname).replace(/^\/+/, "") || "index.js";
+    if (!/^[\w-]+$/.test(pluginId) || requestedPath.includes("..")) {
+      return new Response("Invalid plugin request.", { status: 400 });
+    }
+    const filePath = path.join(pluginsDir, pluginId, requestedPath);
+    if (!fs.existsSync(filePath)) return new Response("Not found.", { status: 404 });
+    return net.fetch(pathToFileURL(filePath).toString());
+  });
+
   // Never let anything in here — encryption setup included — stop the
   // app from actually reaching createMainWindow() below. A real
   // incident already happened once: an uncaught error at this exact

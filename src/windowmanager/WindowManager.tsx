@@ -13,7 +13,7 @@ import type { AppId } from "@/core/types";
 export const APP_COMPONENTS: Record<
   AppId,
   React.LazyExoticComponent<
-    (props: { openPath?: string; startAdmin?: boolean; windowId?: string; embedPath?: string }) => JSX.Element
+    (props: { openPath?: string; startAdmin?: boolean; windowId?: string; embedPath?: string; pluginId?: string }) => JSX.Element
   >
 > = {
   files: lazy(() => import("@/applications/files/Files").then((m) => ({ default: m.FilesApp }))),
@@ -133,6 +133,7 @@ export const APP_COMPONENTS: Record<
   releaseRanking: lazy(() =>
     import("@/applications/releaseranking/ReleaseRanking").then((m) => ({ default: m.ReleaseRankingApp }))
   ),
+  pluginHost: lazy(() => import("@/applications/pluginhost/PluginHost").then((m) => ({ default: m.PluginHostApp }))),
 };
 
 function AppLoadingFallback() {
@@ -164,6 +165,7 @@ export function WindowManager() {
                 startAdmin={win.startAdmin}
                 windowId={win.windowId}
                 embedPath={win.embedPath}
+                pluginId={win.pluginId}
               />
             </Suspense>
           </WindowFrame>

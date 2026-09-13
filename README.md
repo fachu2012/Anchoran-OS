@@ -182,6 +182,33 @@ palette; on success it launches `AnchoranOS.exe` and closes itself.
   end-to-end** (installing, launching) in this environment — see
   "Known limitations" below for why.
 
+## Anchoran App SDK — third-party plugin apps
+
+The ~70 apps under `src/applications/` all ship *inside* Anchoran OS's own
+build — adding or updating one of those needs a new Anchoran OS release.
+Third-party plugin apps are the opposite: they live in a completely separate
+repo, [Anchoran-Webstore](https://github.com/fachu2012/Anchoran-Webstore),
+versioned and released on its own, and Anchoran OS downloads one only when
+someone clicks Install on it in the Webstore's Community section — no
+Anchoran OS release required to publish or update a plugin.
+
+This works because a plugin never touches Anchoran's own internal `@/...`
+modules (no compatibility promise, they change freely between versions).
+Instead, its one built file exports a `mount(container, sdk, ctx)` function;
+Anchoran calls it once with a real DOM node and `window.AnchoranSDK` — see
+`src/core/anchoranSDK.ts` for the exact shape (`React`, `ReactDOM`, `Icon`,
+`IconTile`, `pushNotification`, `getAccentColor`, `getThemeMode`) and the
+Anchoran-Webstore repo's own README for the plugin author's side of this
+contract, including how to build and publish one. `PluginHost.tsx` is the
+generic window every installed plugin opens into; downloaded plugin files
+live in `userData/plugins/<id>/` and are served to the renderer through a
+privileged `anchoran-plugin://` protocol (registered in `electron/main.ts`)
+rather than a raw `file://` import, since Chromium can block a cross-path
+`file://` ES module fetch under the default `webSecurity` Anchoran runs with.
+
+This is a first, deliberately small pilot (one example plugin, one SDK
+version) — the SDK only ever grows in backward-compatible ways from here.
+
 ## CI/CD
 
 - `.github/workflows/ci.yml` — typecheck, test, and build on every push/PR to

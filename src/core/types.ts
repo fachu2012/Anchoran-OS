@@ -64,7 +64,8 @@ export type AppId =
   | "recycleBin"
   | "embeddedApp"
   | "anchover"
-  | "releaseRanking";
+  | "releaseRanking"
+  | "pluginHost";
 
 export type AppCategory = "System" | "Productivity" | "Utilities" | "Internet" | "Games";
 

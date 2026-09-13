@@ -21,6 +21,13 @@
   line-height: 1.5;
 }
 
+.webstore-version-stamp {
+  padding: 2px 6px 4px;
+  font-size: 10px;
+  font-family: "Cascadia Code", Consolas, monospace;
+  color: var(--anchoran-text-disabled);
+}
+
 .webstore-search {
   display: flex;
   align-items: center;
