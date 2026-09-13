@@ -30,6 +30,7 @@ function groupNotifications(notifications: AnchoranNotification[]): Group[] {
 export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const notifications = useNotificationStore((s) => s.notifications);
   const dismiss = useNotificationStore((s) => s.dismiss);
+  const snooze = useNotificationStore((s) => s.snooze);
   const clearAll = useNotificationStore((s) => s.clearAll);
   const doNotDisturb = useNotificationStore((s) => s.doNotDisturb);
   const setDoNotDisturb = useNotificationStore((s) => s.setDoNotDisturb);
@@ -163,6 +164,14 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                     {formatTime(group.latest.createdAt)}
                   </div>
                 </div>
+                <button
+                  onClick={() => snooze(group.latest.id, 10)}
+                  aria-label="Snooze 10 minutes"
+                  title="Snooze 10 minutes"
+                  style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--anchoran-text-secondary)" }}
+                >
+                  <Icon name="clock" size={12} />
+                </button>
                 <button
                   onClick={() => group.ids.forEach(dismiss)}
                   aria-label="Dismiss"

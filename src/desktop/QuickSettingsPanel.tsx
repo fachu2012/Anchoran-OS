@@ -50,6 +50,8 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 export function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
   const prefs = usePreferencesStore();
   const doNotDisturb = useNotificationStore((s) => s.doNotDisturb);
+  const focusMode = useWindowStore((s) => s.focusMode);
+  const setFocusMode = useWindowStore((s) => s.setFocusMode);
   const setDoNotDisturb = useNotificationStore((s) => s.setDoNotDisturb);
   const openApp = useWindowStore((s) => s.openApp);
   const status = useSystemStatus();
@@ -188,6 +190,10 @@ export function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 12.5 }}>Battery Saver (reduce animations)</span>
             <Toggle checked={!prefs.animationsEnabled} onChange={(v) => prefs.setAnimationsEnabled(!v)} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 12.5 }}>Window Spotlight (dim other windows)</span>
+            <Toggle checked={focusMode} onChange={setFocusMode} />
           </div>
         </div>
 

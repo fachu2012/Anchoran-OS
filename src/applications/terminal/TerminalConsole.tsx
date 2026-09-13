@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { persistGet, persistSet } from "@/core/persist";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { useProfilesStore } from "@/core/profilesStore";
@@ -84,6 +85,18 @@ export function TerminalConsole({
   const [cwd, setCwd] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
   const commandHistory = useRef<string[]>([]);
+  // Command history and user-defined aliases both persist across
+  // sessions now — a fresh Terminal window used to start with a
+  // completely blank ↑-history and forget any `alias` you'd set.
+  const aliases = useRef<Record<string, string>>({});
+  useEffect(() => {
+    persistGet<string[]>("config", "terminalHistory", []).then((saved) => {
+      commandHistory.current = saved;
+    });
+    persistGet<Record<string, string>>("config", "terminalAliases", {}).then((saved) => {
+      aliases.current = saved;
+    });
+  }, []);
   const [historyCursor, setHistoryCursor] = useState<number | null>(null);
 
   const openApp = useWindowStore((s) => s.openApp);
@@ -242,8 +255,50 @@ export function TerminalConsole({
       return;
     }
 
-    const [cmd, ...args] = line.split(/\s+/);
+    // An alias expands to its full definition before anything else
+    // touches the line — recursion-safe up to a handful of hops so a
+    // typo'd self-referencing alias can't hang the terminal.
+    let expanded = line;
+    for (let hops = 0; hops < 5; hops++) {
+      const firstWord = expanded.split(/\s+/)[0];
+      const def = aliases.current[firstWord];
+      if (!def) break;
+      expanded = def + expanded.slice(firstWord.length);
+    }
+    const [cmd, ...args] = expanded.split(/\s+/);
     const rest = args.join(" ");
+
+    if (cmd === "alias") {
+      if (!rest) {
+        const entries = Object.entries(aliases.current);
+        print(entries.length ? entries.map(([k, v]) => `${k}='${v}'`).join("\n") : "No aliases set.");
+      } else if (rest === "--remove" || args[0] === "--remove") {
+        const name = args[1];
+        if (!name || !aliases.current[name]) {
+          print(`alias: no alias named "${name ?? ""}".`);
+        } else {
+          delete aliases.current[name];
+          persistSet("config", "terminalAliases", aliases.current);
+          print(`Removed alias "${name}".`);
+        }
+      } else {
+        const eq = rest.indexOf("=");
+        if (eq < 0) {
+          print('alias: usage: alias name="command" or alias --remove name');
+        } else {
+          const name = rest.slice(0, eq).trim();
+          const value = rest.slice(eq + 1).trim().replace(/^['"]|['"]$/g, "");
+          if (!name || !value) {
+            print('alias: usage: alias name="command"');
+          } else {
+            aliases.current = { ...aliases.current, [name]: value };
+            persistSet("config", "terminalAliases", aliases.current);
+            print(`Alias "${name}" set to "${value}".`);
+          }
+        }
+      }
+      return;
+    }
 
     switch (cmd) {
       case "help":
@@ -251,7 +306,7 @@ export function TerminalConsole({
           [
             "Available commands:",
             "  help, clear, about, system, date, echo, pwd, ls, cd, mkdir, touch, cat",
-            "  del/rm, move/mv, copy/cp, find, history",
+            "  del/rm, move/mv, copy/cp, find, history, alias name=\"cmd\" | alias --remove name",
             "  anchoran system | version | settings | update | changelog [vX.Y.Z] | uptime",
             "  anchoran restart | lock | apps | open <app> | install <app> | uninstall <app> | kill <app>",
             "Tab completes file and folder names.",
@@ -929,7 +984,11 @@ export function TerminalConsole({
               return;
             }
             if (e.key === "Enter") {
-              if (input.trim()) commandHistory.current.push(input);
+              if (input.trim()) {
+                commandHistory.current.push(input);
+                if (commandHistory.current.length > 200) commandHistory.current.shift();
+                persistSet("config", "terminalHistory", commandHistory.current);
+              }
               setHistoryCursor(null);
               run(input);
               setInput("");

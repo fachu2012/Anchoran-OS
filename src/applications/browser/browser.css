@@ -26,6 +26,13 @@
   flex-shrink: 0;
 }
 
+.browser-tab[data-pinned="true"] {
+  min-width: 0;
+  width: 34px;
+  justify-content: center;
+  padding: 6px;
+}
+
 .browser-tab[data-active="true"] {
   background: var(--anchoran-surface);
   color: var(--anchoran-text-primary);

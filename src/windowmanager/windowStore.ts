@@ -50,6 +50,9 @@ interface WindowManagerState {
   rememberedBounds: RememberedBoundsMap;
   /** Live preview rect shown while dragging a window near a screen edge. */
   snapPreview: Bounds | null;
+  /** Focus mode: dims/mutes every window except the focused one, for working without other windows pulling your eye. */
+  focusMode: boolean;
+  setFocusMode: (on: boolean) => void;
 
   openApp: (appId: AppId, options?: OpenAppOptions) => string;
   closeWindow: (windowId: string) => void;
@@ -92,6 +95,8 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
   nextZIndex: 1,
   rememberedBounds: {},
   snapPreview: null,
+  focusMode: false,
+  setFocusMode: (on) => set({ focusMode: on }),
 
   openApp: (appId, options) => {
     // Some "apps" launch a real external Windows tool instead of

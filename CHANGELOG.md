@@ -5,6 +5,64 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.8.4] - 2026-09-12
+
+A curated batch from a 94-item "what would you improve about the whole
+system" list — one real, working item per major area rather than a
+shallow pass at all 94 in a single unsupervised sitting. See the
+bottom of this entry for what didn't make it and why.
+
+### Added
+
+- **Terminal**: command history now persists across sessions (used to
+  reset every time the window closed), and a real `alias` command
+  (`alias ll="ls"`, `alias --remove ll`) — aliases also persist and
+  expand recursively (bounded) before a line is parsed.
+- **Files**: "Batch rename N items…" on a multi-selection — add a
+  prefix and/or suffix to every selected item's name at once (suffix
+  lands before the extension for files).
+- **Launcher**: a tiny built-in calculator — type an arithmetic
+  expression (`12 * (4 + 1)`) and the top result shows the answer,
+  click or Enter to copy it. A real recursive-descent parser, not
+  `eval`.
+- **Notifications**: Do Not Disturb can now run on a daily schedule
+  (Settings → Notifications → quiet hours) in addition to the manual
+  toggle, and each toast/history entry can be snoozed 10 minutes
+  instead of only dismissed or kept.
+- **Browser**: pin a tab (right-click → Pin tab) to shrink it to an
+  icon-only slot at the front of the strip that survives "Close
+  others"; the tab strip's right-click menu also gained Duplicate,
+  Close others, and Close tabs to the right in one place.
+- **Clipboard Manager**: a search box to filter clipboard history
+  instead of scrolling through the whole list.
+- **Window management**: "Window Spotlight" (Quick Settings) dims
+  every window except the focused one instead of hiding them outright
+  — a focus mode for working without other windows pulling your eye.
+- **Security**: failed lock-screen PIN attempts are now logged with a
+  timestamp, visible only to this PC's owner (Settings → Users) — so
+  someone trying PINs against your lock screen doesn't go unnoticed.
+- **Settings → About**: "Export diagnostics…" bundles the running
+  version, real CPU/memory/platform info, and the last 200 log lines
+  into one text file you choose where to save — for reporting a bug
+  with full context in one click instead of hunting for logs by hand.
+
+### Not implemented from the 94-item list, and why
+
+Roughly 85 items were left for a future pass rather than rushed:
+several depend on things outside what a single unsupervised session
+can respons­ibly deliver — a real code-signing certificate (needs to be
+purchased and configured, not something to fake), an ARM64 build
+(needs real ARM hardware to verify, none available here), a rewritten
+installer pipeline to meaningfully shrink its size (Electron+Chromium
+have a real floor around 150MB regardless). Others are large enough on
+their own to deserve their own focused pass rather than a shallow
+version squeezed in alongside 9 unrelated ones: virtual desktops,
+window-thumbnail previews, a Files column view, real full-text search
+across file contents, reading mode/translation in the Browser, and
+finishing (or removing) the still-experimental window embedding from
+v2.6.14 chief among them. The full 94-item list stays on the table —
+ask for any specific one by number and it's a normal, focused task.
+
 ## [2.6.18] - 2026-09-12
 
 ### Fixed

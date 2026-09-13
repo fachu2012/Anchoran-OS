@@ -30,6 +30,67 @@ function letterFor(title: string): string {
   return /[A-Z]/.test(c) ? c : "#";
 }
 
+/**
+ * A tiny, dependency-free arithmetic evaluator for the Launcher's
+ * inline calculator — deliberately not `eval`/`Function`, just a
+ * standard recursive-descent parser over +, -, *, /, parentheses and
+ * decimals, so a query like "12 * (4 + 1)" resolves without shelling
+ * out to a real expression engine for something this small.
+ */
+function evalArithmetic(input: string): number | null {
+  const src = input.replace(/\s+/g, "");
+  if (!/^[0-9.+\-*/()]+$/.test(src) || !/\d/.test(src)) return null;
+  let i = 0;
+  function peek() {
+    return src[i];
+  }
+  function parseNumber(): number {
+    const start = i;
+    while (i < src.length && /[0-9.]/.test(src[i])) i++;
+    if (i === start) throw new Error("expected number");
+    return parseFloat(src.slice(start, i));
+  }
+  function parseFactor(): number {
+    if (peek() === "(") {
+      i++;
+      const v = parseExpr();
+      if (peek() !== ")") throw new Error("expected )");
+      i++;
+      return v;
+    }
+    if (peek() === "-") {
+      i++;
+      return -parseFactor();
+    }
+    return parseNumber();
+  }
+  function parseTerm(): number {
+    let v = parseFactor();
+    while (peek() === "*" || peek() === "/") {
+      const op = src[i++];
+      const rhs = parseFactor();
+      v = op === "*" ? v * rhs : v / rhs;
+    }
+    return v;
+  }
+  function parseExpr(): number {
+    let v = parseTerm();
+    while (peek() === "+" || peek() === "-") {
+      const op = src[i++];
+      const rhs = parseTerm();
+      v = op === "+" ? v + rhs : v - rhs;
+    }
+    return v;
+  }
+  try {
+    const result = parseExpr();
+    if (i !== src.length || !Number.isFinite(result)) return null;
+    return Math.round(result * 1e10) / 1e10;
+  } catch {
+    return null;
+  }
+}
+
 interface FileResult {
   name: string;
   path: string;
@@ -216,6 +277,7 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
   }
 
   const hasQuery = query.trim().length > 0;
+  const calcResult = hasQuery ? evalArithmetic(query) : null;
 
   return (
     <div className="launcher-backdrop" onClick={onClose}>
@@ -235,12 +297,27 @@ export function Launcher({ onClose, onPower }: { onClose: () => void; onPower: (
               setLetterJumpOpen(false);
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && appResults[0]) launch(appResults[0].id);
+              if (e.key === "Enter") {
+                if (appResults[0]) launch(appResults[0].id);
+                else if (calcResult !== null) navigator.clipboard?.writeText(String(calcResult)).catch(() => {});
+              }
               if (e.key === "Escape") onClose();
             }}
           />
         </div>
         <div className="launcher-results" ref={resultsRef}>
+          {calcResult !== null && (
+            <div className="launcher-item">
+              <button
+                className="launcher-item-main"
+                onClick={() => navigator.clipboard?.writeText(String(calcResult)).catch(() => {})}
+              >
+                <IconTile name="calculator" size={34} />
+                {query.trim()} = {calcResult}
+                <span className="launcher-item-hint">copy</span>
+              </button>
+            </div>
+          )}
           {!hasQuery ? (
             <>
               {JUMP_LETTERS.filter((l) => groupedApps.has(l)).map((letter, sectionIndex) => (

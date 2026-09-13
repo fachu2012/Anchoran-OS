@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Wallpaper } from "@/desktop/Wallpaper";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { useProfilesStore } from "@/core/profilesStore";
+import { usePinAttemptsStore } from "@/core/pinAttemptsStore";
 
 const UNLOCK_ANIMATION_MS = 220;
 const DEFAULT_AVATAR = new URL("../../assets/avatar/default-avatar.png", import.meta.url).href;
@@ -72,6 +73,7 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
       requestUnlock();
     } else {
       setPinError(true);
+      usePinAttemptsStore.getState().record();
       setTimeout(() => {
         setPinInput("");
         setPinError(false);

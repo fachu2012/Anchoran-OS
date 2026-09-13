@@ -48,6 +48,19 @@
   border-color: var(--anchoran-accent);
 }
 
+/* Focus mode: every window but the focused one fades out of the way
+   instead of fighting for attention — still there, still clickable
+   (clicking one focuses it and un-dims it), just visually quiet. */
+.wm-window[data-dimmed="true"] {
+  opacity: 0.12;
+  filter: saturate(0.4);
+  transition: opacity 180ms ease, filter 180ms ease;
+}
+
+.wm-window[data-dimmed="true"]:hover {
+  opacity: 0.5;
+}
+
 .wm-window[data-exiting="closing"] {
   animation: wm-close var(--anchoran-duration-base) var(--anchoran-ease) forwards;
   pointer-events: none;

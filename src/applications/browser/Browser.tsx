@@ -3,6 +3,7 @@ import { Icon, type IconName } from "@/components/Icon";
 import { useWebviewContextMenu } from "@/core/useWebviewContextMenu";
 import { useWebviewVolume } from "@/core/useWebviewVolume";
 import { useNotificationStore } from "@/notifications/notificationStore";
+import { ContextMenu, type ContextMenuEntry } from "@/desktop/ContextMenu";
 import { useBrowserStore } from "./browserStore";
 import "@/applications/apps.css";
 import "./browser.css";
@@ -76,6 +77,7 @@ interface Tab {
   incognito: boolean;
   darkMode: boolean;
   zoom: number;
+  pinned: boolean;
 }
 
 let tabCounter = 0;
@@ -92,6 +94,7 @@ function newTab(url = NEW_TAB_URL, incognito = false): Tab {
     incognito,
     darkMode: false,
     zoom: 1,
+    pinned: false,
   };
 }
 
@@ -260,6 +263,7 @@ function BrowserTabView({
 
 export function BrowserApp() {
   const [tabs, setTabs] = useState<Tab[]>(() => [newTab(HOME_URL)]);
+  const [tabMenu, setTabMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [activeId, setActiveId] = useState(tabs[0].id);
   const [addressInput, setAddressInput] = useState(HOME_URL);
   const [addressFocused, setAddressFocused] = useState(false);
@@ -354,6 +358,17 @@ export function BrowserApp() {
   function duplicateTab(id: string) {
     const source = tabs.find((t) => t.id === id);
     if (source) openTab(source.url);
+  }
+
+  function togglePin(id: string) {
+    setTabs((prev) => {
+      const toggled = prev.map((t) => (t.id === id ? { ...t, pinned: !t.pinned } : t));
+      // Pinned tabs live at the front of the strip, in whatever order
+      // they were pinned; unpinned ones keep their relative order too.
+      const pinned = toggled.filter((t) => t.pinned);
+      const rest = toggled.filter((t) => !t.pinned);
+      return [...pinned, ...rest];
+    });
   }
 
   function reopenClosed() {
@@ -521,7 +536,18 @@ export function BrowserApp() {
     <div className="app-root browser-root">
       <div className="browser-tabbar">
         {tabs.map((t) => (
-          <div key={t.id} className="browser-tab" data-active={t.id === activeId} onClick={() => setActiveId(t.id)}>
+          <div
+            key={t.id}
+            className="browser-tab"
+            data-active={t.id === activeId}
+            data-pinned={t.pinned}
+            onClick={() => setActiveId(t.id)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setTabMenu({ x: e.clientX, y: e.clientY, id: t.id });
+            }}
+          >
             {t.loading ? (
               <div className="browser-tab-spinner" />
             ) : t.favicon ? (
@@ -529,18 +555,20 @@ export function BrowserApp() {
             ) : (
               <Icon name="browser" size={13} />
             )}
-            <span className="browser-tab-title">{t.title || "New Tab"}</span>
+            {!t.pinned && <span className="browser-tab-title">{t.title || "New Tab"}</span>}
             {t.incognito && <Icon name="lock" size={11} />}
-            <button
-              className="browser-tab-close"
-              onClick={(e) => {
-                e.stopPropagation();
-                closeTab(t.id);
-              }}
-              aria-label="Close tab"
-            >
-              <Icon name="close" size={11} />
-            </button>
+            {!t.pinned && (
+              <button
+                className="browser-tab-close"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeTab(t.id);
+                }}
+                aria-label="Close tab"
+              >
+                <Icon name="close" size={11} />
+              </button>
+            )}
           </div>
         ))}
         <button className="browser-tab-new" onClick={() => openTab(NEW_TAB_URL)} aria-label="New tab">
@@ -550,6 +578,30 @@ export function BrowserApp() {
           <Icon name="lock" size={12} />
         </button>
       </div>
+
+      {tabMenu && (
+        <ContextMenu
+          x={tabMenu.x}
+          y={tabMenu.y}
+          onClose={() => setTabMenu(null)}
+          items={(() => {
+            const t = tabs.find((tab) => tab.id === tabMenu.id);
+            const entries: ContextMenuEntry[] = [
+              {
+                label: t?.pinned ? "Unpin tab" : "Pin tab",
+                onSelect: () => togglePin(tabMenu.id),
+              },
+              { label: "Duplicate tab", onSelect: () => duplicateTab(tabMenu.id) },
+              { separator: true },
+              { label: "Close others", onSelect: () => closeOthers(tabMenu.id) },
+              { label: "Close tabs to the right", onSelect: () => closeToRight(tabMenu.id) },
+              { separator: true },
+              { label: "Close tab", danger: true, onSelect: () => closeTab(tabMenu.id) },
+            ];
+            return entries;
+          })()}
+        />
+      )}
 
       <div className="app-toolbar">
         <button className="app-toolbar-btn" onClick={goBack} disabled={!active?.canGoBack}>

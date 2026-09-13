@@ -7,6 +7,7 @@ import { playNotificationSound } from "@/core/sound";
 import { useUpdateHistoryStore } from "@/core/updateHistory";
 import { useSystemModeStore } from "@/desktop/systemModeStore";
 import { useProfilesStore } from "@/core/profilesStore";
+import { usePinAttemptsStore } from "@/core/pinAttemptsStore";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
 import { useDefaultAppsStore } from "@/core/defaultAppsStore";
@@ -439,6 +440,8 @@ function NetworkSection() {
 function NotificationsSection() {
   const doNotDisturb = useNotificationStore((s) => s.doNotDisturb);
   const setDoNotDisturb = useNotificationStore((s) => s.setDoNotDisturb);
+  const dndSchedule = useNotificationStore((s) => s.dndSchedule);
+  const setDndSchedule = useNotificationStore((s) => s.setDndSchedule);
   const clearAll = useNotificationStore((s) => s.clearAll);
   const count = useNotificationStore((s) => s.notifications.length);
 
@@ -451,6 +454,39 @@ function NotificationsSection() {
         </div>
         <input type="checkbox" checked={doNotDisturb} onChange={(e) => setDoNotDisturb(e.target.checked)} />
       </div>
+      <div className="settings-row">
+        <div>
+          <div className="settings-row-label">Scheduled Do Not Disturb</div>
+          <div className="settings-row-desc">
+            Automatically turns on and off at set times each day{dndSchedule.enabled ? ` — ${dndSchedule.start} to ${dndSchedule.end}` : ""}.
+          </div>
+        </div>
+        <input
+          type="checkbox"
+          checked={dndSchedule.enabled}
+          onChange={(e) => setDndSchedule({ enabled: e.target.checked })}
+        />
+      </div>
+      {dndSchedule.enabled && (
+        <div className="settings-row">
+          <div className="settings-row-label">Quiet hours</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="time"
+              value={dndSchedule.start}
+              onChange={(e) => setDndSchedule({ start: e.target.value })}
+              style={inputStyle}
+            />
+            <span style={{ color: "var(--anchoran-text-secondary)" }}>to</span>
+            <input
+              type="time"
+              value={dndSchedule.end}
+              onChange={(e) => setDndSchedule({ end: e.target.value })}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+      )}
       <div className="settings-row">
         <div>
           <div className="settings-row-label">History</div>
@@ -663,7 +699,38 @@ function UsersSection() {
           </select>
         </div>
       )}
+      {isOwner && <FailedPinAttemptsRow />}
     </>
+  );
+}
+
+/** Owner-only: a log of failed PIN attempts on the lock screen, so tampering doesn't go unnoticed. */
+function FailedPinAttemptsRow() {
+  const attempts = usePinAttemptsStore((s) => s.attempts);
+  const clear = usePinAttemptsStore((s) => s.clear);
+  return (
+    <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
+      <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div className="settings-row-label">Failed PIN attempts</div>
+          <div className="settings-row-desc">Visible only to you, the owner of this PC.</div>
+        </div>
+        {attempts.length > 0 && (
+          <button className="app-toolbar-btn" onClick={clear}>
+            Clear
+          </button>
+        )}
+      </div>
+      {attempts.length === 0 ? (
+        <div style={{ fontSize: 12, color: "var(--anchoran-text-secondary)" }}>No failed attempts recorded.</div>
+      ) : (
+        <div style={{ maxHeight: 120, overflowY: "auto", width: "100%", fontSize: 12, color: "var(--anchoran-text-secondary)" }}>
+          {attempts.map((a) => (
+            <div key={a.id}>{new Date(a.timestamp).toLocaleString()}</div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -918,6 +985,32 @@ function SystemSection() {
 function AboutSection() {
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
   const [downloadedVersion, setDownloadedVersion] = useState<string | null>(null);
+  const [diagnosticsPicker, setDiagnosticsPicker] = useState(false);
+  const pushNotification = useNotificationStore((s) => s.push);
+
+  async function onDiagnosticsConfirm(result: { path: string } | { dir: string; name: string }) {
+    setDiagnosticsPicker(false);
+    if (!("dir" in result) || !window.anchoran) return;
+    const [sysInfo, logLines] = await Promise.all([
+      window.anchoran.getSystemInfo(),
+      window.anchoran.readLog(),
+    ]);
+    const report = [
+      `Anchoran OS diagnostics — ${new Date().toLocaleString()}`,
+      `Version: ${ANCHORAN_VERSION}`,
+      sysInfo ? `Platform: ${sysInfo.platform} ${sysInfo.arch}` : "",
+      sysInfo ? `CPU: ${sysInfo.cpuModel} (${sysInfo.cpuCores} cores) — ${sysInfo.cpuUsagePercent}%` : "",
+      sysInfo ? `Memory: ${sysInfo.totalMemMB - sysInfo.freeMemMB} / ${sysInfo.totalMemMB} MB` : "",
+      "",
+      "--- Last 200 log lines ---",
+      ...(logLines ?? []).slice(0, 200),
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const name = /\.[^.\\/]+$/.test(result.name) ? result.name : `${result.name}.txt`;
+    const write = await window.anchoran.fsWriteTextFile(`${result.dir}\\${name}`, report);
+    pushNotification("Settings", write.success ? "Diagnostics exported." : write.error ?? "Couldn't export diagnostics.");
+  }
 
   useEffect(() => {
     window.anchoran?.onUpdateStatus((status) => {
@@ -961,11 +1054,23 @@ function AboutSection() {
             Restart & install v{downloadedVersion}
           </button>
         )}
+        <button className="app-toolbar-btn" onClick={() => setDiagnosticsPicker(true)}>
+          Export diagnostics…
+        </button>
       </div>
       {updateStatus && (
         <p style={{ fontSize: 12, color: "var(--anchoran-text-secondary)", marginTop: 8 }}>{updateStatus}</p>
       )}
       <UpdateHistoryList />
+      {diagnosticsPicker && (
+        <AnchoranFilePicker
+          mode="save"
+          title="Export diagnostics"
+          defaultName="anchoran-diagnostics.txt"
+          onConfirm={onDiagnosticsConfirm}
+          onCancel={() => setDiagnosticsPicker(false)}
+        />
+      )}
     </div>
   );
 }

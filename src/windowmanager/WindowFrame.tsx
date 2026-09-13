@@ -53,6 +53,7 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
   const moveWindow = useWindowStore((s) => s.moveWindow);
   const setBounds = useWindowStore((s) => s.setBounds);
   const setSnapPreview = useWindowStore((s) => s.setSnapPreview);
+  const focusMode = useWindowStore((s) => s.focusMode);
   const [exiting, setExiting] = useState<"closing" | "minimizing" | null>(null);
 
   // The component instance is reused across minimize <-> restore (it
@@ -174,6 +175,7 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
       data-focused={isFocused}
       data-maximized={win.isMaximized}
       data-exiting={exiting ?? undefined}
+      data-dimmed={focusMode && !isFocused}
       onPointerDown={() => focusWindow(win.windowId)}
     >
       <div className="wm-titlebar" onPointerDown={onTitlePointerDown} onDoubleClick={() => toggleMaximize(win.windowId)}>

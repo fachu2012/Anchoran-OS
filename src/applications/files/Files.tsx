@@ -96,6 +96,9 @@ export function FilesApp() {
   const [includeSubfolders, setIncludeSubfolders] = useState(false);
   const [recursiveResults, setRecursiveResults] = useState<Entry[] | null>(null);
   const [propertiesEntry, setPropertiesEntry] = useState<Entry | null>(null);
+  const [batchRenamePaths, setBatchRenamePaths] = useState<string[] | null>(null);
+  const [batchPrefix, setBatchPrefix] = useState("");
+  const [batchSuffix, setBatchSuffix] = useState("");
   const pushNotification = useNotificationStore((s) => s.push);
   const openApp = useWindowStore((s) => s.openApp);
   const defaultApps = useDefaultAppsStore();
@@ -284,6 +287,25 @@ export function FilesApp() {
     refresh();
   }
 
+  /** Adds a prefix and/or suffix to every selected item's name at once — the suffix lands before the extension for files, at the very end for folders. */
+  async function batchRename(paths: string[], prefix: string, suffix: string) {
+    if (!window.anchoran) return;
+    let failures = 0;
+    for (const path of paths) {
+      const entry = entries.find((e) => e.path === path);
+      if (!entry) continue;
+      const dot = entry.isDirectory ? -1 : entry.name.lastIndexOf(".");
+      const base = dot > 0 ? entry.name.slice(0, dot) : entry.name;
+      const ext = dot > 0 ? entry.name.slice(dot) : "";
+      const newName = `${prefix}${base}${suffix}${ext}`;
+      const result = await window.anchoran.fsRename(path, newName);
+      if ("error" in result) failures += 1;
+    }
+    if (failures > 0) pushNotification("Files", `${failures} item(s) couldn't be renamed.`);
+    setSelected(new Set());
+    refresh();
+  }
+
   async function deletePaths(paths: string[]) {
     const result = await window.anchoran!.fsDelete(paths);
     if (!result.success) pushNotification("Files", result.error ?? "Couldn't delete.");
@@ -406,6 +428,9 @@ export function FilesApp() {
       { label: "Cut", onSelect: () => setClipboard({ paths, mode: "cut" }) },
       { label: "Copy", onSelect: () => setClipboard({ paths, mode: "copy" }) },
       ...(paths.length === 1 ? [{ label: "Rename", onSelect: () => startRename(entry) }] : []),
+      ...(paths.length > 1
+        ? [{ label: `Batch rename ${paths.length} items…`, onSelect: () => setBatchRenamePaths(paths) }]
+        : []),
       { label: "Compress to .zip", onSelect: () => compressPaths(paths) },
       ...(!entry.isDirectory && entry.name.toLowerCase().endsWith(".zip")
         ? [{ label: "Extract here", onSelect: () => extractZip(entry) }]
@@ -647,6 +672,58 @@ export function FilesApp() {
       )}
       {quickLookEntry && <QuickLook entry={quickLookEntry} onClose={() => setQuickLookEntry(null)} />}
       {propertiesEntry && <FileProperties entry={propertiesEntry} onClose={() => setPropertiesEntry(null)} />}
+      {batchRenamePaths && (
+        <div
+          style={{ position: "absolute", inset: 0, zIndex: 55, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => setBatchRenamePaths(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "min(90%, 360px)", background: "var(--anchoran-surface)", borderRadius: "var(--anchoran-radius-lg)", boxShadow: "var(--anchoran-shadow-window)", padding: 20 }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>Batch rename {batchRenamePaths.length} items</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12.5 }}>
+              <label>
+                Prefix
+                <input
+                  autoFocus
+                  value={batchPrefix}
+                  onChange={(e) => setBatchPrefix(e.target.value)}
+                  placeholder="e.g. vacation-"
+                  style={{ width: "100%", marginTop: 4, padding: "7px 9px", borderRadius: "var(--anchoran-radius-sm)", border: "1px solid var(--anchoran-border)", background: "transparent", color: "var(--anchoran-text-primary)" }}
+                />
+              </label>
+              <label>
+                Suffix (before the extension)
+                <input
+                  value={batchSuffix}
+                  onChange={(e) => setBatchSuffix(e.target.value)}
+                  placeholder="e.g. -2026"
+                  style={{ width: "100%", marginTop: 4, padding: "7px 9px", borderRadius: "var(--anchoran-radius-sm)", border: "1px solid var(--anchoran-border)", background: "transparent", color: "var(--anchoran-text-primary)" }}
+                />
+              </label>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button className="app-toolbar-btn" style={{ flex: 1, justifyContent: "center" }} onClick={() => setBatchRenamePaths(null)}>
+                Cancel
+              </button>
+              <button
+                className="app-toolbar-btn"
+                style={{ flex: 1, justifyContent: "center" }}
+                disabled={!batchPrefix && !batchSuffix}
+                onClick={() => {
+                  batchRename(batchRenamePaths, batchPrefix, batchSuffix);
+                  setBatchRenamePaths(null);
+                  setBatchPrefix("");
+                  setBatchSuffix("");
+                }}
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
