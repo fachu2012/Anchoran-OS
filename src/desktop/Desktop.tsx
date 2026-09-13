@@ -13,7 +13,6 @@ import { PowerMenu } from "@/power/PowerMenu";
 import { NotificationToasts } from "@/notifications/NotificationCenter";
 import { NotificationPanel } from "@/notifications/NotificationPanel";
 import { useNotificationStore } from "@/notifications/notificationStore";
-import { useProfilesStore } from "@/core/profilesStore";
 import { useShortcutPrefsStore, matchesModifier } from "@/core/shortcutPrefsStore";
 import "./desktop.css";
 
@@ -209,11 +208,8 @@ export function Desktop({
           onSignOut={() => {
             setPowerOpen(false);
             useWindowStore.getState().closeAllWindows();
-            // A guest session ends for good on sign-out, rather than
-            // sitting in the profile list waiting to be picked again.
-            const { profiles, activeProfileId, deleteProfile } = useProfilesStore.getState();
-            const active = profiles.find((p) => p.id === activeProfileId);
-            if (active?.isGuest) deleteProfile(active.id);
+            // Guest is a single permanent profile — it stays in the list and
+            // resets itself the next time it's entered, nothing to clean up here.
             onLock();
           }}
         />

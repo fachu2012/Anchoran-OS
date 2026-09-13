@@ -138,13 +138,19 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
   activeDesktopId: DEFAULT_DESKTOP_ID,
 
   openApp: (appId, options) => {
-    // Some "apps" launch a real external Windows tool instead of
-    // opening an Anchoran window — Recycle Bin, On-Screen Keyboard and
-    // Narrator are all things Windows already does correctly, so
-    // Anchoran launches the genuine ones rather than reimplementing
-    // them (see the matching IPC handlers in electron/main.ts).
+    // Recycle Bin used to launch the real Windows one — now that
+    // Anchoran has its own Trash (see Files.tsx), the desktop/taskbar/
+    // Launcher icon opens straight into that instead, the same way any
+    // other "open Files at a specific place" hand-off works.
+    if (appId === "recycleBin") {
+      return get().openApp("files", { openPath: "anchoran://trash" });
+    }
+
+    // On-Screen Keyboard and Narrator are things Windows already does
+    // correctly, so Anchoran launches the genuine ones rather than
+    // reimplementing them (see the matching IPC handlers in
+    // electron/main.ts).
     const externalLaunch: Partial<Record<AppId, () => void>> = {
-      recycleBin: () => window.anchoran?.openRecycleBin(),
       onScreenKeyboard: () => window.anchoran?.openOsk(),
       narrator: () => window.anchoran?.openNarrator(),
     };
@@ -193,8 +199,8 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
       title: options?.title ?? (options?.startAdmin ? `${def.title} (Administrator)` : def.title),
       x: remembered?.x ?? offset.x,
       y: remembered?.y ?? offset.y,
-      width: remembered?.width ?? def.defaultSize.width,
-      height: remembered?.height ?? def.defaultSize.height,
+      width: Math.max(def.minSize?.width ?? 0, remembered?.width ?? def.defaultSize.width),
+      height: Math.max(def.minSize?.height ?? 0, remembered?.height ?? def.defaultSize.height),
       isMinimized: false,
       isMaximized: false,
       restoreBounds: null,

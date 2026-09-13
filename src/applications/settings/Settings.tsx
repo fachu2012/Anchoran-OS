@@ -118,6 +118,11 @@ const inputStyle: CSSProperties = {
 export function SettingsApp() {
   const [section, setSection] = useState<(typeof SECTIONS)[number]>("Appearance");
   const prefs = usePreferencesStore();
+  // The Guest profile can't personalize its desktop at all — its appearance
+  // resets to fixed defaults every time it's entered anyway, so letting it
+  // change accent/wallpaper/theme here would just be a change that's thrown
+  // away the moment someone locks and re-enters Guest.
+  const isGuestActive = useProfilesStore((s) => s.profiles.find((p) => p.id === s.activeProfileId)?.isGuest ?? false);
   const [wallpaperPicker, setWallpaperPicker] = useState(false);
   const [settingsQuery, setSettingsQuery] = useState("");
   const settingsMatches = settingsQuery.trim()
@@ -187,7 +192,8 @@ export function SettingsApp() {
       </nav>
       <div className="settings-panel">
         {section === "Appearance" && (
-          <>
+          <fieldset disabled={isGuestActive} style={{ border: "none", margin: 0, padding: 0, display: "contents" }}>
+            {isGuestActive && <GuestLockedBanner />}
             <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
               <div>
                 <div className="settings-row-label">Theme presets</div>
@@ -292,11 +298,13 @@ export function SettingsApp() {
                 prefs.setAnimationsEnabled(DEFAULT_PREFERENCES.animationsEnabled);
               }}
             />
-          </>
+          </fieldset>
         )}
 
         {section === "Personalization" && (
-          <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
+          <fieldset disabled={isGuestActive} style={{ border: "none", margin: 0, padding: 0, display: "contents" }}>
+            {isGuestActive && <GuestLockedBanner />}
+            <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
             <div className="settings-row-label">Wallpaper</div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               {WALLPAPERS.map((wp) => (
@@ -347,6 +355,7 @@ export function SettingsApp() {
               }}
             />
           </div>
+          </fieldset>
         )}
 
         {section === "Display" && (
@@ -498,6 +507,26 @@ export function SettingsApp() {
  * connected display. Only rendered when the Electron bridge exposes
  * display info — e.g. not in a plain-browser preview of the renderer.
  */
+/** Shown above a settings section that's disabled because the active profile is the permanent Guest, which can't personalize anything — its appearance resets to fixed defaults every time it's entered anyway. */
+function GuestLockedBanner() {
+  return (
+    <div
+      className="settings-row"
+      style={{
+        borderBottom: "none",
+        background: "var(--anchoran-accent-soft)",
+        borderRadius: "var(--anchoran-radius-md)",
+        padding: "8px 12px",
+        marginBottom: 4,
+      }}
+    >
+      <div className="settings-row-desc" style={{ color: "var(--anchoran-text-primary)" }}>
+        The Guest profile can't be personalized — it always resets to its defaults the next time you sign into it.
+      </div>
+    </div>
+  );
+}
+
 /** A per-section "restore factory defaults" — narrower than Privacy's whole-app Reset, and without needing a confirmation step since it only ever touches a handful of easily-reversible appearance/behavior settings, never files or the PIN. */
 function ResetSectionButton({ onReset }: { onReset: () => void }) {
   return (
@@ -756,6 +785,7 @@ function UsersSection() {
   const [avatarPicker, setAvatarPicker] = useState(false);
   const activeProfile = profiles.find((p) => p.id === activeProfileId);
   const isOwner = !!activeProfile?.isOwner;
+  const isGuestActive = !!activeProfile?.isGuest;
 
   async function onPickAvatar(result: { path: string } | { dir: string; name: string }) {
     setAvatarPicker(false);
@@ -793,22 +823,36 @@ function UsersSection() {
               <span style={{ fontSize: 12.5 }}>{p.name}</span>
               {p.isOwner ? (
                 <span style={{ fontSize: 10.5, color: "var(--anchoran-accent)" }}>Owner</span>
+              ) : p.isGuest ? (
+                <span style={{ fontSize: 10.5, color: "var(--anchoran-text-secondary)" }}>Guest</span>
               ) : p.isAdmin ? (
                 <span style={{ fontSize: 10.5, color: "var(--anchoran-text-secondary)" }}>Admin</span>
               ) : null}
               {p.id === activeProfileId && (
                 <span style={{ fontSize: 10.5, color: "var(--anchoran-accent)" }}>Active</span>
               )}
-              {isOwner && !p.isOwner && (
+              {isOwner && !p.isOwner && !p.isGuest && (
                 <button className="app-toolbar-btn" onClick={() => setProfileAdmin(p.id, !p.isAdmin)}>
                   {p.isAdmin ? "Revoke admin" : "Make admin"}
                 </button>
               )}
-              {profiles.length > 1 && !p.isOwner && (
+              {profiles.length > 1 && !p.isOwner && !p.isGuest && (
                 <button
                   className="app-toolbar-btn"
                   onClick={() => {
-                    if (window.confirm(`Delete profile "${p.name}"? This can't be undone.`)) deleteProfile(p.id);
+                    if (p.id === activeProfileId) {
+                      // Deleting the profile you're actually signed in as
+                      // right now needs a real, fullscreen, deliberate
+                      // stop — not a window.confirm() — since it can't
+                      // just fall through to switching you into another
+                      // profile silently. Handled at the App.tsx root
+                      // (same as the update-ready screen) so it's a true
+                      // full-desktop takeover, not just confined to this
+                      // Settings window. See DeleteOwnProfileConfirm.tsx.
+                      window.dispatchEvent(new CustomEvent("anchoran-request-delete-own-profile", { detail: p.id }));
+                    } else if (window.confirm(`Delete profile "${p.name}"? This can't be undone.`)) {
+                      deleteProfile(p.id);
+                    }
                   }}
                 >
                   Delete
@@ -845,6 +889,8 @@ function UsersSection() {
           </button>
         </div>
       </div>
+      <fieldset disabled={isGuestActive} style={{ border: "none", margin: 0, padding: 0, display: "contents" }}>
+      {isGuestActive && <GuestLockedBanner />}
       <div className="settings-row">
         <div>
           <div className="settings-row-label">Profile picture</div>
@@ -922,6 +968,7 @@ function UsersSection() {
           )}
         </div>
       </div>
+      </fieldset>
       {prefs.lockPin && (
         <div className="settings-row">
           <div>

@@ -7,7 +7,7 @@
     "description": "Browse, organize and search Anchoran's own filesystem.",
     "core": true,
     "defaultSize": { "width": 920, "height": 600 },
-    "minSize": { "width": 480, "height": 320 }
+    "minSize": { "width": 820, "height": 420 }
   },
   {
     "id": "terminal",
@@ -38,7 +38,7 @@
     "description": "A simple multi-document text editor.",
     "allowMultipleInstances": true,
     "defaultSize": { "width": 640, "height": 520 },
-    "minSize": { "width": 360, "height": 280 }
+    "minSize": { "width": 420, "height": 300 }
   },
   {
     "id": "calculator",
@@ -56,7 +56,7 @@
     "category": "Internet",
     "description": "Browse the web from inside Anchoran, on the real Chromium engine.",
     "defaultSize": { "width": 1000, "height": 660 },
-    "minSize": { "width": 480, "height": 360 }
+    "minSize": { "width": 760, "height": 440 }
   },
   {
     "id": "systemMonitor",
@@ -273,7 +273,7 @@
     "category": "Productivity",
     "description": "A monthly calendar with your own events.",
     "defaultSize": { "width": 640, "height": 560 },
-    "minSize": { "width": 460, "height": 420 }
+    "minSize": { "width": 520, "height": 440 }
   },
   {
     "id": "clipboardManager",
@@ -336,7 +336,7 @@
     "category": "Utilities",
     "description": "A real, encrypted vault for your passwords, locked by a master password.",
     "defaultSize": { "width": 400, "height": 560 },
-    "minSize": { "width": 340, "height": 420 }
+    "minSize": { "width": 380, "height": 440 }
   },
   {
     "id": "reminders",
@@ -345,7 +345,7 @@
     "category": "Productivity",
     "description": "Set reminders for specific times of day.",
     "defaultSize": { "width": 420, "height": 480 },
-    "minSize": { "width": 340, "height": 380 }
+    "minSize": { "width": 420, "height": 380 }
   },
   {
     "id": "ttsReader",

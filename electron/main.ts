@@ -967,7 +967,15 @@ ipcMain.handle("anchoran:trash-restore", (_event, id: string) => {
       const base = ext ? destination.slice(0, -ext.length) : destination;
       destination = `${base} (restored)${ext}`;
     }
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    // Only actually try to create the parent folder if it's missing —
+    // path.dirname() of a file that lived at a drive root (e.g.
+    // "D:\file.txt") is the drive root itself ("D:\"), and Windows
+    // refuses CreateDirectory on a volume root with EPERM, not the
+    // "already exists" it returns for a normal folder. Skipping the
+    // call entirely whenever the folder's already there — the root
+    // included — sidesteps that real, hit-in-practice failure.
+    const destDir = path.dirname(destination);
+    if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
     moveWithFallback(path.join(trashDir, item.id), destination);
     trashStore.set("items", items.filter((i) => i.id !== id));
     return { success: true, restoredTo: destination };

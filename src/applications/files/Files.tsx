@@ -82,8 +82,12 @@ const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]);
 const AUDIO_EXT = new Set([".mp3", ".wav", ".ogg", ".m4a"]);
 const VIDEO_EXT = new Set([".mp4", ".webm", ".mov", ".avi", ".mkv"]);
 
-export function FilesApp() {
-  const [currentPath, setCurrentPath] = useState<string>(THIS_PC);
+export function FilesApp({ openPath }: { openPath?: string } = {}) {
+  // The desktop/taskbar/Launcher "Recycle Bin" icon opens straight
+  // into Anchoran's own Trash — see windowStore.ts's openApp(), which
+  // redirects that appId here with this sentinel instead of a real
+  // filesystem path.
+  const [currentPath, setCurrentPath] = useState<string>(openPath === "anchoran://trash" ? ANCHORAN_TRASH : THIS_PC);
   const [quickLinks, setQuickLinks] = useState<{ label: string; path: string }[]>([]);
   const [drives, setDrives] = useState<string[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -337,6 +341,28 @@ export function FilesApp() {
   function startRename(entry: Entry) {
     setRenamingPath(entry.path);
     setRenameValue(entry.name);
+  }
+
+  /**
+   * Matches Windows Explorer's own rename behavior: only the base name
+   * is pre-selected (so typing right away replaces just that, the way
+   * everyone's muscle memory expects), but the extension stays right
+   * there in the box, fully editable — click past the selection (or
+   * just select-all) to change it too. A folder, or a file with no
+   * extension, selects the whole name instead since there's nothing to
+   * preserve.
+   */
+  function selectBaseNameOnRename(el: HTMLInputElement | null, entry: Entry) {
+    if (!el) return;
+    el.focus();
+    if (!entry.isDirectory) {
+      const dot = entry.name.lastIndexOf(".");
+      if (dot > 0) {
+        el.setSelectionRange(0, dot);
+        return;
+      }
+    }
+    el.select();
   }
 
   async function commitRename() {
@@ -794,7 +820,12 @@ export function FilesApp() {
         ) : viewMode === "columns" ? (
           <div className="files-columns">
             {columnPaths.map((p, i) => {
-              const colEntries = i === columnPaths.length - 1 ? sorted : columnEntriesMap[p] ?? [];
+              const colEntries =
+                i === columnPaths.length - 1
+                  ? sorted
+                  : [...(columnEntriesMap[p] ?? [])].sort((a, b) =>
+                      a.isDirectory !== b.isDirectory ? (a.isDirectory ? -1 : 1) : compareEntries(a, b, sortMode)
+                    );
               return (
                 <div key={p} className="files-column">
                   {colEntries.map((e) => (
@@ -802,7 +833,14 @@ export function FilesApp() {
                       key={e.path}
                       className="files-column-item"
                       data-active={columnPaths[i + 1] === e.path}
+                      data-selected={selected.has(e.path)}
                       onClick={() => openColumnEntry(i, e)}
+                      onContextMenu={(ev) => {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        if (!selected.has(e.path)) setSelected(new Set([e.path]));
+                        setMenu({ x: ev.clientX, y: ev.clientY, entry: e });
+                      }}
                     >
                       {fileTags[e.path] && <span className="files-tag-dot" style={{ background: TAG_COLOR_HEX[fileTags[e.path]] }} />}
                       <IconTile name={e.isDirectory ? "folder" : iconForFile(e.name)} size={18} glyphScale={0.6} />
@@ -852,7 +890,7 @@ export function FilesApp() {
                 </div>
                 {renamingPath === entry.path ? (
                   <input
-                    autoFocus
+                    ref={(el) => selectBaseNameOnRename(el, entry)}
                     className="files-rename-input"
                     value={renameValue}
                     onChange={(e) => setRenameValue(e.target.value)}
@@ -898,17 +936,30 @@ export function FilesApp() {
                   <td style={{ padding: "7px 8px", display: "flex", alignItems: "center", gap: 8 }}>
                     {fileTags[entry.path] && <span className="files-tag-dot" style={{ background: TAG_COLOR_HEX[fileTags[entry.path]] }} />}
                     <IconTile name={entry.isDirectory ? "folder" : iconForFile(entry.name)} size={20} glyphScale={0.6} />
-                    <span>
-                      {entry.name}
-                      {favoritePaths.has(entry.path) && (
-                        <IconTile name="star" size={13} glyphScale={0.75} style={{ display: "inline-flex", verticalAlign: "middle", marginLeft: 5 }} />
-                      )}
-                      {searchingSubfolders && (
-                        <div style={{ fontSize: 11, color: "var(--anchoran-text-secondary)" }}>
-                          {entry.path.slice(currentPath.length + 1, entry.path.length - entry.name.length - 1) || "."}
-                        </div>
-                      )}
-                    </span>
+                    {renamingPath === entry.path ? (
+                      <input
+                        ref={(el) => selectBaseNameOnRename(el, entry)}
+                        className="files-rename-input"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onBlur={commitRename}
+                        onKeyDown={(e) => e.key === "Enter" && commitRename()}
+                        style={{ flex: 1 }}
+                      />
+                    ) : (
+                      <span onDoubleClick={(e) => (e.stopPropagation(), startRename(entry))}>
+                        {entry.name}
+                        {favoritePaths.has(entry.path) && (
+                          <IconTile name="star" size={13} glyphScale={0.75} style={{ display: "inline-flex", verticalAlign: "middle", marginLeft: 5 }} />
+                        )}
+                        {searchingSubfolders && (
+                          <div style={{ fontSize: 11, color: "var(--anchoran-text-secondary)" }}>
+                            {entry.path.slice(currentPath.length + 1, entry.path.length - entry.name.length - 1) || "."}
+                          </div>
+                        )}
+                      </span>
+                    )}
                   </td>
                   <td style={{ padding: "7px 8px", color: "var(--anchoran-text-secondary)" }}>{formatSize(entry.size, entry.isDirectory)}</td>
                   <td style={{ padding: "7px 8px", color: "var(--anchoran-text-secondary)" }}>{formatDate(entry.modifiedAt)}</td>

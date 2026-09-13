@@ -199,6 +199,11 @@
   gap: 8px;
 }
 
+.taskbar-clock-btn {
+  width: auto;
+  padding: 0 10px;
+}
+
 .taskbar-tray-btn[data-op="true"] {
   background: var(--anchoran-accent-soft);
   color: var(--anchoran-accent);

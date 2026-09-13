@@ -15,7 +15,6 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const activeProfileId = useProfilesStore((s) => s.activeProfileId);
   const switchProfile = useProfilesStore((s) => s.switchProfile);
   const createGuestProfile = useProfilesStore((s) => s.createGuestProfile);
-  const deleteProfile = useProfilesStore((s) => s.deleteProfile);
   const [now] = useState(new Date());
   const [unlocking, setUnlocking] = useState(false);
   const [pinPromptOpen, setPinPromptOpen] = useState(false);
@@ -32,11 +31,9 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
 
   function selectProfile(id: string) {
     if (id === activeProfileId) return;
-    // Leaving a guest session for good deletes it right here, instead
-    // of leaving a growing pile of throwaway "Guest" profiles around.
-    const outgoing = profiles.find((p) => p.id === activeProfileId);
+    // Guest is a single permanent profile now — it stays in the list and
+    // resets itself the next time it's entered, so nothing to clean up here.
     switchProfile(id);
-    if (outgoing?.isGuest) deleteProfile(outgoing.id);
     setPinPromptOpen(false);
     setPinInput("");
   }

@@ -5,6 +5,55 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [2.9.6] - 2026-09-13
+
+Bug fixes and a Guest profile redesign, from live-testing the v2.9.2
+stability fix.
+
+### Fixed
+- Deleting your own active profile from Settings no longer silently
+  switches you into another profile with no confirmation or PIN. It
+  now shows a true fullscreen confirmation (`DeleteOwnProfileConfirm`,
+  same pattern as the update-ready screen) and sends you to the lock
+  screen if you confirm.
+- Restoring a Trash item whose original location was a drive root
+  (e.g. `D:\`) no longer crashes with `EPERM: operation not permitted,
+  mkdir 'D:\'` — `fs.mkdirSync` is now only called when the
+  destination folder is actually missing, since Windows refuses to
+  "create" a volume root.
+- Rename now works in Files' list (table) view — the default view —
+  which never had a rename input at all, only the grid view did.
+  Rename also now selects just the base filename (not the extension),
+  matching Windows Explorer, while still leaving the extension
+  editable if you want to change it.
+- The columns (Miller columns) view had zero right-click menu support;
+  it now has the same context menu as the other views. Its non-active
+  columns also showed entries in raw, unsorted order — opening a
+  subfolder made the column you drilled out of visibly reorder itself.
+  Every column now sorts consistently.
+- Anchoran's own Recycle Bin icon (desktop and Launcher) now opens
+  Anchoran's own Trash instead of launching the real Windows Explorer
+  recycle bin.
+- Every app window now has a real minimum size, so shrinking a window
+  can't push its toolbar buttons off-screen — both when manually
+  resizing and when a window reopens at a small size remembered from
+  before this fix.
+
+### Changed
+- **Guest Mode is now a single, permanent profile** instead of a
+  fresh throwaway one created (and deleted) on every use. It always
+  appears in the profile list, can't be deleted or renamed, and can't
+  set a PIN or change its own appearance — name, avatar, theme,
+  accent color and wallpaper are all locked in Settings while signed
+  in as Guest. Its appearance resets to fixed defaults every time it's
+  entered, incognito-style, so nothing a previous guest session
+  changed ever lingers.
+- The taskbar's separate notifications bell is gone — the clock button
+  on the right now opens the same panel (calendar + notifications),
+  carrying the unread badge itself. The panel now also shows the
+  current time with live seconds at the top, since the taskbar clock
+  itself only ticks by the minute.
+
 ## [2.9.2] - 2026-09-13
 
 **Critical fix — v2.9.1's fix was itself incomplete; the app could

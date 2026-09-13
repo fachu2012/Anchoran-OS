@@ -27,8 +27,27 @@ export interface Profile {
   isAdmin: boolean;
   /** The very first profile ever created on this PC. Always an admin; this can never be revoked, and only the owner may grant/revoke admin status on *other* profiles. Exactly one profile has this set. */
   isOwner: boolean;
-  /** A temporary session started from the lock screen's "Continue as Guest" — deleted the moment it's left (switching to another profile, or signing out), so its appearance changes never linger. App data itself (Notes, Files, …) is still shared across every profile, guest included — see the file-level note above on the scope of per-profile isolation. */
+  /** The single, permanent "Guest" profile started from the lock screen's "Continue as Guest" — always present, can never be deleted or renamed, and can't set a PIN or change its own appearance (accent, wallpaper, theme, avatar). Its fields are reset back to fixed defaults every time it's entered, incognito-style, so nothing from a previous guest session ever lingers. App data itself (Notes, Files, …) is still shared across every profile, guest included — see the file-level note above on the scope of per-profile isolation. */
   isGuest?: boolean;
+}
+
+/** The one, permanent Guest profile always shares this id — never a fresh timestamped one — so it can be found, reset, and protected from deletion reliably. */
+export const GUEST_PROFILE_ID = "guest-permanent";
+
+function defaultGuestProfile(): Profile {
+  return {
+    id: GUEST_PROFILE_ID,
+    name: "Guest",
+    avatarDataUrl: null,
+    lockPin: null,
+    accentColor: "#6E9BF7",
+    wallpaperId: "default",
+    customWallpaperDataUrl: null,
+    themeMode: "dark",
+    isAdmin: false,
+    isOwner: false,
+    isGuest: true,
+  };
 }
 
 const STORAGE_KEY = "profiles";
@@ -66,7 +85,7 @@ interface ProfilesState {
   activeProfileId: string;
   hydrated: boolean;
   createProfile: (name: string, isAdmin?: boolean) => string;
-  /** Creates and switches straight into a fresh, throwaway "Guest" profile — see Profile.isGuest above. */
+  /** Resets the permanent Guest profile back to its fixed defaults and switches into it — see Profile.isGuest above. */
   createGuestProfile: () => void;
   deleteProfile: (id: string) => void;
   renameProfile: (id: string, name: string) => void;
@@ -109,33 +128,28 @@ export const useProfilesStore = create<ProfilesState>((set, get) => ({
   },
 
   createGuestProfile: () => {
-    const id = `guest-${Date.now()}`;
-    let n = 1;
-    const existingNames = new Set(get().profiles.map((p) => p.name));
-    while (existingNames.has(n === 1 ? "Guest" : `Guest ${n}`)) n++;
-    const guest: Profile = {
-      id,
-      name: n === 1 ? "Guest" : `Guest ${n}`,
-      avatarDataUrl: null,
-      lockPin: null,
-      accentColor: "#6E9BF7",
-      wallpaperId: "default",
-      customWallpaperDataUrl: null,
-      themeMode: "dark",
-      isAdmin: false,
-      isOwner: false,
-      isGuest: true,
-    };
-    const profiles = [...get().profiles, guest];
-    set({ profiles });
-    persist(profiles, get().activeProfileId);
-    get().switchProfile(id);
+    const { profiles, activeProfileId } = get();
+    const fresh = defaultGuestProfile();
+    const next = profiles.some((p) => p.id === GUEST_PROFILE_ID)
+      ? profiles.map((p) => (p.id === GUEST_PROFILE_ID ? fresh : p))
+      : [...profiles, fresh];
+    set({ profiles: next });
+    persist(next, activeProfileId);
+    if (activeProfileId === GUEST_PROFILE_ID) {
+      // Already signed in as Guest (e.g. re-locked and hit "Continue as
+      // Guest" again without switching away) — switchProfile() below would
+      // no-op since the id isn't changing, so apply the reset directly.
+      applyToPreferences(fresh);
+    } else {
+      get().switchProfile(GUEST_PROFILE_ID);
+    }
   },
 
   deleteProfile: (id) => {
     const { profiles, activeProfileId } = get();
     if (profiles.length <= 1) return; // always keep at least one profile
-    if (profiles.find((p) => p.id === id)?.isOwner) return; // the owner profile can never be deleted
+    const target = profiles.find((p) => p.id === id);
+    if (target?.isOwner || target?.isGuest) return; // the owner and the permanent Guest profile can never be deleted
     const next = profiles.filter((p) => p.id !== id);
     if (activeProfileId === id) {
       // Switching away from the profile being deleted first.
@@ -146,6 +160,7 @@ export const useProfilesStore = create<ProfilesState>((set, get) => ({
   },
 
   renameProfile: (id, name) => {
+    if (get().profiles.find((p) => p.id === id)?.isGuest) return; // Guest's name is fixed
     const profiles = get().profiles.map((p) => (p.id === id ? { ...p, name } : p));
     set({ profiles });
     persist(profiles, get().activeProfileId);
@@ -208,7 +223,20 @@ Promise.all([
     profiles = profiles.map((p, i) => ({ ...p, isAdmin: p.isAdmin ?? i === 0, isOwner: i === 0 }));
     dirty = true;
   }
-  if (!profiles.some((p) => p.id === activeProfileId)) activeProfileId = profiles[0].id;
+  // Drop any leftover throwaway guest from before Guest became a single
+  // permanent profile (an old-style timestamped guest id could survive a
+  // crash mid-session), then make sure the one permanent Guest exists.
+  const cleanedProfiles = profiles.filter((p) => !p.isGuest || p.id === GUEST_PROFILE_ID);
+  if (cleanedProfiles.length !== profiles.length) {
+    profiles = cleanedProfiles;
+    if (activeProfileId && !profiles.some((p) => p.id === activeProfileId)) activeProfileId = "";
+    dirty = true;
+  }
+  if (!profiles.some((p) => p.id === GUEST_PROFILE_ID)) {
+    profiles = [...profiles, defaultGuestProfile()];
+    dirty = true;
+  }
+  if (!profiles.some((p) => p.id === activeProfileId)) activeProfileId = profiles.find((p) => !p.isGuest)?.id ?? profiles[0].id;
   if (dirty) {
     persistSet("config", STORAGE_KEY, profiles);
     persistSet("config", ACTIVE_KEY, activeProfileId);

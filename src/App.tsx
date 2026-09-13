@@ -25,6 +25,8 @@ import { useAnchoranStartupAppsStore, startupAppsReady } from "@/core/anchoranSt
 import { preloadFrequentApps } from "@/core/preloadFrequentApps";
 import { useSystemModeStore } from "@/desktop/systemModeStore";
 import { AnchoranFilePicker } from "@/core/AnchoranFilePicker";
+import { useProfilesStore } from "@/core/profilesStore";
+import { DeleteOwnProfileConfirm } from "@/applications/settings/DeleteOwnProfileConfirm";
 
 const WELCOMED_KEY = "welcomed";
 
@@ -42,6 +44,8 @@ export default function App() {
   // with the wrong (generic) status stages before this resolves.
   const [finishingUpdateVersion, setFinishingUpdateVersion] = useState<string | null | undefined>(undefined);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [deletingOwnProfileId, setDeletingOwnProfileId] = useState<string | null>(null);
+  const deletingOwnProfile = useProfilesStore((s) => s.profiles.find((p) => p.id === deletingOwnProfileId));
   const [pendingSaveImage, setPendingSaveImage] = useState<{ dataUrl: string; name: string } | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
 
@@ -182,12 +186,21 @@ export default function App() {
       const version = (e as CustomEvent<string>).detail;
       if (booted && version) setChangeToTheaterVersion(version);
     }
+    // Settings → Users' "Delete" on the profile you're actually signed
+    // in as right now — rendered here, not inside Settings' own window,
+    // so it's a true full-desktop takeover like the update-ready screen
+    // above, not confined to the Settings window's bounds.
+    function onRequestDeleteOwnProfile(e: Event) {
+      const profileId = (e as CustomEvent<string>).detail;
+      if (booted && profileId) setDeletingOwnProfileId(profileId);
+    }
     window.addEventListener("anchoran-request-lock", onRequestLock);
     window.addEventListener("anchoran-request-restart", onRequestRestart);
     window.addEventListener("anchoran-request-shutdown", onRequestShutdown);
     window.addEventListener("anchoran-request-sleep", onRequestSleep);
     window.addEventListener("anchoran-request-update-theater", onRequestUpdateTheater);
     window.addEventListener("anchoran-request-changeto-theater", onRequestChangeToTheater);
+    window.addEventListener("anchoran-request-delete-own-profile", onRequestDeleteOwnProfile);
     return () => {
       window.removeEventListener("anchoran-request-lock", onRequestLock);
       window.removeEventListener("anchoran-request-restart", onRequestRestart);
@@ -195,6 +208,7 @@ export default function App() {
       window.removeEventListener("anchoran-request-sleep", onRequestSleep);
       window.removeEventListener("anchoran-request-update-theater", onRequestUpdateTheater);
       window.removeEventListener("anchoran-request-changeto-theater", onRequestChangeToTheater);
+      window.removeEventListener("anchoran-request-delete-own-profile", onRequestDeleteOwnProfile);
     };
   }, [booted]);
 
@@ -331,6 +345,20 @@ export default function App() {
           ))}
         {showOnboarding && <Onboarding onComplete={onOnboardingDone} />}
         {locked && <LockScreen onUnlock={() => setLocked(false)} />}
+        {deletingOwnProfile && (
+          <DeleteOwnProfileConfirm
+            profile={deletingOwnProfile}
+            onCancel={() => setDeletingOwnProfileId(null)}
+            onConfirm={() => {
+              useProfilesStore.getState().deleteProfile(deletingOwnProfile.id);
+              setDeletingOwnProfileId(null);
+              // Never silently land you in whichever profile happened to
+              // be next — switching profiles only ever happens from the
+              // lock screen, matching Settings → Users' own stated rule.
+              setLocked(true);
+            }}
+          />
+        )}
         {updateReadyVersion && !exitMode && !updateTheaterVersion && (
           <UpdateReadyScreen
             version={updateReadyVersion}

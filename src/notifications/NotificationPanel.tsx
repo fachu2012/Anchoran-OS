@@ -1,9 +1,23 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useNotificationStore, type AnchoranNotification } from "./notificationStore";
 
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+/** The full current time, seconds included — the taskbar clock itself only ticks by the minute, so this panel (opened from that same clock) is where a precise read is actually available, same as a real OS's own clock flyout. */
+function LiveClock() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return (
+    <div style={{ padding: "2px 6px 8px", fontSize: 22, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>
+      {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+    </div>
+  );
 }
 
 /** A compact, read-only month calendar — the same "what's today, what's coming up this week" glance a real OS's own notification center gives you above the notifications themselves. */
@@ -116,6 +130,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
           transformOrigin: "bottom right",
         }}
       >
+        <LiveClock />
         <MiniCalendar />
         <div
           style={{

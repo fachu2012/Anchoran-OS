@@ -274,10 +274,6 @@ export function Taskbar({
               <span className="taskbar-dot" />
             </button>
           )}
-          <button className="taskbar-btn" onClick={onToggleNotifications} aria-label="Notifications">
-            <Icon name="notification" size={16} />
-            {notificationCount > 0 && <span className="taskbar-badge">{notificationCount}</span>}
-          </button>
           <button
             className="taskbar-btn taskbar-tray-btn"
             onClick={() => setQuickSettingsOpen((v) => !v)}
@@ -291,7 +287,10 @@ export function Taskbar({
               {status.batterySupported && <span className="taskbar-battery-label">{batteryPercent}%</span>}
             </div>
           </button>
-          <Clock />
+          <button className="taskbar-btn taskbar-clock-btn" onClick={onToggleNotifications} aria-label="Date, time and notifications">
+            <Clock />
+            {notificationCount > 0 && <span className="taskbar-badge">{notificationCount}</span>}
+          </button>
         </div>
 
         <div className="taskbar-divider" />

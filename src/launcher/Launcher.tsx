@@ -13,7 +13,6 @@ import { useAppUsageStore } from "@/core/appUsageStore";
 import { useBrowserStore } from "@/applications/browser/browserStore";
 import { persistGet, persistSet } from "@/core/persist";
 import { useShortcutsStore } from "@/desktop/shortcutsStore";
-import { useProfilesStore } from "@/core/profilesStore";
 import "./launcher.css";
 
 // Mirrors Settings.tsx's SECTIONS — kept here as a plain list rather
@@ -390,9 +389,8 @@ export function Launcher({
 
   function signOut() {
     useWindowStore.getState().closeAllWindows();
-    const { profiles, activeProfileId, deleteProfile } = useProfilesStore.getState();
-    const active = profiles.find((p) => p.id === activeProfileId);
-    if (active?.isGuest) deleteProfile(active.id);
+    // Guest is a single permanent profile — it stays in the list and
+    // resets itself the next time it's entered, nothing to clean up here.
     onLock();
   }
 
