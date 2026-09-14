@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { RANKING_ROWS, windowsEquivalent, type RankingRow } from "./releaseRankingData";
+import { RANKING_ROWS, windowsEquivalent, bestPerWindowsEra, type RankingRow } from "./releaseRankingData";
 import { simplifiedLabelFor } from "@/core/buildNumber";
 import "@/applications/apps.css";
 
@@ -24,6 +24,7 @@ const BAND_COLOR: Record<"good" | "mid" | "low", string> = {
 export function ReleaseRankingApp() {
   const [query, setQuery] = useState("");
   const sorted = useMemo(() => [...RANKING_ROWS].sort((a, b) => b[2] - a[2]), []);
+  const eraPicks = useMemo(() => bestPerWindowsEra(RANKING_ROWS), []);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sorted;
@@ -92,6 +93,55 @@ export function ReleaseRankingApp() {
               <div style={{ fontSize: 11.5, color: "var(--anchoran-text-secondary)", marginTop: 3 }}>{s.d}</div>
             </div>
           ))}
+        </div>
+
+        <div style={{ margin: "22px 0" }}>
+          <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: 0.06, color: "var(--anchoran-text-secondary)", marginBottom: 8 }}>
+            Best Anchoran pick, per Windows-era comparison
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {eraPicks.map(({ windowsEra, row }) => {
+              const band = scoreBand(row[2]);
+              return (
+                <div
+                  key={windowsEra}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "var(--anchoran-surface)",
+                    border: "1px solid var(--anchoran-border)",
+                    borderRadius: 999,
+                    padding: "6px 12px 6px 6px",
+                    fontSize: 12,
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 24,
+                      height: 22,
+                      padding: "0 6px",
+                      borderRadius: 999,
+                      fontFamily: "Cascadia Code, Consolas, monospace",
+                      fontWeight: 700,
+                      fontSize: 11,
+                      color: BAND_COLOR[band],
+                      background: `color-mix(in srgb, ${BAND_COLOR[band]} 16%, transparent)`,
+                    }}
+                  >
+                    {row[2]}
+                  </span>
+                  <span style={{ color: "var(--anchoran-text-secondary)" }}>{windowsEra}</span>
+                  <span style={{ fontFamily: "Cascadia Code, Consolas, monospace", fontWeight: 600 }}>
+                    {simplifiedLabelFor(row[0])}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12, color: "var(--anchoran-text-secondary)", margin: "8px 0 14px" }}>

@@ -131,3 +131,42 @@ export function windowsEquivalent(v: string): string {
   if (cmp("1.3.0") >= 0) return "Windows 3.1";
   return "Windows 2.0";
 }
+
+/** Every windowsEquivalent() output, in the order its own if-chain checks them — newest/best-regarded Anchoran era first. */
+export const WINDOWS_ERA_ORDER = [
+  "Windows 11",
+  "Windows 10",
+  "Windows Vista",
+  "Windows 7",
+  "Windows XP (no Service Pack)",
+  "Windows XP SP2",
+  "Windows 8",
+  "Windows Me",
+  "Windows 98",
+  "Windows 95",
+  "Windows 3.1",
+  "Windows 2.0",
+] as const;
+
+export interface BestPerEraEntry {
+  windowsEra: string;
+  row: RankingRow;
+}
+
+/**
+ * For each Windows-equivalent era, the single best-scoring Anchoran
+ * version that falls into it (ties broken by whichever comes first in
+ * RANKING_ROWS, which is itself already sorted best-to-worst by the
+ * ranking UI) — "if you had to pick one Anchoran release to represent
+ * this whole era, which is it". Skips any era nothing in RANKING_ROWS
+ * actually maps to.
+ */
+export function bestPerWindowsEra(rows: RankingRow[]): BestPerEraEntry[] {
+  const byEra = new Map<string, RankingRow>();
+  for (const row of rows) {
+    const era = windowsEquivalent(row[0]);
+    const current = byEra.get(era);
+    if (!current || row[2] > current[2]) byEra.set(era, row);
+  }
+  return WINDOWS_ERA_ORDER.filter((era) => byEra.has(era)).map((era) => ({ windowsEra: era, row: byEra.get(era)! }));
+}
