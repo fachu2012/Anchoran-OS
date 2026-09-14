@@ -205,7 +205,7 @@ export function AppCenterApp() {
                 <div>
                   <h2 style={{ margin: 0, fontWeight: 500 }}>{selectedPlugin.title}</h2>
                   <div className="webstore-detail-category">
-                    Community · v{selectedPlugin.version} · requires Anchoran{" "}
+                    Community · v{selectedPlugin.version} · by {selectedPlugin.author ?? "Unknown"} · requires Anchoran{" "}
                     {compareVersions(ANCHORAN_VERSION, selectedPlugin.minAnchoranVersion) < 0
                       ? `v${selectedPlugin.minAnchoranVersion}+ (you're on an older build)`
                       : `v${selectedPlugin.minAnchoranVersion}+`}
@@ -251,6 +251,7 @@ export function AppCenterApp() {
                     <div className="webstore-card-body">
                       <div className="webstore-card-title">{plugin.title}</div>
                       <div className="webstore-card-desc">{plugin.description}</div>
+                      <div className="webstore-card-author">by {plugin.author ?? "Unknown"}</div>
                     </div>
                     <button
                       className="app-toolbar-btn"

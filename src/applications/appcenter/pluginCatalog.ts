@@ -15,6 +15,8 @@ export interface PluginManifest {
   version: string;
   minAnchoranVersion: string;
   entry: string;
+  /** Who publishes this plugin — shown in the Webstore's detail view. Optional: an older catalog entry (or a locally-authored one from Code Studio before it's published) may not set one. */
+  author?: string;
 }
 
 const REPO = "fachu2012/Anchoran-Webstore";

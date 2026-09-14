@@ -126,6 +126,13 @@
   white-space: nowrap;
 }
 
+.webstore-card-author {
+  font-size: 10.5px;
+  color: var(--anchoran-text-secondary);
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
 .webstore-detail {
   max-width: 480px;
 }
