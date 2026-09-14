@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { RANKING_ROWS, windowsEquivalent, type RankingRow } from "./releaseRankingData";
+import { simplifiedLabelFor } from "@/core/buildNumber";
 import "@/applications/apps.css";
 
 function scoreBand(score: number): "good" | "mid" | "low" {
@@ -70,7 +71,7 @@ export function ReleaseRankingApp() {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, margin: "22px 0" }}>
           {[
             { k: "Best of the whole history", v: "2.6.13 — 10/10", d: "zero documented open bugs, and the (still shaky) app embed doesn't exist yet" },
-            { k: "Best recommendation today", v: "3.4.0 — 9/10", d: "the newest stable, no known open bugs" },
+            { k: "Best recommendation today", v: `${simplifiedLabelFor("3.4.0")} — 9/10`, d: "the newest stable, no known open bugs" },
             { k: "Avoid at all costs", v: "2.8.9 → 2.9.1", d: "6 versions in a row with a real boot crash — disabled on GitHub" },
             { k: "Rock bottom (tie)", v: "alpha.5 & 2.8.9–2.9.1", d: "1/10 · Settings broken + non-silent updates, or an app that just doesn't boot" },
           ].map((s) => (
@@ -216,7 +217,10 @@ function RowGroup({
           {rank}
         </td>
         <td style={{ padding: "9px 8px", fontFamily: "Cascadia Code, Consolas, monospace", fontWeight: 600, whiteSpace: "nowrap", verticalAlign: "top" }}>
-          {version}
+          {/* Old-style versions (v3.0.0 and earlier) never had a build-number
+              form to begin with, so simplifiedLabelFor keeps showing those as
+              plain "vX.Y.Z" — only versions after v3.0.0 switch to "Build-#H#.#". */}
+          {simplifiedLabelFor(version)}
           <span style={{ display: "block", fontWeight: 400, color: "var(--anchoran-text-secondary)", fontSize: 10.5, marginTop: 2 }}>{date}</span>
         </td>
         <td style={{ padding: "9px 8px", fontSize: 11.5, color: "var(--anchoran-text-secondary)", whiteSpace: "nowrap", verticalAlign: "top" }}>
