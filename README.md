@@ -184,8 +184,17 @@ palette; on success it launches `AnchoranOS.exe` and closes itself.
 
 ## Anchoran App SDK — third-party plugin apps
 
-The ~70 apps under `src/applications/` all ship *inside* Anchoran OS's own
-build — adding or updating one of those needs a new Anchoran OS release.
+As of v3.4.0, only ~21 apps under `src/applications/` still ship *inside*
+Anchoran OS's own build — genuine OS chrome (Files, Terminal, Settings, the
+Webstore itself, …), a handful of apps wired in as Files'/Launcher's own
+default file-type/URL handlers (notes, photoViewer, mediaPlayer, browser),
+and apps that need privileged host access a plugin can't have (System
+Monitor, Recycle Bin, Startup Apps, …). Every simple utility and game app
+that used to live here (45 of them) moved out to standalone Webstore
+plugins in the v3.4.0 migration — see CHANGELOG.md for the full list and
+`src/core/legacyAppIds.ts` for the old-id → new-plugin mapping.
+
+Adding or updating a still-bundled app needs a new Anchoran OS release.
 Third-party plugin apps are the opposite: they live in a completely separate
 repo, [Anchoran-Webstore](https://github.com/fachu2012/Anchoran-Webstore),
 versioned and released on its own, and Anchoran OS downloads one only when
@@ -206,8 +215,10 @@ privileged `anchoran-plugin://` protocol (registered in `electron/main.ts`)
 rather than a raw `file://` import, since Chromium can block a cross-path
 `file://` ES module fetch under the default `webSecurity` Anchoran runs with.
 
-This is a first, deliberately small pilot (one example plugin, one SDK
-version) — the SDK only ever grows in backward-compatible ways from here.
+The pilot ("Hello, Anchoran") proved the pipeline end to end in v3.3.6; the
+v3.4.0 migration is what actually populated the catalog for real — 37
+plugins as of Anchoran-Webstore v2.0.0. Still just SDK v1.0.0 — it only ever
+grows in backward-compatible ways from here.
 
 ## CI/CD
 
