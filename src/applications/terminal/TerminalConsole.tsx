@@ -713,22 +713,33 @@ export function TerminalConsole({
               // include a space before its I.P.U. marker ("3H0.3 I.P.U."),
               // which the command line splits into separate args.
               const target = resolveVersionTarget(subRest, installable);
+              // simplifiedLabelFor()'s own channel auto-detection only
+              // recognizes the internal "-beta" suffix (see
+              // buildNumber.ts) — `target` here is the real git tag
+              // text instead, which always says "-IPU", so that
+              // auto-detection never fires and silently drops the
+              // "I.P.U." label. Tell it explicitly instead.
+              const targetChannel: "insider" | "stable" | undefined = target
+                ? /-IPU$/i.test(target)
+                  ? "insider"
+                  : "stable"
+                : undefined;
               if (!target) {
                 print(
                   `anchoran changeto: "${subRest}" isn't an installable release. Run "anchoran changeto" with no arguments to see the list.`
                 );
               } else if (target === ANCHORAN_VERSION) {
-                print(`anchoran changeto: ${simplifiedLabelFor(target)} is already the version running.`);
+                print(`anchoran changeto: ${simplifiedLabelFor(target, targetChannel)} is already the version running.`);
               } else if (needsDataWipeFor(target)) {
                 pendingChangeToWipeTarget.current = target;
                 print(
-                  `⚠ ${simplifiedLabelFor(target)} predates the v2.9.2 encryption fix. Your local Anchoran data is already encrypted, and that old version can't read it — it would fail to start.\n` +
-                    `Continuing will PERMANENTLY DELETE your local Anchoran data (preferences, the files list, everything Anchoran itself stores — not your real files) before installing ${simplifiedLabelFor(target)}.\n` +
+                  `⚠ ${simplifiedLabelFor(target, targetChannel)} predates the v2.9.2 encryption fix. Your local Anchoran data is already encrypted, and that old version can't read it — it would fail to start.\n` +
+                    `Continuing will PERMANENTLY DELETE your local Anchoran data (preferences, the files list, everything Anchoran itself stores — not your real files) before installing ${simplifiedLabelFor(target, targetChannel)}.\n` +
                     `Type "delete" to confirm, or anything else to cancel.`
                 );
               } else {
                 pendingChangeTo.current = target;
-                print(`Change to ${simplifiedLabelFor(target)}? Anchoran will close and reopen on that version. [y/n]`);
+                print(`Change to ${simplifiedLabelFor(target, targetChannel)}? Anchoran will close and reopen on that version. [y/n]`);
               }
             }
           } catch {

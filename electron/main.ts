@@ -1857,8 +1857,21 @@ ipcMain.handle("anchoran:changeto-download", async (_event, rawVersion: string) 
     return { success: false, error: "Invalid version." };
   }
 
-  const assetUrl = `https://github.com/fachu2012/Anchoran-OS/releases/download/v${version}/AnchoranOS-UpdatePackage-${version}.exe`;
-  const destPath = path.join(app.getPath("temp"), `AnchoranOS-UpdatePackage-${version}.exe`);
+  // `version` here is the real git tag text (e.g. "3.5.1-IPU" — the
+  // release path always uses that, unconditionally, below). But the
+  // actual installer FILE that CI built and uploaded for an I.P.U.
+  // release is named after package.json's version at build time,
+  // which the "Set I.P.U. version suffix" workflow step rewrote to
+  // carry "-beta" instead (same split as everywhere else this session:
+  // visible tag says "-IPU", internal build version says "-beta") —
+  // so the filename has to be reconstructed from the base version,
+  // not read straight off the tag, or this 404s on every I.P.U.
+  const isIPUTag = /-IPU$/i.test(version);
+  const baseVersion = version.replace(/-IPU$/i, "");
+  const fileVersion = isIPUTag ? `${baseVersion}-beta` : baseVersion;
+
+  const assetUrl = `https://github.com/fachu2012/Anchoran-OS/releases/download/v${version}/AnchoranOS-UpdatePackage-${fileVersion}.exe`;
+  const destPath = path.join(app.getPath("temp"), `AnchoranOS-UpdatePackage-${fileVersion}.exe`);
 
   try {
     sendChangeToStatus({ state: "downloading", percent: 0 });
