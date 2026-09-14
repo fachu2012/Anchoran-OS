@@ -11,6 +11,7 @@ import { AdminPinPrompt } from "@/core/AdminPinPrompt";
 import type { AppCategory, AppId, AppDefinition } from "@/core/types";
 import { ANCHORAN_SIMPLIFIED_VERSION, compareVersions } from "@/core/buildNumber";
 import { ANCHORAN_VERSION } from "@/core/version";
+import { renderMarkdown } from "@/core/markdown";
 import "@/applications/apps.css";
 import "./webstore.css";
 
@@ -53,6 +54,8 @@ export function AppCenterApp() {
   const [installedPlugins, setInstalledPlugins] = useState<Set<string>>(new Set());
   const [selectedPlugin, setSelectedPlugin] = useState<PluginManifest | null>(null);
   const [pluginBusy, setPluginBusy] = useState<string | null>(null);
+  const [webstoreChangelog, setWebstoreChangelog] = useState<string | null>(null);
+  const [webstoreChangelogLoading, setWebstoreChangelogLoading] = useState(false);
 
   useEffect(() => {
     fetchWebstoreCatalog().then(({ apps, isRemote }) => {
@@ -66,6 +69,25 @@ export function AppCenterApp() {
       setInstalledPlugins(new Set(list.filter((_, i) => checks[i]).map((p) => p.id)));
     });
   }, []);
+
+  // The Webstore's own release notes — a totally separate CHANGELOG.md
+  // from Anchoran OS's own (fetched by Settings' "What's new"), read
+  // live from the Anchoran-Webstore repo since that's what its
+  // catalog.json/plugin versions actually track. Same read-only
+  // markdown panel as Settings' "What's new", just pointed at a
+  // different repo.
+  async function showWebstoreChangelog() {
+    setWebstoreChangelogLoading(true);
+    try {
+      const res = await fetch("https://raw.githubusercontent.com/fachu2012/Anchoran-Webstore/main/CHANGELOG.md");
+      if (!res.ok) throw new Error(String(res.status));
+      setWebstoreChangelog(await res.text());
+    } catch {
+      setWebstoreChangelog("Couldn't reach GitHub to fetch the Webstore's changelog.");
+    } finally {
+      setWebstoreChangelogLoading(false);
+    }
+  }
 
   async function onInstallPlugin(plugin: PluginManifest) {
     if (!window.anchoran) return;
@@ -135,6 +157,9 @@ export function AppCenterApp() {
             {c}
           </button>
         ))}
+        <button className="app-toolbar-btn" style={{ margin: "8px 10px 0" }} onClick={showWebstoreChangelog} disabled={webstoreChangelogLoading}>
+          Changelog
+        </button>
         <div className="webstore-catalog-note">
           {isRemoteCatalog
             ? `Catalog for Anchoran ${ANCHORAN_SIMPLIFIED_VERSION}`
@@ -142,6 +167,31 @@ export function AppCenterApp() {
         </div>
         <div className="webstore-version-stamp">Anchoran Webstore · {ANCHORAN_SIMPLIFIED_VERSION}</div>
       </div>
+      {webstoreChangelog !== null && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 900, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => setWebstoreChangelog(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(90%, 560px)",
+              maxHeight: "78vh",
+              overflowY: "auto",
+              background: "var(--anchoran-surface)",
+              borderRadius: "var(--anchoran-radius-lg)",
+              boxShadow: "var(--anchoran-shadow-window)",
+              padding: 22,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 500 }}>Changelog</span>
+              <button className="app-toolbar-btn" onClick={() => setWebstoreChangelog(null)}>Close</button>
+            </div>
+            <div className="notes-preview" style={{ padding: 0 }} dangerouslySetInnerHTML={{ __html: renderMarkdown(webstoreChangelog) }} />
+          </div>
+        </div>
+      )}
 
       <div className="webstore-main">
         {category === "Community" ? (
