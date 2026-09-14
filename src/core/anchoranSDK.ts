@@ -4,6 +4,8 @@ import { Icon } from "@/components/Icon";
 import { IconTile } from "@/components/IconTile";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { usePreferencesStore } from "@/theme/preferencesStore";
+import { useWindowStore } from "@/windowmanager/windowStore";
+import type { AppId } from "@/core/types";
 
 /**
  * Anchoran's public plugin API — the one surface a third-party app is
@@ -34,6 +36,18 @@ export interface AnchoranSDK {
   pushNotification: (title: string, message: string) => void;
   getAccentColor: () => string;
   getThemeMode: () => "light" | "dark";
+  /**
+   * Opens any Anchoran window, including another `pluginHost` window —
+   * how Anchoran Code Studio's "Open in Window" runs the project it's
+   * editing in a real, separate Anchoran window instead of only its
+   * own embedded preview, by reusing the exact same `pluginHost` +
+   * `ctx.openPath` mechanism the Webstore's "My Creations" already
+   * uses to open a specific local project. `appId` is intentionally a
+   * plain string, not Anchoran's own internal AppId union — a plugin
+   * has no business knowing that type exists, only that "pluginHost"
+   * is the one that opens plugin code. Returns the new window's id.
+   */
+  openApp: (appId: string, options?: { pluginId?: string; title?: string; openPath?: string }) => string;
 }
 
 /**
@@ -73,6 +87,7 @@ export function installAnchoranSDK(): void {
     pushNotification: (title, message) => useNotificationStore.getState().push(title, message),
     getAccentColor: () => usePreferencesStore.getState().accentColor,
     getThemeMode: () => usePreferencesStore.getState().themeMode,
+    openApp: (appId, options) => useWindowStore.getState().openApp(appId as AppId, options),
   };
   (window as unknown as { AnchoranSDK: AnchoranSDK }).AnchoranSDK = installed;
 }
