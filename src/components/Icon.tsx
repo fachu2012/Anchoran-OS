@@ -114,7 +114,8 @@ export type IconName =
   | "desktop"
   | "taskView"
   | "star"
-  | "info";
+  | "info"
+  | "edit";
 
 const PATHS: Record<IconName, string> = {
   files:
@@ -257,6 +258,7 @@ const PATHS: Record<IconName, string> = {
   taskView: "M4 5h9v6.5H4V5Zm11 2.5h5V15h-5V7.5ZM4 14h9v5H4v-5Z",
   star: "M12 3.5l2.6 5.4 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.2 5.9-.8L12 3.5Z",
   info: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-9.5v5M12 7.7h.01",
+  edit: "M4 20.5 5 16 15.5 5.5a2 2 0 0 1 2.8 0l1.2 1.2a2 2 0 0 1 0 2.8L9.5 19 4 20.5Z M14 7l3 3",
 };
 
 export function Icon({

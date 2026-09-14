@@ -15,7 +15,7 @@ import { renderMarkdown } from "@/core/markdown";
 import "@/applications/apps.css";
 import "./webstore.css";
 
-const CATEGORIES: (AppCategory | "All" | "Community")[] = [
+const CATEGORIES: (AppCategory | "All" | "Community" | "My Creations")[] = [
   "All",
   "System",
   "Productivity",
@@ -23,7 +23,48 @@ const CATEGORIES: (AppCategory | "All" | "Community")[] = [
   "Internet",
   "Games",
   "Community",
+  "My Creations",
 ];
+
+/**
+ * Plugins that, once installed, can never be uninstalled from here —
+ * the plugin-catalog equivalent of a core app's PROTECTED_APP_IDS.
+ * Just Anchoran Code Studio for now: it's the tool the rest of "My
+ * Creations" depends on, so removing it would strand every local
+ * project with no way to open or edit them again.
+ */
+const PROTECTED_PLUGIN_IDS = new Set(["code-studio"]);
+
+/**
+ * Anchoran Code Studio's own local-project index — a small, separate
+ * contract between it and this Webstore, not part of the Anchoran App
+ * SDK itself: Code Studio keeps this key updated with one lightweight
+ * entry per project the user has created or forked locally (full file
+ * trees live under their own "anchoran-plugin:code-studio:project:
+ * <id>" key, untouched here). "My Creations" reads it directly since
+ * every Anchoran window shares the same localStorage origin — no IPC
+ * needed for something this local.
+ */
+const CODE_STUDIO_PROJECTS_KEY = "anchoran-plugin:code-studio:projects";
+
+interface LocalCreation {
+  id: string;
+  name: string;
+  description?: string;
+  /** A data: URL from an imported image, or empty/absent for the default icon. */
+  icon?: string;
+}
+
+function readLocalCreations(): LocalCreation[] {
+  try {
+    const raw = localStorage.getItem(CODE_STUDIO_PROJECTS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((p) => p && typeof p.id === "string" && typeof p.name === "string") : [];
+  } catch {
+    return [];
+  }
+}
 
 /**
  * All apps ship built into this version of Anchoran; "install" is a
@@ -57,6 +98,13 @@ export function AppCenterApp() {
   const [webstoreChangelog, setWebstoreChangelog] = useState<string | null>(null);
   const [webstoreChangelogLoading, setWebstoreChangelogLoading] = useState(false);
 
+  // "My Creations" — local-only Code Studio projects. Re-read whenever
+  // this tab becomes active, since they change from inside a totally
+  // separate plugin window (Code Studio), not from anything AppCenter
+  // itself does — a mount-only read would go stale the moment someone
+  // creates, renames, or deletes a project and comes back here.
+  const [creations, setCreations] = useState<LocalCreation[]>([]);
+
   useEffect(() => {
     fetchWebstoreCatalog().then(({ apps, isRemote }) => {
       setCatalog(apps);
@@ -69,6 +117,22 @@ export function AppCenterApp() {
       setInstalledPlugins(new Set(list.filter((_, i) => checks[i]).map((p) => p.id)));
     });
   }, []);
+
+  useEffect(() => {
+    if (category === "My Creations") setCreations(readLocalCreations());
+  }, [category]);
+
+  function openCreation(creation: LocalCreation) {
+    openApp("pluginHost", { pluginId: "code-studio", title: creation.name, openPath: creation.id });
+  }
+
+  function deleteCreation(creation: LocalCreation) {
+    const next = readLocalCreations().filter((c) => c.id !== creation.id);
+    localStorage.setItem(CODE_STUDIO_PROJECTS_KEY, JSON.stringify(next));
+    localStorage.removeItem(`anchoran-plugin:code-studio:project:${creation.id}`);
+    setCreations(next);
+    pushNotification("Anchoran Webstore", `"${creation.name}" was deleted.`);
+  }
 
   // The Webstore's own release notes — a totally separate CHANGELOG.md
   // from Anchoran OS's own (fetched by Settings' "What's new"), read
@@ -103,6 +167,10 @@ export function AppCenterApp() {
   }
 
   async function onUninstallPlugin(plugin: PluginManifest) {
+    if (PROTECTED_PLUGIN_IDS.has(plugin.id)) {
+      pushNotification("Anchoran Webstore", `${plugin.title} is a core tool and can't be uninstalled.`);
+      return;
+    }
     if (!window.anchoran) return;
     setPluginBusy(plugin.id);
     const result = await window.anchoran.pluginUninstall(plugin.id);
@@ -222,13 +290,15 @@ export function AppCenterApp() {
                     >
                       Open
                     </button>
-                    <button
-                      className="app-toolbar-btn"
-                      disabled={pluginBusy === selectedPlugin.id}
-                      onClick={() => onUninstallPlugin(selectedPlugin)}
-                    >
-                      Uninstall
-                    </button>
+                    {!PROTECTED_PLUGIN_IDS.has(selectedPlugin.id) && (
+                      <button
+                        className="app-toolbar-btn"
+                        disabled={pluginBusy === selectedPlugin.id}
+                        onClick={() => onUninstallPlugin(selectedPlugin)}
+                      >
+                        Uninstall
+                      </button>
+                    )}
                   </>
                 ) : (
                   <button
@@ -274,6 +344,49 @@ export function AppCenterApp() {
               )}
             </div>
           )
+        ) : category === "My Creations" ? (
+          <div className="webstore-grid">
+            {creations.map((creation) => (
+              <div className="webstore-card" key={creation.id} onClick={() => openCreation(creation)}>
+                {creation.icon ? (
+                  <img src={creation.icon} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                ) : (
+                  <IconTile name="jsonFormatter" size={40} glyphScale={0.5} />
+                )}
+                <div className="webstore-card-body">
+                  <div className="webstore-card-title">{creation.name}</div>
+                  <div className="webstore-card-desc">{creation.description || "No description yet."}</div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button
+                    className="app-toolbar-btn"
+                    aria-label={`Edit ${creation.name} in Code Studio`}
+                    title="Edit in Code Studio"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openCreation(creation);
+                    }}
+                  >
+                    <Icon name="edit" size={14} />
+                  </button>
+                  <button
+                    className="app-toolbar-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteCreation(creation);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+            {creations.length === 0 && (
+              <div style={{ color: "var(--anchoran-text-secondary)", fontSize: 13, padding: 20 }}>
+                Nothing here yet — build your own local app in Anchoran Code Studio (Community) and it shows up here.
+              </div>
+            )}
+          </div>
         ) : detail ? (
           <div className="webstore-detail">
             <button className="webstore-back" onClick={() => setSelected(null)}>

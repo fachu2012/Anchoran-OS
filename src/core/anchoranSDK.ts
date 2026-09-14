@@ -47,7 +47,16 @@ export interface AnchoranSDK {
  * an unrelated widget.
  */
 export interface AnchoranPluginModule {
-  mount: (container: HTMLElement, sdk: AnchoranSDK, ctx: { windowId: string }) => () => void;
+  /**
+   * `ctx.openPath`, when set, is whatever the window that opened this
+   * plugin was told to open — the same generic mechanism Files uses to
+   * tell Notes/Photo Viewer/Code Runner which file to load. For a
+   * plugin like Anchoran Code Studio, the Webstore's "My Creations"
+   * section uses this to hand over a specific local project's id so
+   * Code Studio opens straight into it instead of its own picker —
+   * entirely optional, most plugins never look at it.
+   */
+  mount: (container: HTMLElement, sdk: AnchoranSDK, ctx: { windowId: string; openPath?: string }) => () => void;
 }
 
 let installed: AnchoranSDK | null = null;

@@ -12,7 +12,16 @@ import "@/applications/apps.css";
  * reopened by a saved layout even after an uninstall) and call its
  * exported `mount()`, handing it a real DOM node and the shared SDK.
  */
-export function PluginHostApp({ windowId, pluginId }: { windowId?: string; pluginId?: string }) {
+export function PluginHostApp({
+  windowId,
+  pluginId,
+  openPath,
+}: {
+  windowId?: string;
+  pluginId?: string;
+  /** Forwarded straight into the plugin's mount() as ctx.openPath — see anchoranSDK.ts. */
+  openPath?: string;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +59,7 @@ export function PluginHostApp({ windowId, pluginId }: { windowId?: string; plugi
           return;
         }
         const sdk = (window as unknown as { AnchoranSDK: AnchoranSDK }).AnchoranSDK;
-        unmount = mod.mount(containerRef.current, sdk, { windowId });
+        unmount = mod.mount(containerRef.current, sdk, { windowId, openPath });
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       }
@@ -60,7 +69,7 @@ export function PluginHostApp({ windowId, pluginId }: { windowId?: string; plugi
       cancelled = true;
       unmount?.();
     };
-  }, [pluginId, windowId]);
+  }, [pluginId, windowId, openPath]);
 
   if (error) {
     return (
