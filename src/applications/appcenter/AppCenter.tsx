@@ -4,10 +4,9 @@ import { IconTile } from "@/components/IconTile";
 import { APP_LIST } from "@/applications/registry";
 import { fetchWebstoreCatalog } from "@/applications/webstoreRegistry";
 import { fetchPluginCatalog, type PluginManifest } from "@/applications/appcenter/pluginCatalog";
-import { useInstalledAppsStore, isProtectedApp, isCoreApp } from "@/applications/installedAppsStore";
+import { useInstalledAppsStore, isProtectedApp } from "@/applications/installedAppsStore";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
-import { AdminPinPrompt } from "@/core/AdminPinPrompt";
 import type { AppCategory, AppId, AppDefinition } from "@/core/types";
 import { ANCHORAN_SIMPLIFIED_VERSION, compareVersions } from "@/core/buildNumber";
 import { ANCHORAN_VERSION } from "@/core/version";
@@ -198,17 +197,15 @@ export function AppCenterApp() {
   }, [apps, query, category]);
 
   const detail = selected ? apps.find((a) => a.id === selected) : null;
-  const [uninstallPin, setUninstallPin] = useState<AppDefinition | null>(null);
 
   function onInstall(app: AppDefinition) {
     install(app.id);
     pushNotification("Anchoran Webstore", `${app.title} was installed.`);
   }
   function onUninstall(app: AppDefinition) {
-    if (isProtectedApp(app.id)) {
-      setUninstallPin(app);
-      return;
-    }
+    // Protected apps (see installedAppsStore.ts) never show an
+    // Uninstall button in the first place — this only ever runs for
+    // an app the user chose to install themselves.
     uninstall(app.id);
     pushNotification("Anchoran Webstore", `${app.title} was uninstalled.`);
   }
@@ -406,9 +403,9 @@ export function AppCenterApp() {
                   <button className="app-toolbar-btn" onClick={() => openApp(detail.id)}>
                     Open
                   </button>
-                  {!isCoreApp(detail.id) && (
+                  {!isProtectedApp(detail.id) && (
                     <button className="app-toolbar-btn" onClick={() => onUninstall(detail)}>
-                      {isProtectedApp(detail.id) ? "Uninstall… (requires admin PIN)" : "Uninstall"}
+                      Uninstall
                     </button>
                   )}
                 </>
@@ -451,17 +448,6 @@ export function AppCenterApp() {
           </div>
         )}
       </div>
-
-      {uninstallPin && (
-        <AdminPinPrompt
-          onCancel={() => setUninstallPin(null)}
-          onSuccess={() => {
-            uninstall(uninstallPin.id, { force: true });
-            pushNotification("Anchoran Webstore", `${uninstallPin.title} was uninstalled.`);
-            setUninstallPin(null);
-          }}
-        />
-      )}
     </div>
   );
 }

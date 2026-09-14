@@ -36,17 +36,24 @@ const DEFAULT_OPTIONAL_INSTALLED: AppId[] = [
 ];
 const DEFAULT_INSTALLED: AppId[] = [...CORE_APP_IDS, ...DEFAULT_OPTIONAL_INSTALLED];
 
-// Every app installed by default — core or not — is protected from
-// uninstall. Only apps the user chose to install from the Webstore
-// themselves can be removed again.
+// Every app installed by default — core or not — is genuinely
+// permanent: no PIN, no admin override, nothing uninstalls it. These
+// are exactly the apps a real OS never lets you remove either (a file
+// explorer, the system monitor, the recycle bin, the default photo/
+// media viewer a real file type is wired to) — not because Anchoran
+// enforces some arbitrary policy, but because removing one would
+// leave the desktop in a state that doesn't make sense to use, the
+// same reasoning Windows itself applies to File Explorer or the
+// Recycle Bin. Only apps the user chose to install from the Webstore
+// themselves can ever be removed again.
 const PROTECTED_APP_IDS = new Set<AppId>(DEFAULT_INSTALLED);
 
-/** Whether an app is installed by default — for UI (e.g. requiring a PIN before the Uninstall button does anything). */
+/** Whether an app is installed by default and can never be uninstalled — see PROTECTED_APP_IDS. Used for UI (hiding the Uninstall action entirely, not just gating it behind a PIN). */
 export function isProtectedApp(appId: AppId): boolean {
   return PROTECTED_APP_IDS.has(appId);
 }
 
-/** The genuine "this would brick the desktop shell" apps — Files, Terminal, Settings, the Webstore. These can never be uninstalled, PIN or not. */
+/** The genuine "this would brick the desktop shell" apps — Files, Terminal, Settings, the Webstore. Same permanence as every other isProtectedApp() app now, kept as its own check for places that specifically mean "the shell itself" rather than "installed by default". */
 export function isCoreApp(appId: AppId): boolean {
   return CORE_APP_IDS.includes(appId);
 }
@@ -56,8 +63,8 @@ interface InstalledAppsState {
   hydrated: boolean;
   isInstalled: (appId: AppId) => boolean;
   install: (appId: AppId) => void;
-  /** Pass `force: true` (only after a real admin PIN check — see AdminPinPrompt) to remove a default-installed-but-not-core app. Core apps never uninstall, forced or not. */
-  uninstall: (appId: AppId, options?: { force?: boolean }) => void;
+  /** No PIN, no admin override, no exceptions — see PROTECTED_APP_IDS. Only ever removes an app the user installed themselves from the Webstore. */
+  uninstall: (appId: AppId) => void;
 }
 
 function persist(installed: Set<AppId>) {
@@ -77,9 +84,8 @@ export const useInstalledAppsStore = create<InstalledAppsState>((set, get) => ({
     persist(installed);
   },
 
-  uninstall: (appId, options) => {
-    if (CORE_APP_IDS.includes(appId)) return; // never removable, PIN or not
-    if (PROTECTED_APP_IDS.has(appId) && !options?.force) return; // default-installed, non-core apps need a PIN-confirmed forced uninstall
+  uninstall: (appId) => {
+    if (PROTECTED_APP_IDS.has(appId)) return; // covers CORE_APP_IDS too — never removable, no exceptions
     const installed = new Set(get().installed);
     installed.delete(appId);
     set({ installed });

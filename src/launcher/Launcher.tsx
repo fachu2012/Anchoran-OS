@@ -6,7 +6,7 @@ import type { AppDefinition, AppId } from "@/core/types";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useTaskbarStore } from "@/desktop/taskbarStore";
 import { useDesktopIconsStore } from "@/desktop/desktopIconsStore";
-import { useInstalledAppsStore, isProtectedApp, isCoreApp } from "@/applications/installedAppsStore";
+import { useInstalledAppsStore, isProtectedApp } from "@/applications/installedAppsStore";
 import { ContextMenu, type ContextMenuEntry } from "@/desktop/ContextMenu";
 import { AdminPinPrompt } from "@/core/AdminPinPrompt";
 import { useAppUsageStore } from "@/core/appUsageStore";
@@ -204,7 +204,7 @@ export function Launcher({
   }
 
   const [menu, setMenu] = useState<{ x: number; y: number; app: AppDefinition } | null>(null);
-  const [adminPinPrompt, setAdminPinPrompt] = useState<{ mode: "runAsAdmin" } | { mode: "uninstall"; appId: AppId } | null>(null);
+  const [adminPinPrompt, setAdminPinPrompt] = useState<{ mode: "runAsAdmin" } | null>(null);
   const [letterJumpOpen, setLetterJumpOpen] = useState(false);
   const resultsRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -346,18 +346,9 @@ export function Launcher({
           addShortcut({ appId: app.id, title: `${app.title} (Administrator)`, startAdmin: true }),
       });
     }
-    if (!isCoreApp(app.id)) {
+    if (!isProtectedApp(app.id)) {
       items.push({ separator: true });
-      items.push(
-        isProtectedApp(app.id)
-          ? {
-              label: "Uninstall… (requires admin PIN)",
-              icon: "lock",
-              danger: true,
-              onSelect: () => setAdminPinPrompt({ mode: "uninstall", appId: app.id }),
-            }
-          : { label: "Uninstall", danger: true, onSelect: () => uninstall(app.id) }
-      );
+      items.push({ label: "Uninstall", danger: true, onSelect: () => uninstall(app.id) });
     }
     return items;
   }
@@ -684,14 +675,9 @@ export function Launcher({
         <AdminPinPrompt
           onCancel={() => setAdminPinPrompt(null)}
           onSuccess={() => {
-            if (adminPinPrompt.mode === "runAsAdmin") {
-              setAdminPinPrompt(null);
-              onClose();
-              openApp("terminal", { startAdmin: true });
-            } else {
-              uninstall(adminPinPrompt.appId, { force: true });
-              setAdminPinPrompt(null);
-            }
+            setAdminPinPrompt(null);
+            onClose();
+            openApp("terminal", { startAdmin: true });
           }}
         />
       )}
