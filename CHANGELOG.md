@@ -107,11 +107,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.M
   already used) instead of falling through to Windows' default
   browser — matching the existing default-open behavior for .zip.
   Configurable in Settings' Default apps list ("PDF documents").
-- **A "Changelog" button in the Webstore**, next to the catalog's
-  version note — opens the same read-only markdown panel as Settings'
-  "What's new", fetched live from the separate Anchoran-Webstore
-  repo's own `CHANGELOG.md` instead of Anchoran OS's, since the
-  Webstore's plugin catalog has its own independent release history.
+- **A "Changelog" button in the Webstore's sidebar** — opens the same
+  read-only markdown panel as Settings' "What's new", fetched live
+  from the separate Anchoran-Webstore repo's own `CHANGELOG.md`
+  instead of Anchoran OS's, since the Webstore's plugin catalog has
+  its own independent release history.
+- **Every Community plugin now shows who publishes it** — a new
+  optional `author` field on the catalog entry, shown in both the
+  compact card and the full detail view.
+- **"My Creations"**, a new Webstore section alongside Community for
+  local, per-user projects built in the upcoming **Anchoran Code
+  Studio** plugin — each one shows a pencil button that opens Code
+  Studio straight into that project, and "Delete" instead of
+  "Uninstall" (which actually removes it, not just unpins it). Code
+  Studio itself ships from the separate Anchoran-Webstore repo — see
+  that repo's own CHANGELOG.md once it lands there — and, unlike a
+  normal Community plugin, can never be uninstalled once installed:
+  removing it would strand every local project with no way to open or
+  edit them again.
+
+### Removed
+- **The Webstore no longer browses Anchoran's own bundled apps at
+  all** — Files, Notes, Browser, System Monitor, and every other app
+  that ships with the OS itself were never really "from" the
+  Webstore, and as of this release every one of them is permanently
+  installed (see below), so there was nothing left to actually
+  install or uninstall among them. Deleted the whole All/System/
+  Productivity/Utilities/Internet/Games catalog-browsing UI along with
+  `webstoreRegistry.ts` (its one consumer). The Webstore now only ever
+  shows what's genuinely downloadable or local: **Community** (real
+  third-party plugins) and the new **My Creations** (local Anchoran
+  Code Studio projects — see below).
 
 ### Fixed
 - **The Webstore's own app catalog showed "Offline — showing this
@@ -120,9 +146,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.M
   straight from `ANCHORAN_VERSION`, which on an I.P.U. build carries
   the internal "-beta" suffix (load-bearing for electron-updater, see
   v3.1.2's own fix) instead of the real "-IPU" tag suffix, so the
-  lookup 404'd every time. Added `releaseTagFor()` to `buildNumber.ts`
-  to reconstruct the real release tag from the internal version +
-  channel, used here now.
+  lookup 404'd every time. Fixed properly at first (added
+  `releaseTagFor()` to `buildNumber.ts` to reconstruct the real
+  release tag), and then made structurally impossible to regress: the
+  whole catalog panel this bug lived in was deleted outright in the
+  same release (see "Removed" above) — there's no longer any code path
+  left that could show this message again.
+- **Apps installed by default (Notes, Photo Viewer, Recycle Bin,
+  System Monitor, …) could actually be uninstalled behind an admin PIN
+  prompt** — a real OS doesn't let you remove its own file explorer or
+  Recycle Bin either, for the same reason: the desktop stops making
+  sense to use without them. `installedAppsStore`'s protection is now
+  unconditional, no PIN override; the "Windows App Window" experimental
+  `.exe`-embedding tool (the one bundled app that genuinely could still
+  be installed/uninstalled) is now always available like everything
+  else instead, and no longer shows up as a findable app on its own —
+  it only ever opens from Files' "Run embedded in Anchoran
+  (experimental)" on a real `.exe`.
 - **Files' Quick Links (Desktop, Documents, Pictures, …) pointed into
   OneDrive instead of the real local folder** whenever OneDrive's
   "Known Folder Move" feature was active — `app.getPath()` asks
