@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persistGet, persistSet } from "@/core/persist";
 import type { AppId } from "@/core/types";
+import { LEGACY_APP_ID_SET } from "@/core/legacyAppIds";
 
 const PINNED_KEY = "pinnedApps";
 const DEFAULT_PINNED: AppId[] = ["files", "terminal", "browser", "notes", "settings"];
@@ -45,5 +46,11 @@ export const useTaskbarStore = create<TaskbarState>((set, get) => ({
 }));
 
 persistGet<AppId[]>("config", PINNED_KEY, DEFAULT_PINNED).then((loaded) => {
-  useTaskbarStore.setState({ pinned: loaded, hydrated: true });
+  // A pin from before the Anchoran App SDK migration (see CHANGELOG)
+  // can still name an app id that no longer exists — dropped here so
+  // the taskbar never renders a pin for an app AppComponents has no
+  // entry for.
+  const pinned = loaded.filter((id) => !LEGACY_APP_ID_SET.has(id));
+  useTaskbarStore.setState({ pinned, hydrated: true });
+  if (pinned.length !== loaded.length) persist(pinned);
 });

@@ -17,6 +17,7 @@
 export type RankingRow = [version: string, date: string, score: number, what: string, bugs: string];
 
 export const RANKING_ROWS: RankingRow[] = [
+  ["3.4.0", "2026-09-14", 9, "45 bundled utility/game apps move out to standalone Webstore plugins (28 ported 1:1, 17 fused into 8 richer plugins — Chance, Text Tools, Converter, Password Tools, Recorder, Draw Studio, Image Tools, Tasks & Reminders), every 2-player game gains a bot opponent, and a new one-time \"Anchoran Local Apps\" notice tells anyone updating with one of the removed apps installed exactly what's leaving and what replaces it.", "no known open bugs at this point"],
   ["2.6.18", "2026-09-12", 8, "<code class='inline'>anchoran changeto</code> no longer leaves the app closed with nothing to reopen it — it now runs the same UpdateTheater cinematic every other update path uses, with the exact silent-install arguments electron-updater itself uses.", "1 open, scoped to the embed: window detection — unchanged since v2.6.17"],
   ["2.6.17", "2026-09-12", 8, "The newest at the time. Everything else closed; the experimental embed is the only thing still unconfirmed.", "1 open, scoped: the embed — final outcome still unconfirmed"],
   ["2.8.4", "2026-09-12", 8, "Batch rename, persistent Terminal aliases, a Launcher calculator, scheduled DND, tab pinning, Window Spotlight, failed-PIN logging, exportable diagnostics.", "1 open, scoped: same embed bug, unchanged — closes only in v2.9.0"],

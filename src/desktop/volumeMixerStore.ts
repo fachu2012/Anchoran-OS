@@ -5,13 +5,17 @@ import type { AppId } from "@/core/types";
 /**
  * Per-app volume mixer — independent of the system sounds volume in
  * Settings → Sound (that's only for Anchoran's own login/notification/
- * error chimes). This covers every app that can actually play audio:
- * Browser and Chat (real `<webview>` guest pages, controlled via
- * `setAudioMuted` + an injected volume on their own media elements)
- * and Media Player (a normal `<audio>`/`<video>` element in Anchoran's
- * own renderer, controlled directly).
+ * error chimes). This covers every remaining bundled app that can
+ * actually play audio: Browser (a real `<webview>` guest page,
+ * controlled via `setAudioMuted` + an injected volume on its own media
+ * elements) and Media Player (a normal `<audio>`/`<video>` element in
+ * Anchoran's own renderer, controlled directly). Chat used to be a
+ * third `<webview>` here too — it moved to a Webstore plugin (see
+ * CHANGELOG's Anchoran App SDK migration) and isn't a bundled app
+ * anymore, so it's no longer in this list; a plugin has no equivalent
+ * OS-level volume mixer hook.
  */
-export const MIXER_APP_IDS: AppId[] = ["browser", "chat", "mediaPlayer"];
+export const MIXER_APP_IDS: AppId[] = ["browser", "mediaPlayer"];
 
 interface AppVolume {
   volume: number; // 0..1

@@ -4,6 +4,7 @@ import type { AppId } from "@/core/types";
 import { APP_LIST } from "./registry";
 import { useTaskbarStore } from "@/desktop/taskbarStore";
 import { useDesktopIconsStore } from "@/desktop/desktopIconsStore";
+import { LEGACY_APP_ID_SET } from "@/core/legacyAppIds";
 
 const INSTALLED_KEY = "installedApps";
 
@@ -21,22 +22,17 @@ const INSTALLED_KEY = "installedApps";
 const CORE_APP_IDS = APP_LIST.filter((a) => a.core).map((a) => a.id);
 const DEFAULT_OPTIONAL_INSTALLED: AppId[] = [
   "notes",
-  "calculator",
   "browser",
   "systemMonitor",
   "networkMonitor",
   "eventViewer",
   "mediaPlayer",
-  "magnifier",
   "photoViewer",
-  "zipTool",
-  "screenshot",
   "recycleBin",
   "storageUsage",
   "startupApps",
   "onScreenKeyboard",
   "narrator",
-  "emojiPicker",
 ];
 const DEFAULT_INSTALLED: AppId[] = [...CORE_APP_IDS, ...DEFAULT_OPTIONAL_INSTALLED];
 
@@ -101,6 +97,18 @@ persistGet<AppId[]>("config", INSTALLED_KEY, DEFAULT_INSTALLED).then((loaded) =>
   // Every protected (default-installed) app is force-included even if
   // an old persisted list predates it — e.g. after an update adds a
   // new core app, or promotes a Webstore app to installed-by-default.
-  const installed = new Set([...loaded, ...PROTECTED_APP_IDS]);
+  //
+  // A persisted list from before the Anchoran App SDK migration (see
+  // CHANGELOG) can still contain one of the old bundled-app ids that
+  // migration removed (Snake, Chess, Chat, …) — those apps no longer
+  // exist in APP_COMPONENTS at all, so keeping such an id "installed"
+  // here would crash WindowManager the moment something tried to open
+  // it (a pinned taskbar icon, a saved window layout, Launcher search).
+  // Anyone who had one installed already saw the "Anchoran Local Apps"
+  // notice on their way into this update (see UpdateReadyScreen /
+  // upgradeAppRemoval.ts) — this is where that removal actually lands.
+  const hadLegacyApps = loaded.some((id) => LEGACY_APP_ID_SET.has(id));
+  const installed = new Set([...loaded.filter((id) => !LEGACY_APP_ID_SET.has(id)), ...PROTECTED_APP_IDS]);
   useInstalledAppsStore.setState({ installed, hydrated: true });
+  if (hadLegacyApps) persist(installed);
 });

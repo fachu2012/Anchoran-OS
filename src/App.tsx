@@ -93,14 +93,22 @@ export default function App() {
       else if (key === "ALTTAB") useWindowStore.getState().cycleFocus(1);
     });
 
-    // PrintScreen / Ctrl+Shift+S — opens Screenshot and starts the
-    // capture immediately (see Screenshot.tsx's "anchoran-auto-capture"
-    // listener); the short delay gives its lazily-loaded chunk time to
-    // mount before that event fires.
-    window.anchoran?.onTriggerScreenshot(() => {
+    // PrintScreen / Ctrl+Shift+S — Screenshot moved out to the
+    // "image-tools" Webstore plugin (see CHANGELOG's Anchoran App SDK
+    // migration), so this no longer opens a bundled app directly. If
+    // the user has installed it, opens straight into it via PluginHost
+    // — this global hotkey is exactly the kind of thing Anchoran can
+    // still wire up to a plugin window by id, even though the app
+    // itself isn't bundled anymore. If it isn't installed, points the
+    // user at the Webstore instead of silently doing nothing.
+    window.anchoran?.onTriggerScreenshot(async () => {
       if (lockedRef.current) return;
-      useWindowStore.getState().openApp("screenshot");
-      setTimeout(() => window.dispatchEvent(new Event("anchoran-auto-capture")), 300);
+      const installed = await window.anchoran?.pluginIsInstalled("image-tools");
+      if (installed) {
+        useWindowStore.getState().openApp("pluginHost", { pluginId: "image-tools", title: "Image Tools" });
+      } else {
+        pushNotification("Screenshot", 'Install "Image Tools" from the Webstore to use the screenshot shortcut.');
+      }
     });
 
     // Browser's right-click → "Set as Wallpaper" / "Save Image As…" —

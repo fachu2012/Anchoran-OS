@@ -20,79 +20,13 @@ export const APP_COMPONENTS: Record<
   terminal: lazy(() => import("@/applications/terminal/Terminal").then((m) => ({ default: m.TerminalApp }))),
   settings: lazy(() => import("@/applications/settings/Settings").then((m) => ({ default: m.SettingsApp }))),
   notes: lazy(() => import("@/applications/notes/Notes").then((m) => ({ default: m.NotesApp }))),
-  calculator: lazy(() => import("@/applications/calculator/Calculator").then((m) => ({ default: m.CalculatorApp }))),
   browser: lazy(() => import("@/applications/browser/Browser").then((m) => ({ default: m.BrowserApp }))),
   systemMonitor: lazy(() =>
     import("@/applications/systemmonitor/SystemMonitor").then((m) => ({ default: m.SystemMonitorApp }))
   ),
   appCenter: lazy(() => import("@/applications/appcenter/AppCenter").then((m) => ({ default: m.AppCenterApp }))),
-  clock: lazy(() => import("@/applications/clock/Clock").then((m) => ({ default: m.ClockApp }))),
-  converter: lazy(() => import("@/applications/converter/Converter").then((m) => ({ default: m.ConverterApp }))),
-  colorPicker: lazy(() =>
-    import("@/applications/colorpicker/ColorPicker").then((m) => ({ default: m.ColorPickerApp }))
-  ),
-  chat: lazy(() => import("@/applications/chat/Chat").then((m) => ({ default: m.ChatApp }))),
-  todo: lazy(() => import("@/applications/todo/Todo").then((m) => ({ default: m.TodoApp }))),
-  pomodoro: lazy(() => import("@/applications/pomodoro/Pomodoro").then((m) => ({ default: m.PomodoroApp }))),
-  qrCode: lazy(() => import("@/applications/qrcode/QrCode").then((m) => ({ default: m.QrCodeApp }))),
-  passwordGenerator: lazy(() =>
-    import("@/applications/passwordgenerator/PasswordGenerator").then((m) => ({ default: m.PasswordGeneratorApp }))
-  ),
-  jsonFormatter: lazy(() =>
-    import("@/applications/jsonformatter/JsonFormatter").then((m) => ({ default: m.JsonFormatterApp }))
-  ),
-  wordCounter: lazy(() =>
-    import("@/applications/wordcounter/WordCounter").then((m) => ({ default: m.WordCounterApp }))
-  ),
-  snake: lazy(() => import("@/applications/snake/Snake").then((m) => ({ default: m.SnakeApp }))),
-  game2048: lazy(() => import("@/applications/game2048/Game2048").then((m) => ({ default: m.Game2048App }))),
-  ticTacToe: lazy(() => import("@/applications/tictactoe/TicTacToe").then((m) => ({ default: m.TicTacToeApp }))),
-  memoryMatch: lazy(() =>
-    import("@/applications/memorymatch/MemoryMatch").then((m) => ({ default: m.MemoryMatchApp }))
-  ),
-  diceRoller: lazy(() => import("@/applications/diceroller/DiceRoller").then((m) => ({ default: m.DiceRollerApp }))),
-  coinFlip: lazy(() => import("@/applications/coinflip/CoinFlip").then((m) => ({ default: m.CoinFlipApp }))),
-  connectFour: lazy(() =>
-    import("@/applications/connectfour/ConnectFour").then((m) => ({ default: m.ConnectFourApp }))
-  ),
-  checkers: lazy(() => import("@/applications/checkers/Checkers").then((m) => ({ default: m.CheckersApp }))),
-  minesweeper: lazy(() =>
-    import("@/applications/minesweeper/Minesweeper").then((m) => ({ default: m.MinesweeperApp }))
-  ),
-  sudoku: lazy(() => import("@/applications/sudoku/Sudoku").then((m) => ({ default: m.SudokuApp }))),
-  typingTest: lazy(() => import("@/applications/typingtest/TypingTest").then((m) => ({ default: m.TypingTestApp }))),
-  calendar: lazy(() => import("@/applications/calendar/Calendar").then((m) => ({ default: m.CalendarApp }))),
-  clipboardManager: lazy(() =>
-    import("@/applications/clipboardmanager/ClipboardManager").then((m) => ({ default: m.ClipboardManagerApp }))
-  ),
-  kanban: lazy(() => import("@/applications/kanban/Kanban").then((m) => ({ default: m.KanbanApp }))),
-  textDiff: lazy(() => import("@/applications/textdiff/TextDiff").then((m) => ({ default: m.TextDiffApp }))),
-  habitTracker: lazy(() =>
-    import("@/applications/habittracker/HabitTracker").then((m) => ({ default: m.HabitTrackerApp }))
-  ),
-  currencyConverter: lazy(() =>
-    import("@/applications/currencyconverter/CurrencyConverter").then((m) => ({ default: m.CurrencyConverterApp }))
-  ),
-  weather: lazy(() => import("@/applications/weather/Weather").then((m) => ({ default: m.WeatherApp }))),
-  passwordVault: lazy(() =>
-    import("@/applications/passwordvault/PasswordVault").then((m) => ({ default: m.PasswordVaultApp }))
-  ),
-  reminders: lazy(() => import("@/applications/reminders/Reminders").then((m) => ({ default: m.RemindersApp }))),
-  ttsReader: lazy(() => import("@/applications/ttsreader/TtsReader").then((m) => ({ default: m.TtsReaderApp }))),
-  mindMap: lazy(() => import("@/applications/mindmap/MindMap").then((m) => ({ default: m.MindMapApp }))),
-  solitaire: lazy(() => import("@/applications/solitaire/Solitaire").then((m) => ({ default: m.SolitaireApp }))),
-  chess: lazy(() => import("@/applications/chess/Chess").then((m) => ({ default: m.ChessApp }))),
-  paint: lazy(() => import("@/applications/paint/Paint").then((m) => ({ default: m.PaintApp }))),
-  pixelArt: lazy(() => import("@/applications/pixelart/PixelArt").then((m) => ({ default: m.PixelArtApp }))),
-  wallpaperMaker: lazy(() =>
-    import("@/applications/wallpapermaker/WallpaperMaker").then((m) => ({ default: m.WallpaperMakerApp }))
-  ),
   photoViewer: lazy(() =>
     import("@/applications/photoviewer/PhotoViewer").then((m) => ({ default: m.PhotoViewerApp }))
-  ),
-  screenshot: lazy(() => import("@/applications/screenshot/Screenshot").then((m) => ({ default: m.ScreenshotApp }))),
-  voiceRecorder: lazy(() =>
-    import("@/applications/voicerecorder/VoiceRecorder").then((m) => ({ default: m.VoiceRecorderApp }))
   ),
   networkMonitor: lazy(() =>
     import("@/applications/networkmonitor/NetworkMonitor").then((m) => ({ default: m.NetworkMonitorApp }))
@@ -103,22 +37,11 @@ export const APP_COMPONENTS: Record<
   mediaPlayer: lazy(() =>
     import("@/applications/mediaplayer/MediaPlayer").then((m) => ({ default: m.MediaPlayerApp }))
   ),
-  zipTool: lazy(() => import("@/applications/ziptool/ZipTool").then((m) => ({ default: m.ZipToolApp }))),
-  spreadsheet: lazy(() =>
-    import("@/applications/spreadsheet/Spreadsheet").then((m) => ({ default: m.SpreadsheetApp }))
-  ),
-  magnifier: lazy(() => import("@/applications/magnifier/Magnifier").then((m) => ({ default: m.MagnifierApp }))),
-  screenRecorder: lazy(() =>
-    import("@/applications/screenrecorder/ScreenRecorder").then((m) => ({ default: m.ScreenRecorderApp }))
-  ),
   storageUsage: lazy(() =>
     import("@/applications/storageusage/StorageUsage").then((m) => ({ default: m.StorageUsageApp }))
   ),
   startupApps: lazy(() =>
     import("@/applications/startupapps/StartupApps").then((m) => ({ default: m.StartupAppsApp }))
-  ),
-  emojiPicker: lazy(() =>
-    import("@/applications/emojipicker/EmojiPicker").then((m) => ({ default: m.EmojiPickerApp }))
   ),
   codeRunner: lazy(() =>
     import("@/applications/coderunner/CodeRunner").then((m) => ({ default: m.CodeRunnerApp }))

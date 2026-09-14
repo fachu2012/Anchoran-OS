@@ -3,6 +3,9 @@ import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { fetchUpdateInfo } from "@/core/updateInfo";
 import { versionLabelFor } from "@/core/buildNumber";
+import { ANCHORAN_VERSION } from "@/core/version";
+import { needsLocalAppsRemovalNotice, installedLegacyApps } from "@/core/upgradeAppRemoval";
+import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 
 const btnBase: CSSProperties = {
   padding: "9px 18px",
@@ -31,6 +34,8 @@ export function UpdateReadyScreen({
   const accentColor = usePreferencesStore((s) => s.accentColor);
   const [confirming, setConfirming] = useState(false);
   const [updateLabel, setUpdateLabel] = useState<string | null>(null);
+  const installedApps = useInstalledAppsStore((s) => s.installed);
+  const [localAppsAcknowledged, setLocalAppsAcknowledged] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +46,92 @@ export function UpdateReadyScreen({
       cancelled = true;
     };
   }, [version]);
+
+  // See upgradeAppRemoval.ts: this update crosses the version where
+  // every simple utility/game app moved out to standalone Webstore
+  // plugins (see CHANGELOG) — shown only when this device actually has
+  // one of them installed, and purely informational (no typing "delete"
+  // required, unlike needsDataWipeFor's downgrade gate — nothing here
+  // blocks the install, it just tells you first instead of surprising
+  // you after the restart).
+  const removedApps = needsLocalAppsRemovalNotice(ANCHORAN_VERSION, installedApps, version)
+    ? installedLegacyApps(installedApps)
+    : [];
+  const showLocalAppsNotice = removedApps.length > 0 && !localAppsAcknowledged;
+
+  if (showLocalAppsNotice) {
+    return (
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 1900,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+          background: "#08090D",
+          animation: "update-ready-in 400ms cubic-bezier(0.16,1,0.3,1)",
+          padding: 24,
+        }}
+      >
+        <AnchoranLogo size={48} color={accentColor} style={{ opacity: 0.92 }} />
+        <div style={{ color: "#F3F4F6", fontSize: 15.5, fontWeight: 300, textAlign: "center", maxWidth: 420 }}>
+          This update moves Anchoran's built-in utility and game apps to the Webstore
+        </div>
+        <div style={{ color: "rgba(243,244,246,0.55)", fontSize: 12.5, textAlign: "center", maxWidth: 420 }}>
+          The following apps you have installed will be uninstalled as part of this update. You can reinstall an
+          updated version of each from the Webstore's Community section afterward.
+        </div>
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 340,
+            maxHeight: 220,
+            overflowY: "auto",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 10,
+            padding: "6px 4px",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10.5,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              color: "rgba(243,244,246,0.4)",
+              padding: "4px 12px",
+            }}
+          >
+            Anchoran Local Apps
+          </div>
+          {removedApps.map((app) => (
+            <div
+              key={app.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 10,
+                padding: "6px 12px",
+                fontSize: 12.5,
+                color: "#F3F4F6",
+              }}
+            >
+              <span>{app.title}</span>
+              <span style={{ color: "rgba(243,244,246,0.4)" }}>→ {app.movedToPluginTitle}</span>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => setLocalAppsAcknowledged(true)}
+          style={{ ...btnBase, background: accentColor, color: "#fff", marginTop: 6 }}
+        >
+          Continue
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div

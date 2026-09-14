@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persistGet, persistSet } from "@/core/persist";
 import type { AppId } from "@/core/types";
+import { LEGACY_APP_ID_SET } from "@/core/legacyAppIds";
 
 /**
  * Desktop icons come in two flavors: pinned app shortcuts (persisted as
@@ -68,6 +69,10 @@ export const useDesktopIconsStore = create<DesktopIconsState>((set, get) => ({
 Promise.all([
   persistGet<AppId[]>("config", PINNED_KEY, DEFAULT_PINNED),
   persistGet<Record<string, { x: number; y: number }>>("config", POSITIONS_KEY, {}),
-]).then(([pinnedApps, positions]) => {
+]).then(([loadedPinned, positions]) => {
+  // See taskbarStore.ts's identical guard: a pin from before the
+  // Anchoran App SDK migration can still name a now-removed app id.
+  const pinnedApps = loadedPinned.filter((id) => !LEGACY_APP_ID_SET.has(id));
   useDesktopIconsStore.setState({ pinnedApps, positions, hydrated: true });
+  if (pinnedApps.length !== loadedPinned.length) persist(pinnedApps, positions);
 });

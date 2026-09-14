@@ -1,64 +1,31 @@
 /** Shared cross-module types for Anchoran OS. */
 
+/**
+ * The still-bundled, installable Anchoran OS apps. This used to also
+ * list every simple utility/game app (Calculator, Snake, Chess, …) —
+ * as of the Anchoran App SDK migration (see CHANGELOG), those moved
+ * out to standalone Webstore plugins instead (see PluginId below) and
+ * are no longer part of this union. A device updating from an older
+ * version may still have one of those old ids saved in a window
+ * layout or installed-apps list; see `LEGACY_APP_IDS` in
+ * src/core/legacyAppIds.ts for the full list this migration removed,
+ * used to detect and clean up exactly that case (see
+ * upgradeAppRemoval.ts) instead of crashing on an unknown id.
+ */
 export type AppId =
   | "files"
   | "terminal"
   | "settings"
   | "notes"
-  | "calculator"
   | "browser"
   | "systemMonitor"
   | "appCenter"
-  | "clock"
-  | "converter"
-  | "colorPicker"
-  | "chat"
-  | "todo"
-  | "pomodoro"
-  | "qrCode"
-  | "passwordGenerator"
-  | "jsonFormatter"
-  | "wordCounter"
-  | "snake"
-  | "game2048"
-  | "ticTacToe"
-  | "memoryMatch"
-  | "diceRoller"
-  | "coinFlip"
-  | "connectFour"
-  | "checkers"
-  | "minesweeper"
-  | "sudoku"
-  | "typingTest"
-  | "calendar"
-  | "clipboardManager"
-  | "kanban"
-  | "textDiff"
-  | "habitTracker"
-  | "currencyConverter"
-  | "weather"
-  | "passwordVault"
-  | "reminders"
-  | "ttsReader"
-  | "mindMap"
-  | "solitaire"
-  | "chess"
-  | "paint"
-  | "pixelArt"
-  | "wallpaperMaker"
   | "photoViewer"
-  | "screenshot"
-  | "voiceRecorder"
   | "networkMonitor"
   | "eventViewer"
   | "mediaPlayer"
-  | "zipTool"
-  | "spreadsheet"
-  | "magnifier"
-  | "screenRecorder"
   | "storageUsage"
   | "startupApps"
-  | "emojiPicker"
   | "onScreenKeyboard"
   | "narrator"
   | "recycleBin"

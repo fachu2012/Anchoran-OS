@@ -4,6 +4,7 @@ import { APP_REGISTRY } from "@/applications/registry";
 import { persistGet, persistSet } from "@/core/persist";
 import { useProfilesStore } from "@/core/profilesStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
+import { LEGACY_APP_ID_SET } from "@/core/legacyAppIds";
 
 export interface Bounds {
   x: number;
@@ -175,6 +176,16 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
     }
 
     const def = APP_REGISTRY[appId];
+    // Last-resort guard: every known path that could hand openApp a
+    // pre-migration app id (installedAppsStore, taskbarStore,
+    // desktopIconsStore and saved layouts) already filters it out on
+    // load — this only catches something those missed, so it fails
+    // quietly instead of crashing WindowManager on an undefined
+    // AppComponent.
+    if (!def) {
+      useNotificationStore.getState().push("Anchoran", "That app is no longer available — install its replacement from the Webstore.");
+      return "";
+    }
     const state = get();
 
     // Most apps are single-instance: focus the existing window instead
@@ -436,8 +447,20 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
   },
 }));
 
-persistGet<SavedLayoutsMap>("config", SAVED_LAYOUTS_KEY, {}).then((savedLayouts) => {
+persistGet<SavedLayoutsMap>("config", SAVED_LAYOUTS_KEY, {}).then((loaded) => {
+  // A saved layout from before the Anchoran App SDK migration can
+  // still name a now-removed app id in one of its windows — dropped
+  // here (per-layout, not the whole layout) so restoring an old
+  // layout never tries to open an app APP_COMPONENTS has no entry for.
+  let changed = false;
+  const savedLayouts: SavedLayoutsMap = {};
+  for (const [name, windows] of Object.entries(loaded)) {
+    const filtered = windows.filter((w) => !LEGACY_APP_ID_SET.has(w.appId));
+    if (filtered.length !== windows.length) changed = true;
+    savedLayouts[name] = filtered;
+  }
   useWindowStore.setState({ savedLayouts });
+  if (changed) persistSet("config", SAVED_LAYOUTS_KEY, savedLayouts);
 });
 
 persistGet<string[]>("config", DESKTOPS_KEY, [DEFAULT_DESKTOP_ID]).then((desktops) => {

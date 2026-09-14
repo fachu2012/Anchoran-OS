@@ -5,6 +5,94 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.4.0] - 2026-09-14
+
+**Update type:** feature
+
+### Removed
+- **45 of Anchoran's bundled utility and game apps moved out to
+  standalone Webstore plugins** — every simple app that was really a
+  third-party-shaped "install/uninstall it if you want it" tool
+  (Calculator, Snake, Chess, Notes-adjacent utilities, every game,
+  every single-purpose Utilities-category app, …) is no longer part of
+  Anchoran OS itself; it now only exists as a downloadable plugin in
+  the [Anchoran-Webstore](https://github.com/fachu2012/Anchoran-Webstore)
+  repo's Community section (v2.0.0), built against the Anchoran App
+  SDK the previous release introduced. 28 apps ported 1:1: Calculator,
+  Chat, Pomodoro Timer, QR Code, Snake, 2048, Tic-Tac-Toe, Memory
+  Match, Checkers, Connect Four, Minesweeper, Sudoku, Solitaire,
+  Chess, Calendar, Kanban, Habit Tracker, Weather, Mind Map,
+  Spreadsheet, Emoji Picker, Typing Test, Text-to-Speech Reader,
+  Clipboard Manager (now "Clipboard Shelf" — see below), Zip Tool,
+  Color Picker, Clock, Magnifier.
+- **8 groups of apps that shared the same real purpose were fused into
+  one plugin instead of shipping near-duplicates**, each gaining real
+  new functionality in the process rather than just being glued
+  together: **Chance** (Dice Roller + Coin Flip); **Text Tools** (JSON
+  Formatter + Word Counter + Text Diff, plus a new Base64/URL
+  encode-decode tab); **Converter** (Converter + Currency Converter,
+  plus new Area and Speed unit categories); **Password Tools**
+  (Password Generator + Password Vault — same real AES-GCM/PBKDF2
+  vault encryption as before — plus a new strength checker for any
+  pasted password); **Recorder** (Screen Recorder + Voice Recorder,
+  plus a new quality/bitrate selector); **Draw Studio** (Paint + Pixel
+  Art, plus a custom color picker, simple layers, a fill/bucket tool,
+  line/rectangle/ellipse shapes, an adjustable brush size and
+  undo/redo — neither original app had any of those); **Image Tools**
+  (Screenshot + Wallpaper Maker); **Tasks & Reminders** (To-Do List +
+  Reminders, plus optional due dates on tasks).
+- **Tic-Tac-Toe, Checkers, Connect Four and Chess — every 2-player game
+  in the roster — gained a bot opponent** with Easy/Medium/Hard
+  difficulty (uniformly-random legal moves; a simple take-the-win/
+  block-the-loss heuristic; and depth-limited minimax — exhaustive and
+  unbeatable for Tic-Tac-Toe's small board, alpha-beta-pruned material/
+  positional evaluation for the rest).
+- A plugin has no access to Anchoran's privileged filesystem or screen-
+  capture APIs, so several of these needed real adaptation, not just a
+  copy-paste port: Magnifier/Recorder/Image Tools' screenshot capture
+  now use the standard `getDisplayMedia()` picker instead of
+  `window.anchoran.getCaptureSources()`; Zip Tool/Recorder/Image Tools
+  save their results as real downloads instead of writing into
+  Anchoran's own virtual folders; Clipboard Manager becomes "Clipboard
+  Shelf" — a manually-saved clip history instead of an automatic
+  OS-wide clipboard watcher, since no such hook exists in the Anchoran
+  App SDK. Every adaptation is documented in that plugin's own source
+  file, in the Anchoran-Webstore repo.
+- **4 apps stay bundled in Anchoran OS despite not being marked `core`**
+  — they turned out to be Files'/Launcher's own default file-type and
+  URL handlers (`Files.tsx`'s `openEntry`, `Launcher.tsx`'s search),
+  not user-installable apps: **Notes** (the default text-file editor),
+  **Photo Viewer** (the default image viewer), **Media Player** (the
+  default audio/video player) and **Browser** (opens a Launcher search
+  that looks like a URL). A further 9 apps stay bundled because they
+  need privileged host access no third-party plugin can have: System
+  Monitor, Network Monitor, Storage Usage, Event Viewer, Startup Apps,
+  Recycle Bin, On-Screen Keyboard, Narrator and Embedded App Host.
+
+### Added
+- **A one-time "Anchoran Local Apps" notice** on the update-ready
+  screen, for anyone updating from before this release who has one of
+  the 45 removed apps installed: names exactly which of your installed
+  apps will be uninstalled by this update and which Webstore plugin
+  replaces each one, before you confirm the restart. Purely
+  informational (nothing to type, nothing blocks the install) — the
+  symmetric counterpart to `anchoran changeto`'s mandatory data-wipe
+  confirmation for an old downgrade, for the forward direction instead
+  (see `src/core/upgradeAppRemoval.ts`). A device already on this
+  version or later, or one that never installed any of the removed
+  apps, never sees it at all. The actual removal — from the installed-
+  apps list, pinned taskbar/desktop icons, and any saved window layout
+  — happens automatically the moment this version's own stores hydrate
+  (see `src/core/legacyAppIds.ts`), regardless of whether the notice
+  was seen (e.g. a fresh install jumping straight to this version).
+
+### Changed
+- The global PrintScreen / Ctrl+Shift+S screenshot shortcut now opens
+  the "Image Tools" Webstore plugin (if installed) via PluginHost
+  instead of a bundled Screenshot app, since that app moved out to the
+  Webstore. If "Image Tools" isn't installed, it points you at the
+  Webstore instead of doing nothing.
+
 ## [3.3.6] - 2026-09-13
 
 **Update type:** feature
