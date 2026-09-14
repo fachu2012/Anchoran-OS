@@ -5,6 +5,19 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.5.1] - 2026-09-14
+
+**Update type:** feature
+
+### Added
+- **The Release Ranking now shows the best Anchoran pick per
+  Windows-era comparison** — a new row right under the top stats: for
+  every distinct Windows-version analogy used in the per-row
+  "Equivalent to" column, the single highest-scoring Anchoran version
+  that falls into that era ("if you had to pick one release to
+  represent this whole era, which is it"). Synced the published
+  Release Ranking Artifact with the same logic.
+
 ## [3.5.0] - 2026-09-14
 
 **Update type:** feature
