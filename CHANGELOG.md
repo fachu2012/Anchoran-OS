@@ -5,6 +5,57 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.5.0] - 2026-09-14
+
+**Update type:** feature
+
+### Added
+- **The Release Ranking now shows modern versions with their real
+  "Build-#H#.#" label** instead of the raw semver string, matching how
+  the rest of Anchoran OS displays a version — v3.0.0 and earlier still
+  show as plain "vX.Y.Z" (they never had a build-number form). Synced
+  the published Release Ranking Artifact with the same logic.
+- **Every Community plugin shows who publishes it** — a new optional
+  `author` field on the catalog entry, shown in both the compact card
+  and the full detail view.
+- **"My Creations"**, a new Webstore section alongside Community for
+  local, per-user projects built in **Anchoran Code Studio** (shipping
+  from the separate Anchoran-Webstore repo — see that repo's own
+  CHANGELOG.md): each one shows a pencil button that opens Code Studio
+  straight into that project, and "Delete" instead of "Uninstall"
+  (which actually removes it, not just unpins it). Code Studio itself
+  can never be uninstalled once installed — removing it would strand
+  every local project with no way to open or edit them again.
+- **`sdk.openApp`** — a new Anchoran App SDK method letting a plugin
+  open another Anchoran window, including another `pluginHost` window.
+  What Code Studio's "Open in Window" uses to run the project it's
+  editing in a real, separate window instead of only its own embedded
+  preview.
+
+### Removed
+- **The Webstore no longer browses Anchoran's own bundled apps at
+  all** — Files, Notes, Browser, System Monitor, and every other app
+  that ships with the OS itself were never really "from" the
+  Webstore, and every one of them is now permanently installed (see
+  below), so there was nothing left to actually install or uninstall
+  among them. Deleted the whole All/System/Productivity/Utilities/
+  Internet/Games catalog-browsing UI along with `webstoreRegistry.ts`
+  (its one remaining consumer). The Webstore now only ever shows
+  what's genuinely downloadable or local: Community and My Creations.
+
+### Fixed
+- **Apps installed by default (Notes, Photo Viewer, Recycle Bin,
+  System Monitor, …) could actually be uninstalled behind an admin PIN
+  prompt** — a real OS doesn't let you remove its own file explorer or
+  Recycle Bin either, for the same reason: the desktop stops making
+  sense to use without them. `installedAppsStore`'s protection is now
+  unconditional, no PIN override. "Windows App Window" (the
+  experimental `.exe`-embedding tool, the one bundled app that
+  genuinely could still be installed/uninstalled) is now always
+  available like everything else instead, and no longer shows up as a
+  findable app on its own — it only opens from Files' "Run embedded in
+  Anchoran (experimental)" on a real `.exe`.
+
 ## [3.4.0] - 2026-09-14
 
 **Update type:** feature
