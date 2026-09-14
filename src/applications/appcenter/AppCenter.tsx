@@ -1,29 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 import { IconTile } from "@/components/IconTile";
-import { APP_LIST } from "@/applications/registry";
-import { fetchWebstoreCatalog } from "@/applications/webstoreRegistry";
 import { fetchPluginCatalog, type PluginManifest } from "@/applications/appcenter/pluginCatalog";
-import { useInstalledAppsStore, isProtectedApp } from "@/applications/installedAppsStore";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
-import type { AppCategory, AppId, AppDefinition } from "@/core/types";
 import { ANCHORAN_SIMPLIFIED_VERSION, compareVersions } from "@/core/buildNumber";
 import { ANCHORAN_VERSION } from "@/core/version";
 import { renderMarkdown } from "@/core/markdown";
 import "@/applications/apps.css";
 import "./webstore.css";
 
-const CATEGORIES: (AppCategory | "All" | "Community" | "My Creations")[] = [
-  "All",
-  "System",
-  "Productivity",
-  "Utilities",
-  "Internet",
-  "Games",
-  "Community",
-  "My Creations",
-];
+const CATEGORIES = ["Community", "My Creations"] as const;
 
 /**
  * Plugins that, once installed, can never be uninstalled from here —
@@ -66,30 +53,27 @@ function readLocalCreations(): LocalCreation[] {
 }
 
 /**
- * All apps ship built into this version of Anchoran; "install" is a
- * local toggle (per the spec: "Inicialmente la instalación puede ser
- * simulada"), not a real package manager fetching new code — but the
- * *catalog* itself is real, fetched from the GitHub Release matching
- * the running version, so it only ever shows what actually existed as
- * of that version. See webstoreRegistry.ts.
+ * Anchoran's own bundled apps (Files, Terminal, Settings, the default
+ * text/photo/media handlers, …) aren't "from" the Webstore at all —
+ * they ship with the OS itself and, as of the Anchoran App SDK
+ * migration, every one of them is permanently installed
+ * (installedAppsStore's PROTECTED_APP_IDS has no exceptions left). So
+ * this app only ever shows what's genuinely downloadable: real
+ * third-party plugins from the separate Anchoran-Webstore repo
+ * (Community) and the user's own local Code Studio projects (My
+ * Creations) — nothing here is simulated or toggled, it's either
+ * really downloaded or it's really local.
  */
 export function AppCenterApp() {
-  const [catalog, setCatalog] = useState<AppDefinition[]>(APP_LIST);
-  const [isRemoteCatalog, setIsRemoteCatalog] = useState(false);
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
-  const [selected, setSelected] = useState<AppId | null>(null);
+  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("Community");
   const openApp = useWindowStore((s) => s.openApp);
   const pushNotification = useNotificationStore((s) => s.push);
-  const installed = useInstalledAppsStore((s) => s.installed);
-  const install = useInstalledAppsStore((s) => s.install);
-  const uninstall = useInstalledAppsStore((s) => s.uninstall);
 
-  // Community plugins — a totally separate catalog from the one above,
-  // fetched from the Anchoran-Webstore repo's own latest release
-  // rather than the release matching this running Anchoran OS version,
-  // so a new or updated plugin shows up here without Anchoran OS ever
-  // needing a new release of its own. See pluginCatalog.ts.
+  // Community plugins — fetched from the Anchoran-Webstore repo's own
+  // latest release, entirely independent of which Anchoran OS version
+  // is running, so a new or updated plugin shows up here without
+  // Anchoran OS ever needing a new release of its own. See pluginCatalog.ts.
   const [plugins, setPlugins] = useState<PluginManifest[]>([]);
   const [installedPlugins, setInstalledPlugins] = useState<Set<string>>(new Set());
   const [selectedPlugin, setSelectedPlugin] = useState<PluginManifest | null>(null);
@@ -105,10 +89,6 @@ export function AppCenterApp() {
   const [creations, setCreations] = useState<LocalCreation[]>([]);
 
   useEffect(() => {
-    fetchWebstoreCatalog().then(({ apps, isRemote }) => {
-      setCatalog(apps);
-      setIsRemoteCatalog(isRemote);
-    });
     fetchPluginCatalog().then(async ({ plugins: list }) => {
       setPlugins(list);
       if (!window.anchoran) return;
@@ -186,36 +166,18 @@ export function AppCenterApp() {
     }
   }
 
-  const apps = catalog.filter((a) => a.id !== "appCenter" && !a.hiddenFromLauncher);
-  const filtered = useMemo(() => {
+  const filteredPlugins = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return apps.filter((a) => {
-      const matchesCategory = category === "All" || a.category === category;
-      const matchesQuery = !q || a.title.toLowerCase().includes(q) || a.description.toLowerCase().includes(q);
-      return matchesCategory && matchesQuery;
-    });
-  }, [apps, query, category]);
-
-  const detail = selected ? apps.find((a) => a.id === selected) : null;
-
-  function onInstall(app: AppDefinition) {
-    install(app.id);
-    pushNotification("Anchoran Webstore", `${app.title} was installed.`);
-  }
-  function onUninstall(app: AppDefinition) {
-    // Protected apps (see installedAppsStore.ts) never show an
-    // Uninstall button in the first place — this only ever runs for
-    // an app the user chose to install themselves.
-    uninstall(app.id);
-    pushNotification("Anchoran Webstore", `${app.title} was uninstalled.`);
-  }
+    if (!q) return plugins;
+    return plugins.filter((p) => p.title.toLowerCase().includes(q) || p.description.toLowerCase().includes(q));
+  }, [plugins, query]);
 
   return (
     <div className="webstore-root">
       <div className="webstore-sidebar">
         <div className="webstore-search">
           <Icon name="search" size={14} />
-          <input placeholder="Search apps…" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <input placeholder="Search Community apps…" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         {CATEGORIES.map((c) => (
           <button key={c} className="webstore-category" data-active={category === c} onClick={() => setCategory(c)}>
@@ -225,11 +187,6 @@ export function AppCenterApp() {
         <button className="app-toolbar-btn" style={{ margin: "8px 10px 0" }} onClick={showWebstoreChangelog} disabled={webstoreChangelogLoading}>
           Changelog
         </button>
-        <div className="webstore-catalog-note">
-          {isRemoteCatalog
-            ? `Catalog for Anchoran ${ANCHORAN_SIMPLIFIED_VERSION}`
-            : "Offline — showing this build's bundled catalog"}
-        </div>
         <div className="webstore-version-stamp">Anchoran Webstore · {ANCHORAN_SIMPLIFIED_VERSION}</div>
       </div>
       {webstoreChangelog !== null && (
@@ -310,7 +267,7 @@ export function AppCenterApp() {
             </div>
           ) : (
             <div className="webstore-grid">
-              {plugins.map((plugin) => {
+              {filteredPlugins.map((plugin) => {
                 const isInstalled = installedPlugins.has(plugin.id);
                 return (
                   <div className="webstore-card" key={plugin.id} onClick={() => setSelectedPlugin(plugin)}>
@@ -339,9 +296,12 @@ export function AppCenterApp() {
                   Couldn't reach the Anchoran Webstore's community catalog — check your connection.
                 </div>
               )}
+              {plugins.length > 0 && filteredPlugins.length === 0 && (
+                <div style={{ color: "var(--anchoran-text-secondary)", fontSize: 13, padding: 20 }}>No apps found.</div>
+              )}
             </div>
           )
-        ) : category === "My Creations" ? (
+        ) : (
           <div className="webstore-grid">
             {creations.map((creation) => (
               <div className="webstore-card" key={creation.id} onClick={() => openCreation(creation)}>
@@ -381,68 +341,6 @@ export function AppCenterApp() {
             {creations.length === 0 && (
               <div style={{ color: "var(--anchoran-text-secondary)", fontSize: 13, padding: 20 }}>
                 Nothing here yet — build your own local app in Anchoran Code Studio (Community) and it shows up here.
-              </div>
-            )}
-          </div>
-        ) : detail ? (
-          <div className="webstore-detail">
-            <button className="webstore-back" onClick={() => setSelected(null)}>
-              ← Back
-            </button>
-            <div className="webstore-detail-header">
-              <IconTile name={detail.icon as IconName} size={64} glyphScale={0.5} />
-              <div>
-                <h2 style={{ margin: 0, fontWeight: 500 }}>{detail.title}</h2>
-                <div className="webstore-detail-category">{detail.category}</div>
-              </div>
-            </div>
-            <p className="webstore-detail-description">{detail.description}</p>
-            <div style={{ display: "flex", gap: 8 }}>
-              {installed.has(detail.id) ? (
-                <>
-                  <button className="app-toolbar-btn" onClick={() => openApp(detail.id)}>
-                    Open
-                  </button>
-                  {!isProtectedApp(detail.id) && (
-                    <button className="app-toolbar-btn" onClick={() => onUninstall(detail)}>
-                      Uninstall
-                    </button>
-                  )}
-                </>
-              ) : (
-                <button className="app-toolbar-btn" onClick={() => onInstall(detail)}>
-                  Install
-                </button>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="webstore-grid">
-            {filtered.map((app) => {
-              const isInstalled = installed.has(app.id);
-              return (
-                <div className="webstore-card" key={app.id} onClick={() => setSelected(app.id)}>
-                  <IconTile name={app.icon as IconName} size={40} glyphScale={0.5} />
-                  <div className="webstore-card-body">
-                    <div className="webstore-card-title">{app.title}</div>
-                    <div className="webstore-card-desc">{app.description}</div>
-                  </div>
-                  <button
-                    className="app-toolbar-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isInstalled) openApp(app.id);
-                      else onInstall(app);
-                    }}
-                  >
-                    {isInstalled ? "Open" : "Install"}
-                  </button>
-                </div>
-              );
-            })}
-            {filtered.length === 0 && (
-              <div style={{ color: "var(--anchoran-text-secondary)", fontSize: 13, padding: 20 }}>
-                No apps found.
               </div>
             )}
           </div>

@@ -10,14 +10,17 @@ const INSTALLED_KEY = "installedApps";
 
 // Core apps (Files, Terminal, Settings, the Webstore itself) are always
 // installed; the rest ship with a sensible day-one default so Anchoran
-// is immediately usable, with the newest additions left for the user
-// to discover and install from the Webstore. System-category tools
-// (Network Monitor, Event Viewer, …), a couple of everyday utility
-// apps (Media Player, Magnifier), and every app that actually opens a
-// specific real file type from disk (Notes → text, Media Player →
-// audio/video, Photo Viewer → images, Zip Tool → .zip) ship installed
-// by default too — the same way a real OS's own built-in file
-// handlers aren't something you'd expect to have to go find in a
+// is immediately usable. As of the Anchoran App SDK migration, every
+// bundled app ships this way — none of them are actually "from" the
+// Webstore (see AppCenter.tsx, which no longer even browses this
+// list), so there's nothing left to "discover and install" among
+// them. System-category tools (Network Monitor, Event Viewer, …), a
+// couple of everyday utility apps (Media Player, Magnifier, the
+// experimental Windows App Window embed), and every app that actually
+// opens a specific real file type from disk (Notes → text, Media
+// Player → audio/video, Photo Viewer → images, Zip Tool → .zip) ship
+// installed by default too — the same way a real OS's own built-in
+// file handlers aren't something you'd expect to have to go find in a
 // store first.
 const CORE_APP_IDS = APP_LIST.filter((a) => a.core).map((a) => a.id);
 const DEFAULT_OPTIONAL_INSTALLED: AppId[] = [
@@ -33,6 +36,7 @@ const DEFAULT_OPTIONAL_INSTALLED: AppId[] = [
   "startupApps",
   "onScreenKeyboard",
   "narrator",
+  "embeddedApp",
 ];
 const DEFAULT_INSTALLED: AppId[] = [...CORE_APP_IDS, ...DEFAULT_OPTIONAL_INSTALLED];
 
