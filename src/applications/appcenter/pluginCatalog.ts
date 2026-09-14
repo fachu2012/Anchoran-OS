@@ -17,6 +17,10 @@ export interface PluginManifest {
   entry: string;
   /** Who publishes this plugin — shown in the Webstore's detail view. Optional: an older catalog entry (or a locally-authored one from Code Studio before it's published) may not set one. */
   author?: string;
+  /** One of the Webstore's usual categories (Games, Productivity, Utilities, Internet, System) — used for Community's own category filter. Optional for older/local catalog entries. */
+  category?: string;
+  /** A short per-version history for just this plugin — distinct from the Anchoran-Webstore repo's own shared CHANGELOG.md — shown in the detail view. Optional. */
+  recentChanges?: { version: string; notes: string }[];
 }
 
 const REPO = "fachu2012/Anchoran-Webstore";

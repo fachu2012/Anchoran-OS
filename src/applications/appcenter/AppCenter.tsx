@@ -12,6 +12,9 @@ import "./webstore.css";
 
 const CATEGORIES = ["Community", "My Creations"] as const;
 
+/** Community's own category filter — a plugin's optional `category` field uses one of these; "All" always shows everything, including a plugin with no category set. */
+const PLUGIN_CATEGORIES = ["All", "Games", "Productivity", "Utilities", "Internet", "System"] as const;
+
 /**
  * Plugins that, once installed, can never be uninstalled from here —
  * the plugin-catalog equivalent of a core app's PROTECTED_APP_IDS.
@@ -67,6 +70,7 @@ function readLocalCreations(): LocalCreation[] {
 export function AppCenterApp() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("Community");
+  const [pluginCategory, setPluginCategory] = useState<(typeof PLUGIN_CATEGORIES)[number]>("All");
   const openApp = useWindowStore((s) => s.openApp);
   const pushNotification = useNotificationStore((s) => s.push);
 
@@ -168,9 +172,10 @@ export function AppCenterApp() {
 
   const filteredPlugins = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return plugins;
-    return plugins.filter((p) => p.title.toLowerCase().includes(q) || p.description.toLowerCase().includes(q));
-  }, [plugins, query]);
+    return plugins
+      .filter((p) => !q || p.title.toLowerCase().includes(q) || p.description.toLowerCase().includes(q))
+      .filter((p) => pluginCategory === "All" || p.category === pluginCategory);
+  }, [plugins, query, pluginCategory]);
 
   return (
     <div className="webstore-root">
@@ -184,6 +189,21 @@ export function AppCenterApp() {
             {c}
           </button>
         ))}
+        {category === "Community" && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "4px 10px 2px" }}>
+            {PLUGIN_CATEGORIES.map((c) => (
+              <button
+                key={c}
+                className="webstore-category"
+                data-active={pluginCategory === c}
+                style={{ fontSize: 11, padding: "3px 8px" }}
+                onClick={() => setPluginCategory(c)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
         <button className="app-toolbar-btn" style={{ margin: "8px 10px 0" }} onClick={showWebstoreChangelog} disabled={webstoreChangelogLoading}>
           Changelog
         </button>
@@ -235,6 +255,23 @@ export function AppCenterApp() {
                 </div>
               </div>
               <p className="webstore-detail-description">{selectedPlugin.description}</p>
+              {selectedPlugin.recentChanges && selectedPlugin.recentChanges.length > 0 && (
+                <div style={{ margin: "0 0 16px" }}>
+                  <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: 0.06, color: "var(--anchoran-text-secondary)", marginBottom: 6 }}>
+                    Recent changes
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {[...selectedPlugin.recentChanges]
+                      .reverse()
+                      .map((entry) => (
+                        <div key={entry.version} style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+                          <span style={{ fontFamily: "Cascadia Code, Consolas, monospace", fontWeight: 600 }}>v{entry.version}</span>
+                          <span style={{ color: "var(--anchoran-text-secondary)" }}> — {entry.notes}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
               <div style={{ display: "flex", gap: 8 }}>
                 {installedPlugins.has(selectedPlugin.id) ? (
                   <>
