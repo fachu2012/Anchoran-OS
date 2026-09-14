@@ -85,6 +85,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.M
   — happens automatically the moment this version's own stores hydrate
   (see `src/core/legacyAppIds.ts`), regardless of whether the notice
   was seen (e.g. a fresh install jumping straight to this version).
+- **Code Runner** — Files now runs a code file (see `fileTypes.ts`'s
+  `CODE_EXT`) with whatever matching interpreter is on this PC's own
+  PATH (node, python, ruby, php, go, java, powershell, cmd, bash) and
+  shows its output, instead of opening it for editing — a click/
+  double-click is now "Run", the same expectation a real IDE's Run
+  button sets. `.html`/`.htm` render live in a sandboxed frame instead.
+  File types with no single-command way to run them fall back to a
+  plain read-only view with a clear note. Editing is always one right-
+  click ("Edit as Text", shown only on Code-type files) away, and
+  configurable per-category in Settings' Default apps list like images/
+  text/audio-video/zip already were.
+- **A live preview panel** in Anchoran's own file/folder picker for
+  any selected image, before confirming "Import…" — so a profile
+  picture, wallpaper, or any other image import actually shows the
+  picture first. Image files also now show a real small thumbnail of
+  their own pixels as their icon (Windows Explorer style) instead of a
+  generic picture glyph, in both Files and the picker.
+- PDF documents now open in Quick Look by default (Chromium's own
+  built-in PDF viewer, the same one Quick Look's read-only peek
+  already used) instead of falling through to Windows' default
+  browser — matching the existing default-open behavior for .zip.
+  Configurable in Settings' Default apps list ("PDF documents").
+- **A "Changelog" button in the Webstore**, next to the catalog's
+  version note — opens the same read-only markdown panel as Settings'
+  "What's new", fetched live from the separate Anchoran-Webstore
+  repo's own `CHANGELOG.md` instead of Anchoran OS's, since the
+  Webstore's plugin catalog has its own independent release history.
+
+### Fixed
+- **The Webstore's own app catalog showed "Offline — showing this
+  build's bundled catalog" on every Insider Preview build** since
+  v3.1.2 — `webstoreRegistry.ts` built its GitHub release lookup
+  straight from `ANCHORAN_VERSION`, which on an I.P.U. build carries
+  the internal "-beta" suffix (load-bearing for electron-updater, see
+  v3.1.2's own fix) instead of the real "-IPU" tag suffix, so the
+  lookup 404'd every time. Added `releaseTagFor()` to `buildNumber.ts`
+  to reconstruct the real release tag from the internal version +
+  channel, used here now.
+- **Files' Quick Links (Desktop, Documents, Pictures, …) pointed into
+  OneDrive instead of the real local folder** whenever OneDrive's
+  "Known Folder Move" feature was active — `app.getPath()` asks
+  Windows for the registered Known Folder path, which OneDrive
+  rewrites in the registry. Now prefers the real
+  `%USERPROFILE%\<name>` path whenever it actually exists on disk.
 
 ### Changed
 - The global PrintScreen / Ctrl+Shift+S screenshot shortcut now opens
