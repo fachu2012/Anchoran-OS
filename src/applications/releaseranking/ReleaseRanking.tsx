@@ -268,14 +268,14 @@ export function ReleaseRankingApp() {
           live audit of each version.
           <br />
           <br />
-          Updated through v3.5.4. Left out of the ranking: versions that never got a stable release of their own to
-          install and stay on — v2.9.9, v3.3.6, v3.5.0, v3.5.1, v3.5.2 and v3.5.3 (each existed only as an I.P.U.,
-          superseded before going stable; each one's content ended up folded into the next version that actually
-          did go stable). From v3.0.0 onward, every version ships first as an I.P.U. (prerelease, only for devices
-          with "Insider Preview updates" enabled) and only later as a stable release — this ranking only scores the
-          stable ones, since those are what someone can actually install and stay on forever in the sense the
-          question above asks. v3.5.4 is listed for reference but is still I.P.U.-only as of this update, so it
-          isn't yet the top recommendation.
+          Updated through v3.5.5. Left out of the ranking: versions that never got a stable release of their own to
+          install and stay on — v2.9.9, v3.3.6, v3.5.0, v3.5.1, v3.5.2, v3.5.3 and v3.5.4 (each existed only as an
+          I.P.U., superseded before going stable; each one's content ended up folded into the next version that
+          actually did go stable). From v3.0.0 onward, every version ships first as an I.P.U. (prerelease, only for
+          devices with "Insider Preview updates" enabled) and only later as a stable release — this ranking only
+          scores the stable ones, since those are what someone can actually install and stay on forever in the
+          sense the question above asks. v3.5.5 is listed for reference but is still I.P.U.-only as of this
+          update, so it isn't yet the top recommendation.
         </div>
       </div>
     </div>

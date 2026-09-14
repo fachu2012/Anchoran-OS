@@ -5,6 +5,16 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.5.5] - 2026-09-14
+
+**Update type:** maintenance
+
+### Changed
+- A trivial version bump, no functional changes — exists purely so
+  the new custom update provider (v3.5.4) has a real next I.P.U. to
+  test auto-detecting from within Anchoran itself, without waiting on
+  an unrelated feature to be ready.
+
 ## [3.5.4] - 2026-09-14
 
 **Update type:** feature
