@@ -5,6 +5,28 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.5.6] - 2026-09-14
+
+**Update type:** critical
+
+### Fixed
+- **v3.5.4 and v3.5.5 fail to even boot** — `electron-builder` only
+  bundles a package into the installed app if it's listed directly in
+  `package.json`'s own `"dependencies"`; `semver` (used by the new
+  `AnchoranGitHubProvider`) was only ever a transitive dependency of
+  `electron-updater`, so it never got packaged, and Anchoran crashed
+  on startup with `Uncaught Exception: Cannot find module 'semver'`
+  the moment `main.ts` tried to install the custom update provider.
+  Works fine in `npm run dev` (the full, unpruned `node_modules` is on
+  disk there), only broke in a real packaged install — `semver` is
+  now a direct dependency.
+
+If you're stuck on a v3.5.4/v3.5.5 install that won't open at all:
+Anchoran can't self-update from inside an app that can't start.
+Download `AnchoranOS-Setup-3.5.6-beta.exe` directly from this
+release's GitHub page and run it — it installs over the existing,
+broken install the same as any other update.
+
 ## [3.5.5] - 2026-09-14
 
 **Update type:** maintenance
