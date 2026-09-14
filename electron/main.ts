@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import { execFile, spawn } from "node:child_process";
 import Store from "electron-store";
 import { autoUpdater } from "electron-updater";
+import { AnchoranGitHubProvider } from "./anchoranUpdateProvider";
 
 /**
  * A downloaded plugin's entry file is loaded into the renderer via
@@ -1613,6 +1614,29 @@ autoUpdater.logger = {
 // update), which always goes through UpdateTheater first.
 autoUpdater.autoInstallOnAppQuit = false;
 
+// Anchoran's own fixed GitHub provider (see anchoranUpdateProvider.ts
+// for exactly what's different and why) — the stock GitHubProvider
+// can only ever detect the next STABLE release while running an
+// Insider Preview build, never a newer I.P.U. one, since Anchoran's
+// tag naming ("-IPU") never string-matches its internal build channel
+// name ("beta"). This is a drop-in swap: everything else about how
+// updates are fetched, verified and installed is untouched.
+// electron-updater's own `updateProvider` type only allows a
+// constructor shaped for its generic `CustomPublishOptions` (just
+// `{provider: "custom", updateProvider}` — no owner/repo), but the
+// real `providerFactory.js` just does `new constructor(options, ...)`
+// with the SAME options object passed here, untyped, at runtime — so
+// a provider that (like this one) also wants GitHub-shaped fields
+// works fine in practice; this cast exists purely to satisfy that
+// narrower compile-time type, not because anything is actually unsafe
+// here.
+autoUpdater.setFeedURL({
+  provider: "custom",
+  updateProvider: AnchoranGitHubProvider,
+  owner: "fachu2012",
+  repo: "Anchoran-OS",
+} as unknown as Parameters<typeof autoUpdater.setFeedURL>[0]);
+
 // Optional beta channel: when enabled, electron-updater also
 // considers GitHub releases marked "pre-release" as valid updates,
 // not only full releases. Honest scope note: this makes the switch
@@ -1782,9 +1806,20 @@ interface InstalledPluginManifest {
   id: string;
   title: string;
   icon: string;
+  /** The catalog version this plugin was last installed/updated at — absent for a plugin installed before this field existed (its own "Updated"/auto-update comparison just treats that as always-outdated until the next real install/update writes a real one). */
+  version?: string;
 }
 
-ipcMain.handle("anchoran:plugin-install", async (_event, pluginId: string, entryUrl: string, manifest?: { title?: string; icon?: string }) => {
+function buildLocalManifest(pluginId: string, manifest?: { title?: string; icon?: string; version?: string }): InstalledPluginManifest {
+  return {
+    id: pluginId,
+    title: typeof manifest?.title === "string" && manifest.title.trim() ? manifest.title : pluginId,
+    icon: typeof manifest?.icon === "string" && manifest.icon.trim() ? manifest.icon : "appCenter",
+    version: typeof manifest?.version === "string" && manifest.version.trim() ? manifest.version : undefined,
+  };
+}
+
+ipcMain.handle("anchoran:plugin-install", async (_event, pluginId: string, entryUrl: string, manifest?: { title?: string; icon?: string; version?: string }) => {
   if (typeof pluginId !== "string" || !/^[\w-]+$/.test(pluginId)) {
     return { success: false, error: "Invalid plugin id." };
   }
@@ -1796,15 +1831,11 @@ ipcMain.handle("anchoran:plugin-install", async (_event, pluginId: string, entry
     fs.mkdirSync(dir, { recursive: true });
     const destPath = path.join(dir, "index.js");
     await downloadToFile(entryUrl, destPath, () => {});
-    // Small local manifest (title/icon only) so the Launcher can list
-    // this plugin without re-fetching the whole live Webstore catalog
-    // just to know its name/icon — see anchoran:plugin-list-installed.
-    const localManifest: InstalledPluginManifest = {
-      id: pluginId,
-      title: typeof manifest?.title === "string" && manifest.title.trim() ? manifest.title : pluginId,
-      icon: typeof manifest?.icon === "string" && manifest.icon.trim() ? manifest.icon : "appCenter",
-    };
-    fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify(localManifest));
+    // Small local manifest (title/icon/version) so the Launcher can
+    // list this plugin, and the auto-update check can tell whether
+    // it's outdated, without re-fetching the whole live Webstore
+    // catalog — see anchoran:plugin-list-installed.
+    fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify(buildLocalManifest(pluginId, manifest)));
     return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
@@ -1826,6 +1857,33 @@ ipcMain.handle("anchoran:plugin-is-installed", (_event, pluginId: string) =>
 );
 
 /**
+ * Refreshes a plugin's local manifest.json title/icon WITHOUT
+ * touching its downloaded code — for backfilling a plugin that was
+ * installed before manifest.json existed (any plugin already on disk
+ * when this feature shipped, e.g. Anchoran Code Studio itself) so it
+ * stops showing up in the Launcher as its raw id with a generic icon.
+ * AppCenter calls this once per installed+cataloged plugin whenever
+ * it fetches the live catalog, so this self-heals without needing a
+ * one-off migration step. A no-op if the plugin isn't installed.
+ */
+ipcMain.handle("anchoran:plugin-set-manifest", (_event, pluginId: string, manifest: { title?: string; icon?: string; version?: string }) => {
+  if (typeof pluginId !== "string" || !/^[\w-]+$/.test(pluginId)) return { success: false, error: "Invalid plugin id." };
+  const dir = path.join(pluginsDir, pluginId);
+  if (!fs.existsSync(path.join(dir, "index.js"))) return { success: false, error: "Not installed." };
+  // Preserve a real, already-known version rather than letting a
+  // caller that doesn't know it (AppCenter's backfill pass only knows
+  // title/icon) accidentally erase it.
+  let existingVersion: string | undefined;
+  try {
+    existingVersion = (JSON.parse(fs.readFileSync(path.join(dir, "manifest.json"), "utf-8")) as InstalledPluginManifest).version;
+  } catch {
+    /* no existing manifest yet — fine */
+  }
+  fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify(buildLocalManifest(pluginId, { ...manifest, version: manifest?.version ?? existingVersion })));
+  return { success: true };
+});
+
+/**
  * Every currently-installed plugin — what lets the Launcher (and
  * anything else that wants "apps you can actually open") list a
  * downloaded Webstore plugin alongside Anchoran's own bundled apps,
@@ -1843,7 +1901,12 @@ ipcMain.handle("anchoran:plugin-list-installed", (): InstalledPluginManifest[] =
         const manifestPath = path.join(pluginsDir, entry.name, "manifest.json");
         try {
           const raw = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
-          return { id: entry.name, title: typeof raw?.title === "string" ? raw.title : entry.name, icon: typeof raw?.icon === "string" ? raw.icon : "appCenter" };
+          return {
+            id: entry.name,
+            title: typeof raw?.title === "string" ? raw.title : entry.name,
+            icon: typeof raw?.icon === "string" ? raw.icon : "appCenter",
+            version: typeof raw?.version === "string" ? raw.version : undefined,
+          };
         } catch {
           return { id: entry.name, title: entry.name, icon: "appCenter" };
         }

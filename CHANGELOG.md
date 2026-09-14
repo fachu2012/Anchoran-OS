@@ -5,6 +5,54 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.5.4] - 2026-09-14
+
+**Update type:** feature
+
+### Fixed
+- **`anchoran changeto <version>` never recognized you were already on
+  that exact I.P.U. build** — it compared the raw git tag against the
+  internal "-beta"-suffixed version string, which never match even
+  for the same release. Now compares base version + real channel
+  instead (still correctly allows a legitimate changeto between the
+  same version's two channels, e.g. its I.P.U. to its later stable).
+- `anchoran changeto` printed the raw git tag ("v3.5.1-IPU") in its
+  "Downloading…" line instead of the real display label.
+- A plugin installed before its local manifest.json existed (e.g.
+  Anchoran Code Studio, on any install predating Build-3H5.3) showed
+  up in the Launcher as its raw id ("code-studio") with the generic
+  Webstore icon — the Webstore's Community tab now backfills every
+  installed, still-cataloged plugin's manifest each time it opens.
+- `anchoran apps`/`anchoran uninstall`/`anchoran open`/`anchoran
+  install` only ever looked at Anchoran's own bundled apps — an
+  installed Webstore plugin was invisible to all four.
+- Anchoran Code Studio can now be uninstalled like any other plugin —
+  it was the one plugin permanently protected from uninstall before.
+
+### Added
+- **A custom GitHub update provider fixes I.P.U.-to-I.P.U. auto-
+  detection.** electron-updater's own logic could only ever detect the
+  next STABLE release while running an Insider Preview build — from
+  any I.P.U., a newer I.P.U. was never offered automatically, only
+  reachable via `anchoran changeto`. See `electron/
+  anchoranUpdateProvider.ts` for exactly what's different.
+- **Per-plugin "Auto-update" toggle** in the Webstore's Community tab:
+  when on, opening that plugin (from anywhere — Launcher, Webstore, My
+  Creations, taskbar) checks for a newer version first and, if found,
+  shows "Updating [app name]…" before opening the freshly-updated app.
+- The Webstore's plugin detail view now shows the installed version
+  next to the catalog version, and its action buttons (Open/Update/
+  Uninstall/Install/Auto-update) always sit right after the header —
+  a long changelog used to push them far down the page.
+- The Browser's secondary toolbar (zoom, Print, Save as PDF,
+  screenshot, tab actions, …) moves into a "⋮" menu at the top right,
+  same as Chrome — it was taking a full row of page-view space.
+- The Terminal now auto-scrolls to the bottom as new output arrives,
+  same as a real cmd — unless you've scrolled up to read past output,
+  in which case new lines no longer yank you back down.
+- The update-ready screen's title now matches Anchover's own "ANCHORAN
+  OS #" typography, with the major version number in the title itself.
+
 ## [3.5.3] - 2026-09-14
 
 **Update type:** stability

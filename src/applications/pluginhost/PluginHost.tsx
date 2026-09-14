@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { AnchoranPluginModule, AnchoranSDK } from "@/core/anchoranSDK";
 import { useWindowStore } from "@/windowmanager/windowStore";
+import { fetchPluginCatalog } from "@/applications/appcenter/pluginCatalog";
+import { isAutoUpdateEnabled } from "@/core/pluginAutoUpdate";
 import "@/applications/apps.css";
 
 /** Matches "pluginHost"'s own minSize in apps.json — kept as a literal here rather than imported, since apps.json's per-app minSize isn't otherwise exposed as a lookup outside the window store's own internal bookkeeping. Also caps how large a plugin can request, so a bug or a bad actor's plugin can't force an absurd window size. */
@@ -36,6 +38,13 @@ export function PluginHostApp({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
+  // Set to the plugin's title while its "Auto-update" toggle (see
+  // AppCenter.tsx's per-plugin checkbox, pluginAutoUpdate.ts) is
+  // installing a newer version before this window opens it — every
+  // open of a plugin funnels through this one component regardless of
+  // where it was opened from (Launcher, Webstore, My Creations,
+  // taskbar), so this is the one place that needs to know about it.
+  const [updatingTitle, setUpdatingTitle] = useState<string | null>(null);
 
   useEffect(() => {
     if (!pluginId || !windowId) {
@@ -48,6 +57,7 @@ export function PluginHostApp({
     }
     let cancelled = false;
     let unmount: (() => void) | null = null;
+    let didUpdate = false;
 
     (async () => {
       const isInstalled = await window.anchoran!.pluginIsInstalled(pluginId);
@@ -56,6 +66,33 @@ export function PluginHostApp({
         setError("This plugin isn't installed anymore — reinstall it from the Webstore.");
         return;
       }
+
+      if (isAutoUpdateEnabled(pluginId)) {
+        try {
+          const [installedList, { plugins: catalog }] = await Promise.all([window.anchoran!.pluginListInstalled(), fetchPluginCatalog()]);
+          if (cancelled) return;
+          const installedVersion = installedList.find((p) => p.id === pluginId)?.version;
+          const catalogEntry = catalog.find((p) => p.id === pluginId);
+          if (catalogEntry && installedVersion !== catalogEntry.version) {
+            setUpdatingTitle(catalogEntry.title);
+            const result = await window.anchoran!.pluginInstall(pluginId, catalogEntry.entry, {
+              title: catalogEntry.title,
+              icon: catalogEntry.icon,
+              version: catalogEntry.version,
+            });
+            if (cancelled) return;
+            // A failed update check/download never blocks opening the
+            // still-working, already-installed version — same
+            // "degrade gracefully offline" spirit as everything else
+            // here that touches the network.
+            didUpdate = result.success;
+            setUpdatingTitle(null);
+          }
+        } catch {
+          if (!cancelled) setUpdatingTitle(null);
+        }
+      }
+
       try {
         // Served by the anchoran-plugin:// protocol handler registered
         // in electron/main.ts, scoped to exactly this plugin's own
@@ -64,7 +101,12 @@ export function PluginHostApp({
         // block a cross-path ES module fetch under webSecurity; a
         // registered, corsEnabled scheme behaves like a real origin
         // instead, no build-time bundling involved either way.
-        const mod = (await import(/* @vite-ignore */ `anchoran-plugin://${pluginId}/index.js`)) as AnchoranPluginModule;
+        // Cache-busted only when this open just installed a fresh
+        // version — otherwise Chromium's module cache could keep
+        // serving whatever this same plugin id resolved to earlier in
+        // this session, from before the update.
+        const importUrl = `anchoran-plugin://${pluginId}/index.js${didUpdate ? `?t=${Date.now()}` : ""}`;
+        const mod = (await import(/* @vite-ignore */ importUrl)) as AnchoranPluginModule;
         if (cancelled || !containerRef.current) return;
         if (typeof mod.mount !== "function") {
           setError("This plugin's entry file doesn't export a mount() function — it may be corrupted.");
@@ -91,6 +133,14 @@ export function PluginHostApp({
     return (
       <div className="app-root" style={{ alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
         <div style={{ color: "#E5484D", fontSize: 13 }}>{error}</div>
+      </div>
+    );
+  }
+
+  if (updatingTitle) {
+    return (
+      <div className="app-root" style={{ alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center", gap: 10 }}>
+        <div style={{ fontSize: 13 }}>Updating {updatingTitle}…</div>
       </div>
     );
   }

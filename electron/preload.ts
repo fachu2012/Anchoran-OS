@@ -158,14 +158,16 @@ contextBridge.exposeInMainWorld("anchoran", {
   },
   consumePendingUpdate: (): Promise<string | null> => ipcRenderer.invoke("anchoran:consume-pending-update"),
 
-  pluginInstall: (pluginId: string, entryUrl: string, manifest?: { title?: string; icon?: string }): Promise<{ success: boolean; error?: string }> =>
+  pluginInstall: (pluginId: string, entryUrl: string, manifest?: { title?: string; icon?: string; version?: string }): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("anchoran:plugin-install", pluginId, entryUrl, manifest),
   pluginUninstall: (pluginId: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("anchoran:plugin-uninstall", pluginId),
   pluginIsInstalled: (pluginId: string): Promise<boolean> => ipcRenderer.invoke("anchoran:plugin-is-installed", pluginId),
   pluginEntryPath: (pluginId: string): Promise<string | null> => ipcRenderer.invoke("anchoran:plugin-entry-path", pluginId),
-  pluginListInstalled: (): Promise<{ id: string; title: string; icon: string }[]> =>
+  pluginListInstalled: (): Promise<{ id: string; title: string; icon: string; version?: string }[]> =>
     ipcRenderer.invoke("anchoran:plugin-list-installed"),
+  pluginSetManifest: (pluginId: string, manifest: { title?: string; icon?: string; version?: string }): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:plugin-set-manifest", pluginId, manifest),
 
   deleteLocalDataForDowngrade: (): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("anchoran:delete-local-data-for-downgrade"),

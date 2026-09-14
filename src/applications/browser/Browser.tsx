@@ -317,6 +317,7 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
   const [translateMenuOpen, setTranslateMenuOpen] = useState(false);
   const [savePagePicker, setSavePagePicker] = useState(false);
   const [tabMenu, setTabMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const [pageMenu, setPageMenu] = useState<{ x: number; y: number } | null>(null);
   const [activeId, setActiveId] = useState(tabs[0].id);
 
   // Tracks when each tab last became active (for background-tab
@@ -1017,6 +1018,16 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
         <button className="app-toolbar-btn" data-op={trackerBlock} onClick={onToggleTrackerBlock} title="Block common ad/tracker domains">
           Block trackers
         </button>
+        <button
+          className="app-toolbar-btn"
+          title="More (zoom, print, save, tab actions)"
+          onClick={(e) => {
+            const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+            setPageMenu({ x: rect.right, y: rect.bottom + 4 });
+          }}
+        >
+          ⋮
+        </button>
       </div>
 
       {isInsecure && (
@@ -1052,45 +1063,29 @@ export function BrowserApp({ openPath }: { openPath?: string } = {}) {
         </div>
       )}
 
-      <div className="browser-secondary-toolbar">
-        <button className="app-toolbar-btn" onClick={() => zoomBy(-0.1)}>
-          −
-        </button>
-        <span style={{ fontSize: 12, color: "var(--anchoran-text-secondary)" }}>{Math.round((active?.zoom ?? 1) * 100)}%</span>
-        <button className="app-toolbar-btn" onClick={() => zoomBy(0.1)}>
-          +
-        </button>
-        <button className="app-toolbar-btn" onClick={zoomReset}>
-          Reset
-        </button>
-        <button className="app-toolbar-btn" onClick={printPage}>
-          Print
-        </button>
-        <button className="app-toolbar-btn" onClick={saveAsPdf}>
-          Save as PDF
-        </button>
-        <button className="app-toolbar-btn" onClick={captureFullPage}>
-          Full-page screenshot
-        </button>
-        <button className="app-toolbar-btn" onClick={() => setSavePagePicker(true)}>
-          Save page…
-        </button>
-        <button className="app-toolbar-btn" onClick={copyLink}>
-          Copy link
-        </button>
-        <button className="app-toolbar-btn" onClick={() => duplicateTab(activeId)}>
-          Duplicate tab
-        </button>
-        <button className="app-toolbar-btn" onClick={() => closeOthers(activeId)}>
-          Close others
-        </button>
-        <button className="app-toolbar-btn" onClick={() => closeToRight(activeId)}>
-          Close tabs to the right
-        </button>
-        <button className="app-toolbar-btn" onClick={reopenClosed} disabled={closedStack.current.length === 0}>
-          Reopen closed tab
-        </button>
-      </div>
+      {pageMenu && (
+        <ContextMenu
+          x={pageMenu.x}
+          y={pageMenu.y}
+          onClose={() => setPageMenu(null)}
+          items={[
+            { label: "Zoom out (−)", onSelect: () => zoomBy(-0.1) },
+            { label: `Zoom: ${Math.round((active?.zoom ?? 1) * 100)}% (reset)`, onSelect: zoomReset },
+            { label: "Zoom in (+)", onSelect: () => zoomBy(0.1) },
+            { separator: true },
+            { label: "Print", onSelect: printPage },
+            { label: "Save as PDF", onSelect: saveAsPdf },
+            { label: "Full-page screenshot", onSelect: captureFullPage },
+            { label: "Save page…", onSelect: () => setSavePagePicker(true) },
+            { label: "Copy link", onSelect: copyLink },
+            { separator: true },
+            { label: "Duplicate tab", onSelect: () => duplicateTab(activeId) },
+            { label: "Close others", onSelect: () => closeOthers(activeId) },
+            { label: "Close tabs to the right", onSelect: () => closeToRight(activeId) },
+            { label: "Reopen closed tab", disabled: closedStack.current.length === 0, onSelect: reopenClosed },
+          ]}
+        />
+      )}
 
       <div className="app-content browser-content" style={{ padding: 0 }}>
         {tabs.map((t) => {

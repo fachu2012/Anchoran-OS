@@ -12,6 +12,7 @@ import { ANCHORAN_VERSION } from "@/core/version";
 import { BUILD_CHANNEL } from "@/core/buildChannel";
 import { simplifiedLabelFor, resolveVersionTarget, baseVersion, needsDataWipeFor, ANCHORAN_SIMPLIFIED_VERSION } from "@/core/buildNumber";
 import { getAppUptimeSeconds } from "@/core/appUptime";
+import { fetchPluginCatalog } from "@/applications/appcenter/pluginCatalog";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import type { AppId } from "@/core/types";
 import "@/applications/apps.css";
@@ -118,6 +119,20 @@ export function TerminalConsole({
   const [input, setInput] = useState("");
   const [cwd, setCwd] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
+  // Auto-scroll, like a real cmd/terminal: new output keeps the view
+  // pinned to the bottom UNLESS the user has scrolled up to read past
+  // output, in which case new lines no longer yank them back down —
+  // only scrolling back near the bottom themselves (or running another
+  // command) resumes following. rootRef is the scroll container itself
+  // (.terminal-root, see apps.css — it holds both the history and the
+  // prompt row, there's no separate inner output element).
+  const rootRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  function onTerminalScroll() {
+    const el = rootRef.current;
+    if (!el) return;
+    stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  }
   const commandHistory = useRef<string[]>([]);
   // Command history and user-defined aliases both persist across
   // sessions now — a fresh Terminal window used to start with a
@@ -174,6 +189,15 @@ export function TerminalConsole({
   useEffect(() => {
     window.anchoran?.fsSpecialFolders().then((folders) => setCwd(folders.home));
   }, []);
+
+  // Follows new output to the bottom, same as a real cmd/terminal —
+  // but only while the user hasn't scrolled up to read past output
+  // (see onTerminalScroll above, which keeps stickToBottomRef in sync).
+  useEffect(() => {
+    if (stickToBottomRef.current && rootRef.current) {
+      rootRef.current.scrollTop = rootRef.current.scrollHeight;
+    }
+  }, [history]);
 
   // Belt-and-suspenders alongside the input's own `autoFocus`: in a
   // window that can be mid-open-animation, reparented, or otherwise
@@ -638,25 +662,71 @@ export function TerminalConsole({
           window.dispatchEvent(new Event("anchoran-request-lock"));
         } else if (sub === "apps") {
           const list = APP_LIST.filter((a) => installedApps.has(a.id) && !a.hiddenFromLauncher).map((a) => a.title);
-          print(list.join("\n"));
+          const plugins = window.anchoran ? (await window.anchoran.pluginListInstalled()).map((p) => p.title) : [];
+          print([...list, ...plugins].join("\n"));
         } else if (sub === "install" || sub === "uninstall") {
           const app = findApp(subRest);
-          if (!app) {
-            print(`anchoran ${sub}: no app named "${subRest}".`);
-          } else if (sub === "install") {
-            installApp(app.id);
-            print(`Installed ${app.title}.`);
-          } else {
-            uninstallApp(app.id);
-            print(`Uninstalled ${app.title}.`);
+          if (app) {
+            if (sub === "install") {
+              installApp(app.id);
+              print(`Installed ${app.title}.`);
+            } else {
+              uninstallApp(app.id);
+              print(`Uninstalled ${app.title}.`);
+            }
+            return;
           }
+          // Not a core app — try an installed Webstore plugin (this is
+          // what "anchoran uninstall"/"anchoran apps" used to miss
+          // entirely: they only ever looked at APP_LIST, never at
+          // window.anchoran.pluginListInstalled()).
+          if (!window.anchoran) {
+            print(`anchoran ${sub}: no app named "${subRest}".`);
+            return;
+          }
+          if (sub === "uninstall") {
+            const installedPlugins = await window.anchoran.pluginListInstalled();
+            const plugin = installedPlugins.find((p) => p.id.toLowerCase() === subRest.toLowerCase() || p.title.toLowerCase() === subRest.toLowerCase());
+            if (!plugin) {
+              print(`anchoran uninstall: no app named "${subRest}".`);
+              return;
+            }
+            const result = await window.anchoran.pluginUninstall(plugin.id);
+            print(result.success ? `Uninstalled ${plugin.title}.` : `anchoran uninstall: ${result.error ?? "failed."}`);
+            return;
+          }
+          // install: not already on disk as a core app — look it up in
+          // the live Webstore catalog instead (this is the one path
+          // that genuinely needs network access, since a plugin's
+          // download URL/icon/title only exist there).
+          print("Fetching the Webstore catalog…");
+          const { plugins: catalog } = await fetchPluginCatalog();
+          const plugin = catalog.find((p) => p.id.toLowerCase() === subRest.toLowerCase() || p.title.toLowerCase() === subRest.toLowerCase());
+          if (!plugin) {
+            print(`anchoran install: no app named "${subRest}".`);
+            return;
+          }
+          const result = await window.anchoran.pluginInstall(plugin.id, plugin.entry, { title: plugin.title, icon: plugin.icon });
+          print(result.success ? `Installed ${plugin.title}.` : `anchoran install: ${result.error ?? "failed."}`);
         } else if (sub === "open") {
           const app = findApp(subRest);
-          if (!app) print(`anchoran open: no app named "${subRest}".`);
-          else {
+          if (app) {
             openApp(app.id);
             print(`Opening ${app.title}…`);
+            return;
           }
+          if (!window.anchoran) {
+            print(`anchoran open: no app named "${subRest}".`);
+            return;
+          }
+          const installedPlugins = await window.anchoran.pluginListInstalled();
+          const plugin = installedPlugins.find((p) => p.id.toLowerCase() === subRest.toLowerCase() || p.title.toLowerCase() === subRest.toLowerCase());
+          if (!plugin) {
+            print(`anchoran open: no app named "${subRest}".`);
+            return;
+          }
+          openApp("pluginHost", { pluginId: plugin.id, title: plugin.title });
+          print(`Opening ${plugin.title}…`);
         } else if (sub === "kill") {
           const app = findApp(subRest);
           if (!app) {
@@ -1205,8 +1275,10 @@ export function TerminalConsole({
 
   return (
     <div
+      ref={rootRef}
       className="terminal-root"
       data-admin={isAdmin}
+      onScroll={onTerminalScroll}
       onClick={() => {
         // Re-focusing the input on every click made it steal focus
         // back the instant a text selection drag ended, so Ctrl+C

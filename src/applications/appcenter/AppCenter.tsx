@@ -7,6 +7,7 @@ import { useNotificationStore } from "@/notifications/notificationStore";
 import { ANCHORAN_SIMPLIFIED_VERSION, compareVersions } from "@/core/buildNumber";
 import { ANCHORAN_VERSION } from "@/core/version";
 import { renderMarkdown } from "@/core/markdown";
+import { isAutoUpdateEnabled, setAutoUpdateEnabled } from "@/core/pluginAutoUpdate";
 import "@/applications/apps.css";
 import "./webstore.css";
 
@@ -18,11 +19,13 @@ const PLUGIN_CATEGORIES = ["All", "Games", "Productivity", "Utilities", "Interne
 /**
  * Plugins that, once installed, can never be uninstalled from here —
  * the plugin-catalog equivalent of a core app's PROTECTED_APP_IDS.
- * Just Anchoran Code Studio for now: it's the tool the rest of "My
- * Creations" depends on, so removing it would strand every local
- * project with no way to open or edit them again.
+ * Empty on purpose: even Anchoran Code Studio (the tool "My
+ * Creations" depends on) can be uninstalled like any other plugin —
+ * doing so just leaves existing local projects unopenable until it's
+ * reinstalled, which is an acceptable, explicit user choice, not a
+ * state Anchoran needs to prevent.
  */
-const PROTECTED_PLUGIN_IDS = new Set(["code-studio"]);
+const PROTECTED_PLUGIN_IDS = new Set<string>([]);
 
 /**
  * Anchoran Code Studio's own local-project index — a small, separate
@@ -80,6 +83,12 @@ export function AppCenterApp() {
   // Anchoran OS ever needing a new release of its own. See pluginCatalog.ts.
   const [plugins, setPlugins] = useState<PluginManifest[]>([]);
   const [installedPlugins, setInstalledPlugins] = useState<Set<string>>(new Set());
+  const [installedVersions, setInstalledVersions] = useState<Record<string, string | undefined>>({});
+  // Forces the Auto-update checkbox to re-render after a toggle — the
+  // preference itself lives in localStorage (pluginAutoUpdate.ts), not
+  // React state, since PluginHost.tsx (a totally separate window) also
+  // needs to read it.
+  const [autoUpdateVersion, setAutoUpdateVersion] = useState(0);
   const [selectedPlugin, setSelectedPlugin] = useState<PluginManifest | null>(null);
   const [pluginBusy, setPluginBusy] = useState<string | null>(null);
   const [webstoreChangelog, setWebstoreChangelog] = useState<string | null>(null);
@@ -97,7 +106,18 @@ export function AppCenterApp() {
       setPlugins(list);
       if (!window.anchoran) return;
       const checks = await Promise.all(list.map((p) => window.anchoran!.pluginIsInstalled(p.id)));
-      setInstalledPlugins(new Set(list.filter((_, i) => checks[i]).map((p) => p.id)));
+      const installed = list.filter((_, i) => checks[i]);
+      setInstalledPlugins(new Set(installed.map((p) => p.id)));
+      const installedManifests = await window.anchoran!.pluginListInstalled();
+      setInstalledVersions(Object.fromEntries(installedManifests.map((m) => [m.id, m.version])));
+      // Self-healing backfill: a plugin installed before manifest.json
+      // existed (e.g. Anchoran Code Studio, on any install from before
+      // this shipped) has no local title/icon of its own yet, so the
+      // Launcher fell back to its raw id + a generic icon. Every
+      // installed, still-cataloged plugin gets its manifest refreshed
+      // from the live catalog each time this tab opens — cheap, and
+      // also keeps it in sync if the catalog's own title/icon change.
+      installed.forEach((p) => window.anchoran!.pluginSetManifest(p.id, { title: p.title, icon: p.icon }));
     });
   }, []);
 
@@ -139,13 +159,32 @@ export function AppCenterApp() {
   async function onInstallPlugin(plugin: PluginManifest) {
     if (!window.anchoran) return;
     setPluginBusy(plugin.id);
-    const result = await window.anchoran.pluginInstall(plugin.id, plugin.entry, { title: plugin.title, icon: plugin.icon });
+    const result = await window.anchoran.pluginInstall(plugin.id, plugin.entry, { title: plugin.title, icon: plugin.icon, version: plugin.version });
     setPluginBusy(null);
     if (result.success) {
       setInstalledPlugins((prev) => new Set(prev).add(plugin.id));
+      setInstalledVersions((prev) => ({ ...prev, [plugin.id]: plugin.version }));
       pushNotification("Anchoran Webstore", `${plugin.title} was installed.`);
     } else {
       pushNotification("Anchoran Webstore", result.error ?? `Couldn't install ${plugin.title}.`);
+    }
+  }
+
+  // Same download as Install, just re-run over an already-installed
+  // plugin to bring it up to the catalog's current version — the
+  // manual "Update" button in the detail view, and what a plugin's
+  // own Auto-update toggle triggers automatically from PluginHost.tsx
+  // right before opening it.
+  async function onUpdatePlugin(plugin: PluginManifest) {
+    if (!window.anchoran) return;
+    setPluginBusy(plugin.id);
+    const result = await window.anchoran.pluginInstall(plugin.id, plugin.entry, { title: plugin.title, icon: plugin.icon, version: plugin.version });
+    setPluginBusy(null);
+    if (result.success) {
+      setInstalledVersions((prev) => ({ ...prev, [plugin.id]: plugin.version }));
+      pushNotification("Anchoran Webstore", `${plugin.title} was updated to v${plugin.version}.`);
+    } else {
+      pushNotification("Anchoran Webstore", result.error ?? `Couldn't update ${plugin.title}.`);
     }
   }
 
@@ -247,12 +286,70 @@ export function AppCenterApp() {
                 <div>
                   <h2 style={{ margin: 0, fontWeight: 500 }}>{selectedPlugin.title}</h2>
                   <div className="webstore-detail-category">
-                    Community · v{selectedPlugin.version} · by {selectedPlugin.author ?? "Unknown"} · requires Anchoran{" "}
+                    Community · v{selectedPlugin.version}
+                    {installedPlugins.has(selectedPlugin.id) && (
+                      <> · installed: {installedVersions[selectedPlugin.id] ? `v${installedVersions[selectedPlugin.id]}` : "unknown version"}</>
+                    )}
+                    {" · "}by {selectedPlugin.author ?? "Unknown"} · requires Anchoran{" "}
                     {compareVersions(ANCHORAN_VERSION, selectedPlugin.minAnchoranVersion) < 0
                       ? `v${selectedPlugin.minAnchoranVersion}+ (you're on an older build)`
                       : `v${selectedPlugin.minAnchoranVersion}+`}
                   </div>
                 </div>
+              </div>
+              {/* Actions come right after the header, BEFORE the
+                  description/changelog below — a long changelog used
+                  to push Open/Install/Uninstall far down the page,
+                  and burying "what version do I actually have" with it. */}
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "14px 0 16px" }}>
+                {installedPlugins.has(selectedPlugin.id) ? (
+                  <>
+                    <button
+                      className="app-toolbar-btn"
+                      onClick={() => openApp("pluginHost", { pluginId: selectedPlugin.id, title: selectedPlugin.title })}
+                    >
+                      Open
+                    </button>
+                    {installedVersions[selectedPlugin.id] !== selectedPlugin.version && (
+                      <button
+                        className="app-toolbar-btn"
+                        disabled={pluginBusy === selectedPlugin.id}
+                        onClick={() => onUpdatePlugin(selectedPlugin)}
+                      >
+                        {pluginBusy === selectedPlugin.id ? "Updating…" : `Update to v${selectedPlugin.version}`}
+                      </button>
+                    )}
+                    {!PROTECTED_PLUGIN_IDS.has(selectedPlugin.id) && (
+                      <button
+                        className="app-toolbar-btn"
+                        disabled={pluginBusy === selectedPlugin.id}
+                        onClick={() => onUninstallPlugin(selectedPlugin)}
+                      >
+                        Uninstall
+                      </button>
+                    )}
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--anchoran-text-secondary)", marginLeft: 4 }}>
+                      <input
+                        key={autoUpdateVersion}
+                        type="checkbox"
+                        checked={isAutoUpdateEnabled(selectedPlugin.id)}
+                        onChange={(e) => {
+                          setAutoUpdateEnabled(selectedPlugin.id, e.target.checked);
+                          setAutoUpdateVersion((v) => v + 1);
+                        }}
+                      />
+                      Auto-update
+                    </label>
+                  </>
+                ) : (
+                  <button
+                    className="app-toolbar-btn"
+                    disabled={pluginBusy === selectedPlugin.id}
+                    onClick={() => onInstallPlugin(selectedPlugin)}
+                  >
+                    {pluginBusy === selectedPlugin.id ? "Installing…" : "Install"}
+                  </button>
+                )}
               </div>
               <p className="webstore-detail-description">{selectedPlugin.description}</p>
               {selectedPlugin.recentChanges && selectedPlugin.recentChanges.length > 0 && (
@@ -272,35 +369,6 @@ export function AppCenterApp() {
                   </div>
                 </div>
               )}
-              <div style={{ display: "flex", gap: 8 }}>
-                {installedPlugins.has(selectedPlugin.id) ? (
-                  <>
-                    <button
-                      className="app-toolbar-btn"
-                      onClick={() => openApp("pluginHost", { pluginId: selectedPlugin.id, title: selectedPlugin.title })}
-                    >
-                      Open
-                    </button>
-                    {!PROTECTED_PLUGIN_IDS.has(selectedPlugin.id) && (
-                      <button
-                        className="app-toolbar-btn"
-                        disabled={pluginBusy === selectedPlugin.id}
-                        onClick={() => onUninstallPlugin(selectedPlugin)}
-                      >
-                        Uninstall
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <button
-                    className="app-toolbar-btn"
-                    disabled={pluginBusy === selectedPlugin.id}
-                    onClick={() => onInstallPlugin(selectedPlugin)}
-                  >
-                    {pluginBusy === selectedPlugin.id ? "Installing…" : "Install"}
-                  </button>
-                )}
-              </div>
             </div>
           ) : (
             <div className="webstore-grid">
