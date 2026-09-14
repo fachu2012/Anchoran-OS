@@ -311,6 +311,11 @@ export function FilesApp({ openPath }: { openPath?: string } = {}) {
       else setQuickLookEntry(entry);
       return;
     }
+    if (ext === ".pdf") {
+      if (defaultApps.pdf === "external") await openExternally();
+      else setQuickLookEntry(entry);
+      return;
+    }
     if (AUDIO_EXT.has(ext) || VIDEO_EXT.has(ext)) {
       if (defaultApps.audioVideo === "external") await openExternally();
       else openApp("mediaPlayer", { openPath: entry.path });

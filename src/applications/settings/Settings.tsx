@@ -1433,6 +1433,7 @@ function SystemSection() {
           { key: "text", label: "Text files", appLabel: "Notes", value: "notes" },
           { key: "audioVideo", label: "Audio & video", appLabel: "Media Player", value: "mediaPlayer" },
           { key: "zip", label: "Zip archives", appLabel: "Quick Look", value: "quickLook" },
+          { key: "pdf", label: "PDF documents", appLabel: "Quick Look", value: "quickLook" },
           { key: "code", label: "Code files", appLabel: "Code Runner", value: "codeRunner" },
         ] as const
       ).map((row) => (

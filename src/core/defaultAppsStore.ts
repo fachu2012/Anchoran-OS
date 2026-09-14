@@ -15,6 +15,7 @@ export interface DefaultAppsState {
   text: "notes" | "external";
   audioVideo: "mediaPlayer" | "external";
   zip: "quickLook" | "external";
+  pdf: "quickLook" | "external";
   /**
    * Code files (see fileTypes.ts's CODE_EXT) open into the Code Runner
    * by default — clicking runs the file instead of opening it for
@@ -24,12 +25,12 @@ export interface DefaultAppsState {
    */
   code: "codeRunner" | "external";
   hydrated: boolean;
-  setDefault: <K extends "images" | "text" | "audioVideo" | "zip" | "code">(category: K, value: DefaultAppsState[K]) => void;
+  setDefault: <K extends "images" | "text" | "audioVideo" | "zip" | "pdf" | "code">(category: K, value: DefaultAppsState[K]) => void;
 }
 
 const STORAGE_KEY = "defaultApps";
 
-function persist(state: Pick<DefaultAppsState, "images" | "text" | "audioVideo" | "zip" | "code">) {
+function persist(state: Pick<DefaultAppsState, "images" | "text" | "audioVideo" | "zip" | "pdf" | "code">) {
   persistSet("config", STORAGE_KEY, state);
 }
 
@@ -38,21 +39,23 @@ export const useDefaultAppsStore = create<DefaultAppsState>((set, get) => ({
   text: "notes",
   audioVideo: "mediaPlayer",
   zip: "quickLook",
+  pdf: "quickLook",
   code: "codeRunner",
   hydrated: false,
 
   setDefault: (category, value) => {
     set({ [category]: value } as Partial<DefaultAppsState>);
-    const { images, text, audioVideo, zip, code } = get();
-    persist({ images, text, audioVideo, zip, code, ...{ [category]: value } });
+    const { images, text, audioVideo, zip, pdf, code } = get();
+    persist({ images, text, audioVideo, zip, pdf, code, ...{ [category]: value } });
   },
 }));
 
-persistGet<Pick<DefaultAppsState, "images" | "text" | "audioVideo" | "zip" | "code">>("config", STORAGE_KEY, {
+persistGet<Pick<DefaultAppsState, "images" | "text" | "audioVideo" | "zip" | "pdf" | "code">>("config", STORAGE_KEY, {
   images: "photoViewer",
   text: "notes",
   audioVideo: "mediaPlayer",
   zip: "quickLook",
+  pdf: "quickLook",
   code: "codeRunner",
 }).then((loaded) => {
   useDefaultAppsStore.setState({ ...loaded, hydrated: true });
