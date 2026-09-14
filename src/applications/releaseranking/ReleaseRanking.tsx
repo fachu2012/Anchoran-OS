@@ -23,13 +23,24 @@ const BAND_COLOR: Record<"good" | "mid" | "low", string> = {
  */
 export function ReleaseRankingApp() {
   const [query, setQuery] = useState("");
-  const sorted = useMemo(() => [...RANKING_ROWS].sort((a, b) => b[2] - a[2]), []);
+  const [sortBy, setSortBy] = useState<"score" | "date">("score");
+  const [scoreFilter, setScoreFilter] = useState<"all" | "good" | "mid" | "low">("all");
   const eraPicks = useMemo(() => bestPerWindowsEra(RANKING_ROWS), []);
+  const sorted = useMemo(() => {
+    const rows = [...RANKING_ROWS];
+    // Score sort keeps ties in the data's own order (used to group rows
+    // by band below); date sort is newest-first, matching how someone
+    // scanning "what came out recently" would expect to read it.
+    if (sortBy === "date") rows.sort((a, b) => b[1].localeCompare(a[1]));
+    else rows.sort((a, b) => b[2] - a[2]);
+    return rows;
+  }, [sortBy]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return sorted;
-    return sorted.filter(([version]) => version.toLowerCase().includes(q));
-  }, [sorted, query]);
+    return sorted
+      .filter(([version]) => !q || version.toLowerCase().includes(q))
+      .filter((row) => scoreFilter === "all" || scoreBand(row[2]) === scoreFilter);
+  }, [sorted, query, scoreFilter]);
 
   let lastBand: string | null = null;
 
@@ -37,21 +48,56 @@ export function ReleaseRankingApp() {
     <div className="app-root">
       <div className="app-toolbar">
         <span style={{ fontSize: 13, fontWeight: 500 }}>Anchoran OS Release Ranking</span>
-        <input
-          placeholder="Filter by version…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          style={{
-            marginLeft: "auto",
-            border: "1px solid var(--anchoran-border)",
-            borderRadius: 6,
-            padding: "5px 9px",
-            background: "var(--anchoran-bg)",
-            color: "var(--anchoran-text-primary)",
-            fontSize: 12.5,
-            width: 160,
-          }}
-        />
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as "score" | "date")}
+            aria-label="Sort by"
+            style={{
+              border: "1px solid var(--anchoran-border)",
+              borderRadius: 6,
+              padding: "5px 7px",
+              background: "var(--anchoran-bg)",
+              color: "var(--anchoran-text-primary)",
+              fontSize: 12.5,
+            }}
+          >
+            <option value="score">Sort: Score</option>
+            <option value="date">Sort: Date (newest first)</option>
+          </select>
+          <select
+            value={scoreFilter}
+            onChange={(e) => setScoreFilter(e.target.value as "all" | "good" | "mid" | "low")}
+            aria-label="Filter by score"
+            style={{
+              border: "1px solid var(--anchoran-border)",
+              borderRadius: 6,
+              padding: "5px 7px",
+              background: "var(--anchoran-bg)",
+              color: "var(--anchoran-text-primary)",
+              fontSize: 12.5,
+            }}
+          >
+            <option value="all">All scores</option>
+            <option value="good">8–10 only</option>
+            <option value="mid">5–7 only</option>
+            <option value="low">1–4 only</option>
+          </select>
+          <input
+            placeholder="Filter by version…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{
+              border: "1px solid var(--anchoran-border)",
+              borderRadius: 6,
+              padding: "5px 9px",
+              background: "var(--anchoran-bg)",
+              color: "var(--anchoran-text-primary)",
+              fontSize: 12.5,
+              width: 160,
+            }}
+          />
+        </div>
       </div>
       <div className="app-content" style={{ padding: 20, overflowY: "auto" }}>
         <p style={{ maxWidth: "68ch", color: "var(--anchoran-text-secondary)", fontSize: 13.5, lineHeight: 1.6, marginTop: 0 }}>
@@ -190,7 +236,11 @@ export function ReleaseRankingApp() {
               {filtered.map((r: RankingRow, i) => {
                 const band = scoreBand(r[2]);
                 const bandLabel = band === "good" ? "8–10" : band === "mid" ? "5–7" : "1–4";
-                const showGroup = bandLabel !== lastBand && !query.trim();
+                // Band group headers only make sense when the list is
+                // actually grouped by score — sorting by date interleaves
+                // bands, and a search/score filter already narrows things
+                // down enough that a repeated header would just be noise.
+                const showGroup = sortBy === "score" && !query.trim() && scoreFilter === "all" && bandLabel !== lastBand;
                 lastBand = bandLabel;
                 return (
                   <RowGroup key={r[0] + r[1]} showGroup={showGroup} bandLabel={bandLabel} rank={i + 1} row={r} band={band} />
@@ -218,12 +268,14 @@ export function ReleaseRankingApp() {
           live audit of each version.
           <br />
           <br />
-          Updated through v3.0.3. Left out of the ranking: versions that never got a stable release of their own to
-          install and stay on — v2.9.9 (existed only as an I.P.U., superseded before going stable; its content ended
-          up folded into the v3.0.0 stable release). From v3.0.0 onward, every version ships first as an I.P.U.
-          (prerelease, only for devices with "Insider Preview updates" enabled) and only later as a stable release —
-          this ranking only scores the stable ones, since those are what someone can actually install and stay on
-          forever in the sense the question above asks.
+          Updated through v3.5.1. Left out of the ranking: versions that never got a stable release of their own to
+          install and stay on — v2.9.9, v3.3.6 and v3.5.0 (each existed only as an I.P.U., superseded before going
+          stable; each one's content ended up folded into the next version that actually did go stable). From v3.0.0
+          onward, every version ships first as an I.P.U. (prerelease, only for devices with "Insider Preview
+          updates" enabled) and only later as a stable release — this ranking only scores the stable ones, since
+          those are what someone can actually install and stay on forever in the sense the question above asks.
+          v3.5.1 is listed for reference but is still I.P.U.-only as of this update, so it isn't yet the top
+          recommendation.
         </div>
       </div>
     </div>
