@@ -737,14 +737,36 @@ function isLikelyTextFile(filePath: string): boolean {
   return TEXT_FILE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
 }
 
+/**
+ * `app.getPath("desktop"/"documents"/"pictures")` asks Windows for the
+ * registered Known Folder path — and OneDrive's "Known Folder Move"
+ * feature rewrites exactly those three (plus, less commonly, others)
+ * in the registry to point inside `%USERPROFILE%\OneDrive\...` instead
+ * of the real, plain profile folder. Files' Quick Links are meant to
+ * be the user's actual local folders, not wherever OneDrive decided to
+ * redirect them, so this prefers the real `%USERPROFILE%\<name>` path
+ * whenever it genuinely exists on disk, falling back to Electron's own
+ * (possibly OneDrive-redirected) answer only if it doesn't — e.g. a
+ * fresh account where OneDrive's redirected folder is the only one
+ * that was ever created.
+ */
+function realProfileFolder(subfolder: string, fallback: string): string {
+  const real = path.join(os.homedir(), subfolder);
+  try {
+    return fs.existsSync(real) ? real : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 ipcMain.handle("anchoran:fs-special-folders", () => ({
   home: app.getPath("home"),
-  desktop: app.getPath("desktop"),
-  documents: app.getPath("documents"),
-  downloads: app.getPath("downloads"),
-  pictures: app.getPath("pictures"),
-  music: app.getPath("music"),
-  videos: app.getPath("videos"),
+  desktop: realProfileFolder("Desktop", app.getPath("desktop")),
+  documents: realProfileFolder("Documents", app.getPath("documents")),
+  downloads: realProfileFolder("Downloads", app.getPath("downloads")),
+  pictures: realProfileFolder("Pictures", app.getPath("pictures")),
+  music: realProfileFolder("Music", app.getPath("music")),
+  videos: realProfileFolder("Videos", app.getPath("videos")),
 }));
 
 async function listDrivesRaw(): Promise<string[]> {
