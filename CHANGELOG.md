@@ -5,6 +5,29 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.5.2] - 2026-09-14
+
+**Update type:** feature
+
+### Added
+- **The Release Ranking gains sort/filter controls** — sort by Score
+  (default) or Date (newest first), and narrow it down to just one
+  score band (8–10/5–7/1–4). Synced the published Release Ranking
+  Artifact with the same controls. Fixed the in-app footer text, which
+  had drifted out of sync with the Artifact's own (it still said
+  "Updated through v3.0.3" and only listed v2.9.9 as a folded-in
+  I.P.U.-only version).
+- **The Webstore's Community section gains a category filter**
+  (Games/Productivity/Utilities/Internet/System) and shows each
+  plugin's own short "Recent changes" history in its detail view —
+  both come straight from the Anchoran-Webstore repo's `catalog.json`,
+  no Anchoran OS release needed for a plugin's category or changelog
+  to update.
+- **Anchoran Code Studio gains starter templates** for New Project
+  (Empty App, Counter, Task List) and a Console/Output panel +
+  "Open in Window" — see the Anchoran-Webstore repo's own CHANGELOG.md
+  for the full details, since Code Studio itself ships from there.
+
 ## [3.5.1] - 2026-09-14
 
 **Update type:** feature
