@@ -336,7 +336,7 @@ export function TerminalConsole({
       print("Local data deleted.");
       awaitingChangeTo.current = true;
       pendingChangeToInstallVersion.current = version;
-      print(`Downloading v${version}…`);
+      print(`Downloading ${simplifiedLabelFor(version, /-IPU$/i.test(version) ? "insider" : "stable")}…`);
       const result = await window.anchoran.changeToDownload(version);
       if (!result.success) {
         awaitingChangeTo.current = false;
@@ -358,7 +358,7 @@ export function TerminalConsole({
         }
         awaitingChangeTo.current = true;
         pendingChangeToInstallVersion.current = version;
-        print(`Downloading v${version}…`);
+        print(`Downloading ${simplifiedLabelFor(version, /-IPU$/i.test(version) ? "insider" : "stable")}…`);
         const result = await window.anchoran.changeToDownload(version);
         if (!result.success) {
           awaitingChangeTo.current = false;
