@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { fetchUpdateInfo } from "@/core/updateInfo";
-import { versionLabelFor } from "@/core/buildNumber";
+import { versionLabelFor, ANCHORAN_MAJOR_VERSION } from "@/core/buildNumber";
 import { ANCHORAN_VERSION } from "@/core/version";
 import { needsLocalAppsRemovalNotice, installedLegacyApps } from "@/core/upgradeAppRemoval";
 import { useInstalledAppsStore } from "@/applications/installedAppsStore";
@@ -149,8 +149,12 @@ export function UpdateReadyScreen({
       }}
     >
       <AnchoranLogo size={56} color={accentColor} style={{ opacity: 0.92 }} />
-      <div style={{ color: "#F3F4F6", fontSize: 16, fontWeight: 300, letterSpacing: 0.4 }}>
-        Anchoran OS {versionLabelFor(version)} is ready to install
+      <div style={{ textAlign: "center" }}>
+        {/* Same title typography as Anchover's own "ANCHORAN OS #" heading. */}
+        <div style={{ color: "#F3F4F6", fontSize: 20, fontWeight: 600 }}>ANCHORAN OS {ANCHORAN_MAJOR_VERSION}</div>
+        <div style={{ color: "#F3F4F6", fontSize: 16, fontWeight: 300, letterSpacing: 0.4, marginTop: 4 }}>
+          {versionLabelFor(version)} is ready to install
+        </div>
       </div>
       {updateLabel && (
         <span

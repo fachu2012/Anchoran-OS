@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import type { AnchoranPluginModule, AnchoranSDK } from "@/core/anchoranSDK";
+import { useWindowStore } from "@/windowmanager/windowStore";
 import "@/applications/apps.css";
+
+/** Matches "pluginHost"'s own minSize in apps.json — kept as a literal here rather than imported, since apps.json's per-app minSize isn't otherwise exposed as a lookup outside the window store's own internal bookkeeping. Also caps how large a plugin can request, so a bug or a bad actor's plugin can't force an absurd window size. */
+const PLUGIN_HOST_MIN_SIZE = { width: 360, height: 260 };
+const PLUGIN_PREFERRED_SIZE_MAX = { width: 2400, height: 1600 };
+
+function clampPreferredSize(size: { width: number; height: number }) {
+  return {
+    width: Math.min(Math.max(size.width, PLUGIN_HOST_MIN_SIZE.width), PLUGIN_PREFERRED_SIZE_MAX.width),
+    height: Math.min(Math.max(size.height, PLUGIN_HOST_MIN_SIZE.height), PLUGIN_PREFERRED_SIZE_MAX.height),
+  };
+}
 
 /**
  * The generic window every downloaded third-party plugin opens into —
@@ -57,6 +69,10 @@ export function PluginHostApp({
         if (typeof mod.mount !== "function") {
           setError("This plugin's entry file doesn't export a mount() function — it may be corrupted.");
           return;
+        }
+        if (mod.preferredSize && Number.isFinite(mod.preferredSize.width) && Number.isFinite(mod.preferredSize.height)) {
+          const { width, height } = clampPreferredSize(mod.preferredSize);
+          useWindowStore.getState().resizeWindow(windowId, width, height);
         }
         const sdk = (window as unknown as { AnchoranSDK: AnchoranSDK }).AnchoranSDK;
         unmount = mod.mount(containerRef.current, sdk, { windowId, openPath });

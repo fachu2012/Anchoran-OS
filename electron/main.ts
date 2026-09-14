@@ -1778,7 +1778,13 @@ function isTrustedPluginEntryUrl(url: string): boolean {
   return /^https:\/\/(raw\.githubusercontent\.com\/|github\.com\/[^/]+\/[^/]+\/releases\/download\/)/.test(url);
 }
 
-ipcMain.handle("anchoran:plugin-install", async (_event, pluginId: string, entryUrl: string) => {
+interface InstalledPluginManifest {
+  id: string;
+  title: string;
+  icon: string;
+}
+
+ipcMain.handle("anchoran:plugin-install", async (_event, pluginId: string, entryUrl: string, manifest?: { title?: string; icon?: string }) => {
   if (typeof pluginId !== "string" || !/^[\w-]+$/.test(pluginId)) {
     return { success: false, error: "Invalid plugin id." };
   }
@@ -1790,6 +1796,15 @@ ipcMain.handle("anchoran:plugin-install", async (_event, pluginId: string, entry
     fs.mkdirSync(dir, { recursive: true });
     const destPath = path.join(dir, "index.js");
     await downloadToFile(entryUrl, destPath, () => {});
+    // Small local manifest (title/icon only) so the Launcher can list
+    // this plugin without re-fetching the whole live Webstore catalog
+    // just to know its name/icon — see anchoran:plugin-list-installed.
+    const localManifest: InstalledPluginManifest = {
+      id: pluginId,
+      title: typeof manifest?.title === "string" && manifest.title.trim() ? manifest.title : pluginId,
+      icon: typeof manifest?.icon === "string" && manifest.icon.trim() ? manifest.icon : "appCenter",
+    };
+    fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify(localManifest));
     return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
@@ -1809,6 +1824,34 @@ ipcMain.handle("anchoran:plugin-uninstall", (_event, pluginId: string) => {
 ipcMain.handle("anchoran:plugin-is-installed", (_event, pluginId: string) =>
   fs.existsSync(path.join(pluginsDir, String(pluginId), "index.js"))
 );
+
+/**
+ * Every currently-installed plugin — what lets the Launcher (and
+ * anything else that wants "apps you can actually open") list a
+ * downloaded Webstore plugin alongside Anchoran's own bundled apps,
+ * instead of only AppCenter's own Community tab knowing it exists.
+ * Reads each plugin dir's manifest.json (written at install time,
+ * above) for title/icon, falling back to a plain `{title: id}` for a
+ * plugin installed before this existed rather than erroring.
+ */
+ipcMain.handle("anchoran:plugin-list-installed", (): InstalledPluginManifest[] => {
+  try {
+    return fs
+      .readdirSync(pluginsDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(pluginsDir, entry.name, "index.js")))
+      .map((entry) => {
+        const manifestPath = path.join(pluginsDir, entry.name, "manifest.json");
+        try {
+          const raw = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+          return { id: entry.name, title: typeof raw?.title === "string" ? raw.title : entry.name, icon: typeof raw?.icon === "string" ? raw.icon : "appCenter" };
+        } catch {
+          return { id: entry.name, title: entry.name, icon: "appCenter" };
+        }
+      });
+  } catch {
+    return [];
+  }
+});
 
 ipcMain.handle("anchoran:plugin-entry-path", (_event, pluginId: string) => {
   const p = path.join(pluginsDir, String(pluginId), "index.js");

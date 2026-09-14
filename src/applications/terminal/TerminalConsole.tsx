@@ -9,6 +9,7 @@ import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import { APP_LIST } from "@/applications/registry";
 import { WALLPAPERS } from "@/desktop/wallpapers";
 import { ANCHORAN_VERSION } from "@/core/version";
+import { BUILD_CHANNEL } from "@/core/buildChannel";
 import { simplifiedLabelFor, resolveVersionTarget, baseVersion, needsDataWipeFor, ANCHORAN_SIMPLIFIED_VERSION } from "@/core/buildNumber";
 import { getAppUptimeSeconds } from "@/core/appUptime";
 import { useNotificationStore } from "@/notifications/notificationStore";
@@ -728,7 +729,22 @@ export function TerminalConsole({
                 print(
                   `anchoran changeto: "${subRest}" isn't an installable release. Run "anchoran changeto" with no arguments to see the list.`
                 );
-              } else if (target === ANCHORAN_VERSION) {
+              } else if (baseVersion(target) === baseVersion(ANCHORAN_VERSION) && targetChannel === BUILD_CHANNEL) {
+                // Plain `target === ANCHORAN_VERSION` never caught this
+                // for an I.P.U.: `target` is the real git tag text
+                // ("3.5.2-IPU"), but `ANCHORAN_VERSION` carries the
+                // internal "-beta" suffix electron-updater needs
+                // ("3.5.2-beta") — the two strings never match even
+                // when they're the exact same running build, so
+                // "changeto"ing to your own current I.P.U. silently
+                // fell through to a real (destructive-looking, though
+                // harmless) reinstall confirmation instead of this
+                // message. Compare the base version number and the
+                // channel separately instead — this still correctly
+                // ALLOWS a legitimate changeto between the same base
+                // version's two different channels (e.g. moving from
+                // this exact version's I.P.U. to its later stable
+                // release, once promoted).
                 print(`anchoran changeto: ${simplifiedLabelFor(target, targetChannel)} is already the version running.`);
               } else if (needsDataWipeFor(target)) {
                 pendingChangeToWipeTarget.current = target;

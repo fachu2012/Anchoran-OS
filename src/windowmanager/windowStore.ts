@@ -47,6 +47,8 @@ export interface OpenAppOptions {
   pluginId?: string;
   /** Overrides the app's registry title for this one window — e.g. an embedded app is titled after its own exe, not the generic "Windows App Window". */
   title?: string;
+  /** Skips the single-instance "focus the existing window instead" guard below, even for an app whose registry entry doesn't set allowMultipleInstances — a real, separate new window every time. Used by the taskbar's "New window" context menu item, which (like a real OS taskbar) always opens a genuinely new instance regardless of what's already open. */
+  forceNewWindow?: boolean;
 }
 
 type RememberedBoundsMap = Partial<Record<AppId, Bounds>>;
@@ -192,7 +194,7 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
     // of opening a duplicate. If this open came with a specific file
     // (Files handing off to its default app), point the existing
     // window at that file too, rather than just focusing it as-is.
-    if (!def.allowMultipleInstances) {
+    if (!def.allowMultipleInstances && !options?.forceNewWindow) {
       const existing = state.windows.find((w) => w.appId === appId);
       if (existing) {
         // Jumping to an app already open on another virtual desktop

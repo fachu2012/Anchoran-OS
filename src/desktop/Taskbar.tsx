@@ -132,6 +132,7 @@ export function Taskbar({
   function contextItemsFor(appId: AppId): ContextMenuItem[] {
     const isPinned = pinned.includes(appId);
     const items: ContextMenuItem[] = [
+      { label: "New window", onSelect: () => openApp(appId, { forceNewWindow: true }) },
       isPinned
         ? { label: "Unpin from taskbar", onSelect: () => unpin(appId) }
         : { label: "Pin to taskbar", onSelect: () => pin(appId) },

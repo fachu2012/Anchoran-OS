@@ -89,7 +89,17 @@
   right: 0;
   bottom: 0;
   height: 8px;
-  z-index: 49;
+  /* Must beat every regular (non-always-on-top) window's z-index, not
+     just a maximized window's starting one — win.zIndex climbs by 1
+     each time any window is focused, so after enough focus changes in
+     a session a maximized window's z-index alone can pass a small
+     fixed value like 49/50 and start covering this strip, silently
+     eating the mouseenter that's supposed to bring the taskbar back.
+     Anchoran's own always-on-top windows use +100000 over their own
+     zIndex (see WindowFrame.tsx's ALWAYS_ON_TOP_ZINDEX_OFFSET) — this
+     sits above that too, since an always-on-top maximized window must
+     still yield the hotzone the same way a normal one does. */
+  z-index: 200000;
 }
 
 @keyframes taskbar-in {

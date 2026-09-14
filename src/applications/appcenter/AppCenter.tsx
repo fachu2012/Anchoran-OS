@@ -139,7 +139,7 @@ export function AppCenterApp() {
   async function onInstallPlugin(plugin: PluginManifest) {
     if (!window.anchoran) return;
     setPluginBusy(plugin.id);
-    const result = await window.anchoran.pluginInstall(plugin.id, plugin.entry);
+    const result = await window.anchoran.pluginInstall(plugin.id, plugin.entry, { title: plugin.title, icon: plugin.icon });
     setPluginBusy(null);
     if (result.success) {
       setInstalledPlugins((prev) => new Set(prev).add(plugin.id));

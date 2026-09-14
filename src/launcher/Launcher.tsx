@@ -61,6 +61,22 @@ const SETTING_KEYWORDS: Record<string, string> = {
 /** Apps that can be opened already-elevated via a right-click "Run as Administrator". */
 const ADMIN_CAPABLE_APPS = new Set<AppId>(["terminal"]);
 
+/**
+ * One row the Launcher can list/launch — either a real bundled
+ * AppDefinition (isPlugin: false, id is a real AppId) or an installed
+ * Webstore plugin (isPlugin: true, id is that plugin's own id, opened
+ * generically via the "pluginHost" app rather than as its own AppId).
+ * Pin-to-taskbar/desktop and "Run as Administrator" stay AppId-only
+ * features for now — a plugin entry's context menu only offers
+ * Open/Uninstall, see contextItemsForPlugin.
+ */
+interface LauncherEntry {
+  id: string;
+  title: string;
+  icon: IconName;
+  isPlugin: boolean;
+}
+
 const JUMP_LETTERS = ["#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 
 function letterFor(title: string): string {
@@ -203,7 +219,26 @@ export function Launcher({
     persistSet("config", "launcherSearchHistory", next);
   }
 
+  // Installed Webstore plugins (downloaded via AppCenter's Community
+  // tab) — these aren't part of the static APP_LIST/installedAppsStore
+  // at all (they're dynamic, opened generically via the "pluginHost"
+  // app), so without this they'd never show up here even though
+  // they're genuinely installed and openable, same as any bundled app.
+  // Refetched every time the Launcher opens (it fully mounts fresh each
+  // time — see App.tsx), so installing/uninstalling a plugin from
+  // AppCenter is reflected the next time someone opens the Launcher.
+  const [installedPlugins, setInstalledPlugins] = useState<{ id: string; title: string; icon: string }[]>([]);
+  useEffect(() => {
+    window.anchoran?.pluginListInstalled().then(setInstalledPlugins);
+  }, []);
+
+  const pluginEntries: LauncherEntry[] = useMemo(
+    () => installedPlugins.map((p) => ({ id: p.id, title: p.title, icon: p.icon as IconName, isPlugin: true })),
+    [installedPlugins]
+  );
+
   const [menu, setMenu] = useState<{ x: number; y: number; app: AppDefinition } | null>(null);
+  const [pluginMenu, setPluginMenu] = useState<{ x: number; y: number; entry: LauncherEntry } | null>(null);
   const [adminPinPrompt, setAdminPinPrompt] = useState<{ mode: "runAsAdmin" } | null>(null);
   const [letterJumpOpen, setLetterJumpOpen] = useState(false);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -214,12 +249,15 @@ export function Launcher({
   // where you browse and install the rest. Sorted alphabetically once
   // here, so both the plain search results and the "browse all,
   // grouped by letter" view (see JUMP_LETTERS) share the same order.
-  const sortedApps = useMemo(
+  const sortedApps: LauncherEntry[] = useMemo(
     () =>
-      APP_LIST.filter((a) => installed.has(a.id) && !a.hiddenFromLauncher).sort((a, b) =>
-        a.title.localeCompare(b.title)
-      ),
-    [installed]
+      [
+        ...APP_LIST.filter((a) => installed.has(a.id) && !a.hiddenFromLauncher).map(
+          (a): LauncherEntry => ({ id: a.id, title: a.title, icon: a.icon as IconName, isPlugin: false })
+        ),
+        ...pluginEntries,
+      ].sort((a, b) => a.title.localeCompare(b.title)),
+    [installed, pluginEntries]
   );
 
   // Apps flagged hiddenFromLauncher (e.g. Anchover, the winver-style
@@ -227,17 +265,25 @@ export function Launcher({
   // "browse all" or the letter-jump list — but can still be found here,
   // and only by typing their exact full title, same as winver isn't
   // pinned anywhere and only turns up if you type its exact name.
-  const allInstalledApps = useMemo(() => APP_LIST.filter((a) => installed.has(a.id)), [installed]);
+  const allInstalledApps: LauncherEntry[] = useMemo(
+    () => [
+      ...APP_LIST.filter((a) => installed.has(a.id)).map(
+        (a): LauncherEntry => ({ id: a.id, title: a.title, icon: a.icon as IconName, isPlugin: false })
+      ),
+      ...pluginEntries,
+    ],
+    [installed, pluginEntries]
+  );
   const appResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sortedApps;
     return allInstalledApps.filter((a) =>
-      a.hiddenFromLauncher ? a.title.toLowerCase() === q : a.title.toLowerCase().includes(q)
+      APP_LIST.find((d) => d.id === a.id)?.hiddenFromLauncher ? a.title.toLowerCase() === q : a.title.toLowerCase().includes(q)
     );
   }, [sortedApps, allInstalledApps, query]);
 
   const groupedApps = useMemo(() => {
-    const groups = new Map<string, AppDefinition[]>();
+    const groups = new Map<string, LauncherEntry[]>();
     for (const app of sortedApps) {
       const letter = letterFor(app.title);
       if (!groups.has(letter)) groups.set(letter, []);
@@ -305,6 +351,21 @@ export function Launcher({
     onClose();
   }
 
+  function launchEntry(entry: LauncherEntry) {
+    if (entry.isPlugin) {
+      openApp("pluginHost", { pluginId: entry.id, title: entry.title });
+      onClose();
+      return;
+    }
+    launch(entry.id as AppId);
+  }
+
+  async function uninstallPluginEntry(entry: LauncherEntry) {
+    if (!window.anchoran) return;
+    await window.anchoran.pluginUninstall(entry.id);
+    setInstalledPlugins((prev) => prev.filter((p) => p.id !== entry.id));
+  }
+
   function openSettingSection() {
     openApp("settings");
     onClose();
@@ -353,7 +414,7 @@ export function Launcher({
     return items;
   }
 
-  function AppRow({ app, showHint }: { app: AppDefinition; showHint: boolean }) {
+  function AppRow({ entry, showHint }: { entry: LauncherEntry; showHint: boolean }) {
     return (
       <div
         className="launcher-item"
@@ -361,12 +422,13 @@ export function Launcher({
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          setMenu({ x: e.clientX, y: e.clientY, app });
+          if (entry.isPlugin) setPluginMenu({ x: e.clientX, y: e.clientY, entry });
+          else setMenu({ x: e.clientX, y: e.clientY, app: APP_LIST.find((a) => a.id === entry.id)! });
         }}
       >
-        <button className="launcher-item-main" onClick={() => launch(app.id)}>
-          <IconTile name={app.icon as IconName} size={34} />
-          {app.title}
+        <button className="launcher-item-main" onClick={() => launchEntry(entry)}>
+          <IconTile name={entry.icon} size={34} />
+          {entry.title}
           {showHint && <span className="launcher-item-hint">↵</span>}
         </button>
       </div>
@@ -381,7 +443,7 @@ export function Launcher({
     return topApps(6)
       .filter((id) => installedSet.has(id))
       .map((id) => sortedApps.find((a) => a.id === id))
-      .filter((a): a is AppDefinition => Boolean(a));
+      .filter((a): a is LauncherEntry => Boolean(a));
   }, [topApps, installed, sortedApps]);
 
   function openBrowserResult(url: string) {
@@ -423,14 +485,14 @@ export function Launcher({
     const entries: (() => void)[] = [];
     if (calcResult !== null) entries.push(() => navigator.clipboard?.writeText(String(calcResult)).catch(() => {}));
     if (!hasQuery) {
-      frequentApps.forEach((a) => entries.push(() => launch(a.id)));
+      frequentApps.forEach((a) => entries.push(() => launchEntry(a)));
       for (const letter of JUMP_LETTERS) {
         const apps = groupedApps.get(letter);
         if (!apps) continue;
-        apps.forEach((a) => entries.push(() => launch(a.id)));
+        apps.forEach((a) => entries.push(() => launchEntry(a)));
       }
     } else {
-      appResults.forEach((a) => entries.push(() => launch(a.id)));
+      appResults.forEach((a) => entries.push(() => launchEntry(a)));
       settingResults.forEach(() => entries.push(() => openSettingSection()));
       fileResults.forEach((f) => entries.push(() => openFileResult(f)));
       browserResults.forEach((h) => entries.push(() => openBrowserResult(h.url)));
@@ -537,7 +599,7 @@ export function Launcher({
                 <>
                   <div className="launcher-section-label">Frequently used</div>
                   {frequentApps.map((app) => (
-                    <AppRow key={`frequent-${app.id}`} app={app} showHint={nextRowIsActive()} />
+                    <AppRow key={`frequent-${app.id}`} entry={app} showHint={nextRowIsActive()} />
                   ))}
                 </>
               )}
@@ -553,13 +615,13 @@ export function Launcher({
                     {letter}
                   </button>
                   {groupedApps.get(letter)!.map((app) => (
-                    <AppRow key={app.id} app={app} showHint={nextRowIsActive()} />
+                    <AppRow key={app.id} entry={app} showHint={nextRowIsActive()} />
                   ))}
                 </div>
               ))}
             </>
           ) : (
-            appResults.map((app) => <AppRow key={app.id} app={app} showHint={nextRowIsActive()} />)
+            appResults.map((app) => <AppRow key={app.id} entry={app} showHint={nextRowIsActive()} />)
           )}
 
           {hasQuery && settingResults.length > 0 && (
@@ -668,6 +730,19 @@ export function Launcher({
           y={menu.y}
           items={contextItemsFor(menu.app)}
           onClose={() => setMenu(null)}
+        />
+      )}
+
+      {pluginMenu && (
+        <ContextMenu
+          x={pluginMenu.x}
+          y={pluginMenu.y}
+          items={[
+            { label: "Open", onSelect: () => launchEntry(pluginMenu.entry) },
+            { separator: true },
+            { label: "Uninstall", danger: true, onSelect: () => uninstallPluginEntry(pluginMenu.entry) },
+          ]}
+          onClose={() => setPluginMenu(null)}
         />
       )}
 

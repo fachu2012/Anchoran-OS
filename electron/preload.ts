@@ -158,12 +158,14 @@ contextBridge.exposeInMainWorld("anchoran", {
   },
   consumePendingUpdate: (): Promise<string | null> => ipcRenderer.invoke("anchoran:consume-pending-update"),
 
-  pluginInstall: (pluginId: string, entryUrl: string): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("anchoran:plugin-install", pluginId, entryUrl),
+  pluginInstall: (pluginId: string, entryUrl: string, manifest?: { title?: string; icon?: string }): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("anchoran:plugin-install", pluginId, entryUrl, manifest),
   pluginUninstall: (pluginId: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("anchoran:plugin-uninstall", pluginId),
   pluginIsInstalled: (pluginId: string): Promise<boolean> => ipcRenderer.invoke("anchoran:plugin-is-installed", pluginId),
   pluginEntryPath: (pluginId: string): Promise<string | null> => ipcRenderer.invoke("anchoran:plugin-entry-path", pluginId),
+  pluginListInstalled: (): Promise<{ id: string; title: string; icon: string }[]> =>
+    ipcRenderer.invoke("anchoran:plugin-list-installed"),
 
   deleteLocalDataForDowngrade: (): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("anchoran:delete-local-data-for-downgrade"),

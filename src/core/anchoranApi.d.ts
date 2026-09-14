@@ -97,10 +97,12 @@ declare global {
     quitAndInstallUpdate: () => void;
     consumePendingUpdate: () => Promise<string | null>;
 
-    pluginInstall: (pluginId: string, entryUrl: string) => Promise<{ success: boolean; error?: string }>;
+    pluginInstall: (pluginId: string, entryUrl: string, manifest?: { title?: string; icon?: string }) => Promise<{ success: boolean; error?: string }>;
     pluginUninstall: (pluginId: string) => Promise<{ success: boolean; error?: string }>;
     pluginIsInstalled: (pluginId: string) => Promise<boolean>;
     pluginEntryPath: (pluginId: string) => Promise<string | null>;
+    /** Every currently-installed plugin's {id, title, icon} — what lets the Launcher list downloaded Webstore plugins alongside Anchoran's own bundled apps. See electron/main.ts's anchoran:plugin-list-installed. */
+    pluginListInstalled: () => Promise<{ id: string; title: string; icon: string }[]>;
 
     deleteLocalDataForDowngrade: () => Promise<{ success: boolean; error?: string }>;
     changeToDownload: (version: string) => Promise<{ success: boolean; error?: string }>;

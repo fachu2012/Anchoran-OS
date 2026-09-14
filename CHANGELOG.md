@@ -5,6 +5,43 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.5.3] - 2026-09-14
+
+**Update type:** stability
+
+### Fixed
+- **`anchoran changeto` 404'd on every I.P.U. install.** The download
+  handler built the installer's filename from the raw git tag
+  (`...-IPU.exe`), but the release pipeline's real uploaded asset for
+  an I.P.U. build always carries a `-beta` suffix instead — every
+  `changeto` to an I.P.U. version failed with an HTTP 404. Fixed
+  alongside the confirmation prompt missing its "I.P.U." label for the
+  same underlying reason (a `-beta`-only auto-detection regex being
+  fed the git tag's real text instead).
+- **The taskbar didn't reappear over a maximized window.** Its
+  auto-hide "hotzone" strip at the bottom edge had a fixed `z-index`
+  that a maximized window's own (session-long, ever-increasing)
+  `z-index` could climb past after enough focus changes, silently
+  eating the `mouseenter` meant to bring the taskbar back — only
+  un-maximizing worked. The hotzone's `z-index` is now set well above
+  anything a real window (even an always-on-top one) can reach.
+
+### Added
+- **A plugin can now request its own window size.** `mount.js`'s
+  module can export a static `preferredSize: { width, height }` —
+  applied once, right as the window opens (clamped to a sane min/max)
+  — instead of every downloaded Webstore plugin opening at the same
+  generic 640×480 default regardless of what it actually renders.
+- **Installed Webstore plugins now show up in the Launcher** (and
+  disappear again on uninstall), the same as any bundled app — they
+  never appeared there before, only in the Webstore's own Community
+  tab. Right-click still offers Open/Uninstall; pinning to taskbar/
+  desktop and "Run as Administrator" stay bundled-app-only for now.
+- **Taskbar right-click now always offers "New window" first**, to
+  reopen an app as a genuinely new instance even if it's normally
+  single-instance and already has a window open — matching a real OS
+  taskbar instead of only ever focusing the existing one.
+
 ## [3.5.2] - 2026-09-14
 
 **Update type:** feature

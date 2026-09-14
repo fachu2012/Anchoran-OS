@@ -71,6 +71,20 @@ export interface AnchoranPluginModule {
    * entirely optional, most plugins never look at it.
    */
   mount: (container: HTMLElement, sdk: AnchoranSDK, ctx: { windowId: string; openPath?: string }) => () => void;
+  /**
+   * Optional: the window size (in CSS pixels) this plugin actually
+   * wants, applied once, the moment PluginHost finishes loading it —
+   * without this, every downloaded plugin opens at the same generic
+   * "pluginHost" default (640×480) no matter how cramped or oversized
+   * that is for what it actually renders. A plain, static export (not
+   * a function) so PluginHost can apply it before the user has a
+   * chance to resize the window by hand; PluginHost clamps it to the
+   * "pluginHost" app's own minSize (360×260) and a sane upper bound,
+   * so a plugin can't request something unusably small or a window
+   * bigger than the desktop can reasonably hold. A later manual resize
+   * by the user always wins — this only sets the STARTING size.
+   */
+  preferredSize?: { width: number; height: number };
 }
 
 let installed: AnchoranSDK | null = null;
