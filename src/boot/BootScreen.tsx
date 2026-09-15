@@ -1,27 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ANCHORAN_SIMPLIFIED_VERSION, simplifiedLabelFor } from "@/core/buildNumber";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { usePreferencesStore } from "@/theme/preferencesStore";
+import { ANCHORAN_CLASSIC_BLUE } from "@/theme/brandColor";
 
-// A deliberately slow, staged boot sequence: black screen first, then
-// the icon alone, then a thick macOS-style loading bar that actually
-// takes its time — closer to a real OS boot than a splash flash.
-// Total runtime is intentionally ~6.5s.
-const LOGO_AT = 700;
-const BAR_AT = 2150;
-const BAR_FILL_MS = 3600;
-const HOLD_AFTER_BAR_MS = 350;
 const FADE_MS = 500;
-
-const HOLD_MS = BAR_AT + BAR_FILL_MS + HOLD_AFTER_BAR_MS;
-
-const STATUS_STAGES = [
-  { at: 0, label: "" },
-  { at: BAR_AT, label: "Starting Anchoran OS…" },
-  { at: BAR_AT + BAR_FILL_MS * 0.35, label: "Loading desktop environment…" },
-  { at: BAR_AT + BAR_FILL_MS * 0.7, label: "Preparing your workspace…" },
-  { at: BAR_AT + BAR_FILL_MS * 0.92, label: "Almost there…" },
-];
 
 export function BootScreen({
   onDone,
@@ -36,41 +19,86 @@ export function BootScreen({
   return <StandardBoot onDone={onDone} />;
 }
 
+// A Windows-style boot sequence, staged as its own set of hard cuts
+// rather than smooth crossfades — each step below appears abruptly,
+// the way a real OS boot does, instead of the softer macOS-style fade
+// this screen used before:
+//
+//   black screen               (0s)
+//   -> lone Anchoran icon      (after 1s, appears instantly, no animation)
+//   -> loading bar at 0%       (after 2s more)
+//   -> bar starts filling      (after 2s more, slow, with random pauses)
+//   -> bar reaches 100%        (screen cuts back to black immediately)
+//   -> lock screen             (after 1.5s of black — boot sequence done)
+//
+// The icon is deliberately always ANCHORAN_CLASSIC_BLUE, never the
+// user's chosen accent color — see brandColor.ts for why.
+const BLACK_BEFORE_LOGO_MS = 1000;
+const LOGO_HOLD_BEFORE_BAR_MS = 2000;
+const BAR_EMPTY_HOLD_MS = 2000;
+const BLACK_AFTER_BAR_MS = 1500;
+
+type BootPhase = "black" | "logo" | "bar-empty" | "bar-filling" | "black-after";
+
+/**
+ * Advances progress in uneven chunks with randomized pauses between
+ * them — real disk/service loading doesn't move at a constant rate,
+ * and a perfectly linear bar reads as fake. Occasionally stalls for a
+ * longer beat (a "big pause"), same as a real boot bar visibly
+ * catching up on something slow.
+ */
+function scheduleFillStep(setProgress: (updater: (p: number) => number) => void, onComplete: () => void, timers: ReturnType<typeof setTimeout>[]) {
+  const step = () => {
+    setProgress((p) => {
+      if (p >= 100) return 100;
+      const isBigPause = Math.random() < 0.22;
+      const increment = isBigPause ? Math.round(3 + Math.random() * 6) : Math.round(6 + Math.random() * 16);
+      const next = Math.min(100, p + increment);
+      const delay = isBigPause ? 500 + Math.random() * 700 : 90 + Math.random() * 260;
+      if (next >= 100) {
+        onComplete();
+      } else {
+        timers.push(setTimeout(step, delay));
+      }
+      return next;
+    });
+  };
+  step();
+}
+
 function StandardBoot({ onDone }: { onDone: () => void }) {
-  const accentColor = usePreferencesStore((s) => s.accentColor);
-  const [visible, setVisible] = useState(true);
-  const [showLogo, setShowLogo] = useState(false);
-  const [showBar, setShowBar] = useState(false);
-  const [statusIndex, setStatusIndex] = useState(0);
+  const [phase, setPhase] = useState<BootPhase>("black");
   const [progress, setProgress] = useState(0);
+  const progressStarted = useRef(false);
 
   useEffect(() => {
-    const timers = [
-      setTimeout(() => setShowLogo(true), LOGO_AT),
-      setTimeout(() => setShowBar(true), BAR_AT),
-      ...STATUS_STAGES.map((s, i) => setTimeout(() => setStatusIndex(i), s.at)),
-    ];
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => setPhase("logo"), BLACK_BEFORE_LOGO_MS));
+    timers.push(
+      setTimeout(() => setPhase("bar-empty"), BLACK_BEFORE_LOGO_MS + LOGO_HOLD_BEFORE_BAR_MS)
+    );
+    timers.push(
+      setTimeout(() => {
+        setPhase("bar-filling");
+        if (progressStarted.current) return;
+        progressStarted.current = true;
+        scheduleFillStep(
+          setProgress,
+          () => {
+            setPhase("black-after");
+            timers.push(setTimeout(onDone, BLACK_AFTER_BAR_MS));
+          },
+          timers
+        );
+      }, BLACK_BEFORE_LOGO_MS + LOGO_HOLD_BEFORE_BAR_MS + BAR_EMPTY_HOLD_MS)
+    );
 
-    let raf = 0;
-    const barStart = performance.now() + BAR_AT;
-    function tick(now: number) {
-      const elapsed = now - barStart;
-      if (elapsed >= 0) {
-        setProgress(Math.min(100, Math.round((elapsed / BAR_FILL_MS) * 100)));
-      }
-      if (elapsed < BAR_FILL_MS) raf = requestAnimationFrame(tick);
-    }
-    raf = requestAnimationFrame(tick);
-
-    const hide = setTimeout(() => setVisible(false), HOLD_MS);
-    const done = setTimeout(onDone, HOLD_MS + FADE_MS);
-    timers.push(hide, done);
-
-    return () => {
-      timers.forEach(clearTimeout);
-      cancelAnimationFrame(raf);
-    };
+    return () => timers.forEach(clearTimeout);
   }, [onDone]);
+
+  const showLogo = phase !== "black";
+  const showBar = phase === "bar-empty" || phase === "bar-filling";
+  const isBlackout = phase === "black" || phase === "black-after";
 
   return (
     <div
@@ -84,69 +112,46 @@ function StandardBoot({ onDone }: { onDone: () => void }) {
         justifyContent: "center",
         gap: 36,
         zIndex: 2000,
-        opacity: visible ? 1 : 0,
-        transition: `opacity ${FADE_MS}ms ease`,
-        pointerEvents: visible ? "auto" : "none",
       }}
     >
-      <AnchoranLogo
-        size={200}
-        color={accentColor}
-        style={{
-          opacity: showLogo ? 0.98 : 0,
-          transform: showLogo ? "scale(1)" : "scale(0.82)",
-          transition: "opacity 600ms cubic-bezier(0.16,1,0.3,1), transform 600ms cubic-bezier(0.16,1,0.3,1)",
-        }}
-      />
+      {showLogo && <AnchoranLogo size={200} color={ANCHORAN_CLASSIC_BLUE} style={{ opacity: 0.98 }} />}
 
-      {/* Thick, macOS-style loading bar. */}
-      <div
-        style={{
-          width: 340,
-          height: 10,
-          borderRadius: 5,
-          background: "rgba(255,255,255,0.14)",
-          overflow: "hidden",
-          opacity: showBar ? 1 : 0,
-          transition: "opacity 500ms ease",
-          marginTop: 14,
-        }}
-      >
+      {showBar && (
         <div
           style={{
-            height: "100%",
-            width: `${progress}%`,
+            width: 340,
+            height: 10,
             borderRadius: 5,
-            background: "#F3F4F6",
-            transition: "width 120ms linear",
+            background: "rgba(255,255,255,0.14)",
+            overflow: "hidden",
+            marginTop: 14,
           }}
-        />
-      </div>
+        >
+          <div
+            style={{
+              height: "100%",
+              width: `${progress}%`,
+              borderRadius: 5,
+              background: "#F3F4F6",
+              transition: "width 180ms ease-out",
+            }}
+          />
+        </div>
+      )}
 
-      <div
-        style={{
-          color: "rgba(243,244,246,0.42)",
-          fontSize: 11.5,
-          letterSpacing: 0.4,
-          height: 15,
-          opacity: showBar ? 1 : 0,
-          transition: "opacity 400ms ease",
-        }}
-      >
-        {STATUS_STAGES[statusIndex].label}
-      </div>
-
-      <div
-        style={{
-          position: "absolute",
-          bottom: 30,
-          color: "rgba(243,244,246,0.28)",
-          fontSize: 10.5,
-          letterSpacing: 1,
-        }}
-      >
-        {ANCHORAN_SIMPLIFIED_VERSION}
-      </div>
+      {!isBlackout && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 30,
+            color: "rgba(243,244,246,0.28)",
+            fontSize: 10.5,
+            letterSpacing: 1,
+          }}
+        >
+          {ANCHORAN_SIMPLIFIED_VERSION}
+        </div>
+      )}
     </div>
   );
 }

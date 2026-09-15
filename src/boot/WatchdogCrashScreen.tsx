@@ -2,7 +2,7 @@ import { TerminalConsole } from "@/applications/terminal/TerminalConsole";
 
 /**
  * Anchoran's own "something went badly wrong" screen — shown in a
- * fresh, separate window the crash watchdog (electron/watchdog.ts)
+ * fresh, separate window the crash watchdog (native/watchdog/Program.cs)
  * spawns after detecting Anchoran died or stopped responding, whether
  * that was a main-process crash (an uncaught exception, even one
  * during module load — the exact class the old in-process

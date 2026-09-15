@@ -13,6 +13,7 @@ import { simplifiedLabelFor, resolveVersionTarget, baseVersion, needsDataWipeFor
 import { getAppUptimeSeconds } from "@/core/appUptime";
 import { fetchPluginCatalog } from "@/applications/appcenter/pluginCatalog";
 import { useNotificationStore } from "@/notifications/notificationStore";
+import { useCrashTestStore } from "@/core/crashTestStore";
 import type { AppId } from "@/core/types";
 import "@/applications/apps.css";
 
@@ -828,10 +829,44 @@ export function TerminalConsole({
           } catch {
             print("anchoran changeto: couldn't reach GitHub.");
           }
+        } else if (sub === "testcrash") {
+          if (!isAdmin) {
+            print("anchoran testcrash: administrator required. Reopen the Terminal via \"Run as Administrator\".");
+            break;
+          }
+          if (!subArgs[0]) {
+            print(
+              "anchoran testcrash <n> — deliberately triggers one of these real failure modes, to test whether the watchdog catches all of them:\n" +
+                "  1  Renderer render-phase exception  — a React render throw, caught by CrashReporter, reported immediately.\n" +
+                "  2  Main-process uncaught exception   — an unhandled throw in Anchoran's own main process, reported immediately.\n" +
+                "  3  Main process vanishing             — the main process just exits, no warning. Watchdog notices within ~3s (pid gone).\n" +
+                "  4  Full hang                          — Anchoran's main process freezes for ~20s. Watchdog notices after 15s of silence.\n" +
+                "  5  Renderer process crash (native)     — the renderer dies at the OS level, not via React. Reported immediately.\n" +
+                "Not covered here: actually being killed via Task Manager's grouped \"End task\" — that specifically tests whether kioskhook/the watchdog themselves survive, and can only be tested by really doing that."
+            );
+            break;
+          }
+          const type = Number(subArgs[0]);
+          if (!Number.isInteger(type) || type < 1 || type > 5) {
+            print(`anchoran testcrash: "${subArgs[0]}" isn't 1-5. Run "anchoran testcrash" with no arguments to see the list.`);
+            break;
+          }
+          if (type === 1) {
+            print("Triggering test crash 1 (renderer render-phase exception) now…");
+            useCrashTestStore.getState().arm();
+            break;
+          }
+          if (!window.anchoran) {
+            print("anchoran testcrash: not available outside the Anchoran desktop app.");
+            break;
+          }
+          print(`Triggering test crash ${type}…`);
+          const result = await window.anchoran.testCrash(type);
+          print(result.success ? (result.note ?? "Triggered.") : `anchoran testcrash: ${result.error ?? "failed."}`);
         } else {
           print(
             "anchoran: unknown subcommand. Try: system, version, settings, update, uptime, changelog, restart, lock, apps, install, uninstall, open, kill" +
-              (isAdmin ? ", changeto" : "")
+              (isAdmin ? ", changeto, testcrash" : "")
           );
         }
         break;

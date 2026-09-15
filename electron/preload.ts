@@ -27,6 +27,8 @@ contextBridge.exposeInMainWorld("anchoran", {
   crashRestart: (): void => ipcRenderer.send("anchoran:crash-restart"),
   /** "Force close Anchoran" on the crash screen (WatchdogCrashScreen). */
   crashForceClose: (): void => ipcRenderer.send("anchoran:crash-force-close"),
+  /** Admin Terminal's "anchoran testcrash <n>" — see main.ts's anchoran:test-crash for what each type actually does. */
+  testCrash: (type: number): Promise<{ success: boolean; note?: string; error?: string }> => ipcRenderer.invoke("anchoran:test-crash", type),
   restart: (): void => ipcRenderer.send("anchoran:restart"),
   onRequestExitConfirmation: (callback: () => void): void => {
     ipcRenderer.on("anchoran:request-exit-confirmation", callback);

@@ -184,6 +184,8 @@ jobs:
           npm run build:electron
           npm run build:kioskhook
           npm run build:windowembed
+          npm run build:launcher
+          npm run build:watchdog
           npx electron-builder --publish never
 
       # AnchoranSetup: the fullscreen, Anchoran-branded installer end

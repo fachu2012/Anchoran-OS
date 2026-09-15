@@ -5,6 +5,69 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.1] - 2026-09-14
+
+**Update type:** feature
+
+Follow-up to v3.8.0's Windows-independence bundle: the boot confirmation
+and boot screens are now genuinely cinematic instead of instant cuts,
+and the crash watchdog/kioskhook survive a Task Manager grouped "End
+task" on Anchoran itself — the exact gap live testing on v3.8.0 found.
+
+### Added
+- **The startup confirmation screen is now a real, staged BIOS/POST-style
+  sequence** instead of an instant prompt: lines reveal one at a time
+  (CPU/memory-test-style lines mixed with Anchoran's own subsystem
+  checks) before the y/n prompt appears. Answering is now typed, not a
+  single keystroke — type y or n (Backspace to correct), Enter to
+  confirm — with a blinking terminal cursor, and a short "Booting
+  Anchoran OS…"/"Closing Anchoran OS…" beat before the screen actually
+  changes.
+- **The normal boot screen is now staged like a real Windows boot**
+  instead of a soft macOS-style fade: black screen, the Anchoran icon
+  appears abruptly (no animation), a pause, the loading bar appears at
+  0%, another pause, then it fills unevenly with random pauses — not a
+  smooth linear fill — before cutting straight back to black and into
+  the lock screen.
+- **The solitary Anchoran icon (boot, lock/shutdown, update screens) is
+  now always Anchoran's classic blue**, regardless of the current
+  profile's accent color — a brand mark, not a per-user color choice.
+  The Dock/Taskbar's icon is unaffected and still follows the profile's
+  own accent, same as always.
+- **`AnchoranLauncher.exe`**, a small native helper that starts kioskhook
+  and the crash watchdog reporting `explorer.exe`, not Anchoran, as
+  their parent process (a documented Win32 technique) — fixes a bug
+  found via live testing on v3.8.0: force-closing "Anchoran OS" through
+  Task Manager's grouped "End task" killed the watchdog AND kioskhook
+  right along with it, since Windows' process tree still showed both
+  nested under Anchoran despite being spawned detached. Both now stay
+  running and do their job (kioskhook restoring hidden/throttled
+  windows, the watchdog showing the crash screen) even when Anchoran is
+  killed this way.
+- **The crash watchdog is now a genuinely separate native executable**
+  (`AnchoranWatchdog.exe`) instead of a Node script reusing the packaged
+  Electron binary itself — the same underlying reason as the launcher
+  above: a copy of Anchoran's own binary still reads, to Windows, as
+  "part of Anchoran", however it's spawned.
+- **Admin Terminal: `anchoran testcrash <n>`** — deliberately triggers
+  one of five distinct real failure modes (a renderer render exception,
+  a main-process uncaught exception, the main process vanishing, a full
+  hang, or a native renderer crash) to test whether the watchdog catches
+  each one, without waiting for a real bug. `anchoran testcrash` alone
+  lists them.
+
+### Fixed
+- **A main-process uncaught exception never reached the watchdog** —
+  the handler only logged it to disk; attaching a handler at all
+  suppresses Node's default "crash the process" behavior, so Anchoran
+  would keep running in a silently broken state instead of either
+  crashing or reporting anything. Now reports it and quits, exactly
+  like a renderer crash does.
+- **A native renderer crash (not a React error — the whole renderer
+  process dying, e.g. out-of-memory) was never detected at all** — there
+  was no handler for Electron's `render-process-gone` event. Now
+  reported to the watchdog like any other fatal error.
+
 ## [3.8.0] - 2026-09-14
 
 **Update type:** feature

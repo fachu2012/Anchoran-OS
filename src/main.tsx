@@ -4,7 +4,15 @@ import App from "./App";
 import { CrashReporter, installGlobalErrorHandlers } from "./core/crashReporter";
 import { WatchdogCrashScreen } from "./boot/WatchdogCrashScreen";
 import { installAnchoranSDK } from "./core/anchoranSDK";
+import { useCrashTestStore } from "./core/crashTestStore";
 import "./theme/theme.css";
+
+/** See crashTestStore.ts — throwing here, during render, is what "anchoran testcrash 1" actually needs to exercise CrashReporter's real componentDidCatch path. */
+function CrashTestGate() {
+  const armed = useCrashTestStore((s) => s.armed);
+  if (armed) throw new Error("Anchoran test crash (type 1): renderer render-phase exception.");
+  return null;
+}
 
 installGlobalErrorHandlers();
 installAnchoranSDK();
@@ -23,6 +31,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <WatchdogCrashScreen message={crashMessage} />
     ) : (
       <CrashReporter>
+        <CrashTestGate />
         <App />
       </CrashReporter>
     )}

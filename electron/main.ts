@@ -35,7 +35,7 @@ protocol.registerSchemesAsPrivileged([
 const isDev = process.env.ANCHORAN_DEV === "1";
 
 /**
- * Set by the watchdog (electron/watchdog.ts) when it relaunches
+ * Set by the watchdog (native/watchdog/Program.cs) when it relaunches
  * Anchoran after detecting a fatal crash/hang — see
  * `--anchoran-crash-screen <message>` in that file's own header
  * comment. When present, app.whenReady() below shows ONLY the crash
@@ -182,6 +182,18 @@ function logToDisk(scope: string, message: string) {
 
 process.on("uncaughtException", (err) => {
   logToDisk("main:uncaughtException", err.stack ?? String(err));
+  // Attaching this listener at all suppresses Node's default behavior
+  // (crash the process) — so, left at just the log line above, the
+  // main process would actually survive an uncaught exception in a
+  // silently broken state instead of crashing, and neither the
+  // watchdog's heartbeat-timeout path nor its "did the pid disappear?"
+  // poll would ever notice anything wrong. Report it exactly like
+  // "anchoran:renderer-fatal-error" does, then actually end this
+  // session, so the watchdog's relaunch-as-crash-screen path handles a
+  // main-process crash exactly like any other fatal error.
+  sendCrashToWatchdog(err.message || "Anchoran's main process crashed.");
+  isQuittingConfirmed = true;
+  app.quit();
 });
 process.on("unhandledRejection", (reason) => {
   logToDisk("main:unhandledRejection", String(reason));
@@ -268,12 +280,30 @@ function createMainWindow() {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+
+  // A renderer can die at the OS level (a real Chromium crash, an
+  // out-of-memory kill, a GPU-process failure taking it down too)
+  // without ANY of Anchoran's own JS ever running to report it —
+  // CrashReporter's componentDidCatch only ever sees a React render
+  // throw, not the renderer process itself vanishing. This is Electron's
+  // own signal for exactly that. "clean-exit" is a deliberate, expected
+  // shutdown (this same reason fires during Anchoran's own normal quit
+  // sequence) and must never be treated as a crash; every other reason
+  // ("crashed", "oom", "killed", "launch-failed", …) gets reported and
+  // handled identically to any other fatal error.
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    if (details.reason === "clean-exit") return;
+    logToDisk("renderer:process-gone", `reason=${details.reason} exitCode=${details.exitCode}`);
+    sendCrashToWatchdog(`Anchoran's renderer process ended unexpectedly (${details.reason}).`);
+    isQuittingConfirmed = true;
+    app.quit();
+  });
 }
 
 /**
  * Shown instead of Anchoran's normal desktop when this instance was
  * relaunched by the watchdog after a fatal crash/hang (see
- * `isCrashScreenMode` above and electron/watchdog.ts). Loads the exact
+ * `isCrashScreenMode` above and native/watchdog/Program.cs). Loads the exact
  * same renderer bundle as createMainWindow, just with a `?crash=1`
  * query the renderer's own entry point (src/main.tsx) checks to render
  * WatchdogCrashScreen instead of the normal <App/> — no separate
@@ -313,29 +343,62 @@ function createCrashScreenWindow(message: string) {
 }
 
 /**
- * The crash watchdog (electron/watchdog.ts) — spawned once per normal
- * (non-crash-screen) Anchoran launch, connected to over a named pipe
- * this same process pings every WATCHDOG_PING_INTERVAL_MS. See that
- * file's own header for the full design. sendCrashToWatchdog() is the
- * one function that actually reports a fatal error — called from both
- * this process's own `uncaughtException` handler and the
- * "anchoran:renderer-fatal-error" IPC handler below, so a crash
- * anywhere (main process or renderer) is reported identically.
+ * AnchoranLauncher (native/launcher) — the one place either of
+ * Anchoran's process-survival helpers (kioskhook, the watchdog) get
+ * spawned from. It launches its target reporting explorer.exe, not
+ * Anchoran, as that target's parent process (a documented Win32
+ * technique, PROC_THREAD_ATTRIBUTE_PARENT_PROCESS — see
+ * native/launcher/Program.cs), so Task Manager no longer shows either
+ * helper nested under Anchoran's own process tree — which is what
+ * previously let its grouped "End task" kill them right along with
+ * Anchoran itself, defeating the entire point of both. Falls back to
+ * spawning the target directly (the old, "still a child of Anchoran"
+ * behavior) if the launcher binary itself is missing, so a broken/dev
+ * build without it still gets a working (if not kill-resistant)
+ * watchdog/kioskhook instead of none at all.
+ */
+function launcherExePath(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "AnchoranLauncher.exe")
+    : path.join(__dirname, "..", "native", "launcher", "bin", "Release", "net8.0", "win-x64", "publish", "AnchoranLauncher.exe");
+}
+
+function watchdogExePath(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "AnchoranWatchdog.exe")
+    : path.join(__dirname, "..", "native", "watchdog", "bin", "Release", "net8.0", "win-x64", "publish", "AnchoranWatchdog.exe");
+}
+
+/**
+ * The crash watchdog (native/watchdog, formerly electron/watchdog.ts —
+ * see native/watchdog/Program.cs for why it's now a separate native
+ * exe) — spawned once per normal (non-crash-screen) Anchoran launch,
+ * connected to over a named pipe this same process pings every
+ * WATCHDOG_PING_INTERVAL_MS. See that file's own header for the full
+ * design. sendCrashToWatchdog() is the one function that actually
+ * reports a fatal error — called from both this process's own
+ * `uncaughtException` handler and the "anchoran:renderer-fatal-error"
+ * IPC handler below, so a crash anywhere (main process or renderer) is
+ * reported identically.
  */
 const WATCHDOG_PING_INTERVAL_MS = 5000;
 let watchdogSocket: nodeNet.Socket | null = null;
 
 function spawnWatchdog() {
-  const watchdogScript = path.join(__dirname, "watchdog.js");
-  const args = app.isPackaged
+  const watchdogExe = watchdogExePath();
+  if (!fs.existsSync(watchdogExe)) {
+    logToDisk("watchdog", `Missing at ${watchdogExe} — ${isDev ? "run \`npm run build:watchdog\` first" : "this build is broken"}. Crash recovery is unavailable this session.`);
+    return;
+  }
+  const watchdogArgs = app.isPackaged
     ? [String(process.pid), process.execPath]
     : [String(process.pid), process.execPath, path.join(__dirname, "..")];
+
+  const launcher = launcherExePath();
   try {
-    const child = spawn(process.execPath, [watchdogScript, ...args], {
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
-      detached: true,
-      stdio: "ignore",
-    });
+    const child = fs.existsSync(launcher)
+      ? spawn(launcher, [watchdogExe, ...watchdogArgs], { detached: true, stdio: "ignore" })
+      : spawn(watchdogExe, watchdogArgs, { detached: true, stdio: "ignore" });
     child.unref();
   } catch (err) {
     logToDisk("watchdog", `Failed to spawn: ${err instanceof Error ? err.message : String(err)}`);
@@ -1745,6 +1808,51 @@ ipcMain.on("anchoran:crash-force-close", () => {
   app.quit();
 });
 
+/**
+ * Admin Terminal's "anchoran testcrash <n>" — deliberately triggers one
+ * of several distinct real failure modes so the watchdog/crash-screen
+ * pipeline can be exercised end-to-end without waiting for an actual
+ * bug. Each type below exercises a genuinely different code path (see
+ * TerminalConsole.tsx's own list text for the description shown to the
+ * user); a short delay before the actual crash on most of them just
+ * gives the IPC call itself — and the Terminal's own "here's what's
+ * about to happen" line — time to land first.
+ *
+ * Deliberately NOT included here: actually killing this whole process
+ * tree the way Task Manager's grouped "End task" does. That specific
+ * scenario — whether kioskhook and the watchdog themselves survive
+ * Anchoran being killed externally — can only be tested by really doing
+ * that from Task Manager; nothing triggered from inside this same
+ * process can stand in for it.
+ */
+ipcMain.handle("anchoran:test-crash", (_event, type: number) => {
+  switch (type) {
+    case 2: // Main-process uncaught exception
+      setTimeout(() => {
+        throw new Error("Anchoran test crash (type 2): unhandled main-process exception.");
+      }, 300);
+      return { success: true, note: "Main process will throw in ~0.3s." };
+    case 3: // Main process just vanishing, the way a hard kill does
+      setTimeout(() => process.exit(1), 300);
+      return { success: true, note: "Main process will exit in ~0.3s." };
+    case 4: // Full hang: freezes the main process's event loop, so PING stops going out
+      setTimeout(() => {
+        const until = Date.now() + 20000;
+        while (Date.now() < until) {
+          /* deliberately busy — starves this process's whole event loop */
+        }
+      }, 300);
+      return { success: true, note: "Main process will freeze for ~20s in ~0.3s — the watchdog reacts after 15s of silence." };
+    case 5: // Native renderer crash (not a React error — the whole renderer process dies)
+      setTimeout(() => {
+        mainWindow?.webContents.forcefullyCrashRenderer();
+      }, 300);
+      return { success: true, note: "The renderer process will be force-crashed in ~0.3s." };
+    default:
+      return { success: false, error: `Unknown test crash type: ${type}` };
+  }
+});
+
 ipcMain.on("anchoran:restart", () => {
   isQuittingConfirmed = true;
   app.relaunch();
@@ -2182,17 +2290,19 @@ ipcMain.handle("anchoran:changeto-install", () => {
 });
 
 /**
- * System Mode: an opt-in toggle (off by default every launch — never
- * persisted as "was on", see src/desktop/systemModeStore.ts) that
- * spawns native/kioskhook's compiled helper so Anchoran can claim the
- * Windows key and Alt+Tab while it's running, without touching
- * anything about how Windows itself starts, logs in, or what happens
- * to whatever the user had open before launching Anchoran — see
- * TODO.md and native/kioskhook/Program.cs for the full design and
- * safety notes. This block only ever manages that one child process:
- * starting it, relaying its two possible stdout lines ("WIN" /
- * "ALTTAB") to the renderer, and making sure it is always stopped —
- * on an explicit toggle-off, and unconditionally on every path out of
+ * System Mode: spawns native/kioskhook's compiled helper so Anchoran
+ * can claim the Windows key and Alt+Tab and take over the desktop
+ * while it's running, without touching anything about how Windows
+ * itself starts, logs in, or what happens to whatever the user had
+ * open before launching Anchoran — see native/kioskhook/Program.cs for
+ * the full design and safety notes. Unconditional as of v3.8.0 (the
+ * boot confirmation screen is what you agree to it with, every launch
+ * — there is no Settings toggle or Terminal command for it anymore;
+ * src/desktop/systemModeStore.ts is just the thin start()/stop() API
+ * App.tsx calls, not a user-facing switch). This block only ever
+ * manages that one child process: starting it, relaying its two
+ * possible stdout lines ("WIN" / "ALTTAB") to the renderer, and making
+ * sure it is always stopped — unconditionally on every path out of
  * the app (quit, crash, window-all-closed) — since Windows only
  * regains normal key handling once this process is gone.
  */
@@ -2235,7 +2345,14 @@ ipcMain.handle("anchoran:system-mode-start", () => {
   }
 
   try {
-    const child = spawn(exePath, [String(process.pid)]);
+    // Routed through AnchoranLauncher (see launcherExePath() above) so
+    // kioskhook reports explorer.exe as its parent instead of Anchoran
+    // and survives a grouped "End task" on Anchoran itself — the
+    // launcher forwards this process's own stdin/stdout down to
+    // kioskhook unchanged, so the WIN/ALTTAB stdout lines and "EXIT"
+    // stdin command below keep working exactly as before.
+    const launcher = launcherExePath();
+    const child = fs.existsSync(launcher) ? spawn(launcher, [exePath, String(process.pid)]) : spawn(exePath, [String(process.pid)]);
     kioskHookProcess = child;
 
     child.stdout.setEncoding("utf-8");

@@ -25,6 +25,8 @@ declare global {
     crashRestart: () => void;
     /** "Force close Anchoran" on the crash screen. */
     crashForceClose: () => void;
+    /** Admin Terminal's "anchoran testcrash <n>" — deliberately triggers one of several real failure modes to test the watchdog end-to-end. */
+    testCrash: (type: number) => Promise<{ success: boolean; note?: string; error?: string }>;
     restart: () => void;
     onRequestExitConfirmation: (callback: () => void) => void;
     onToggleLauncher: (callback: () => void) => void;

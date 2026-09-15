@@ -14,7 +14,7 @@ interface State {
  * in-process ErrorBoundary (which rendered its own "Something went
  * wrong" fallback UI + an embedded Terminal right here, in the same
  * broken process). Every real crash now goes through the SAME
- * external watchdog (electron/watchdog.ts) and the SAME crash screen
+ * external watchdog (native/watchdog/Program.cs) and the SAME crash screen
  * (src/boot/WatchdogCrashScreen.tsx) regardless of whether it started
  * as a React render error (caught here) or a main-process crash — one
  * screen, one code path, not two different ones that could drift.

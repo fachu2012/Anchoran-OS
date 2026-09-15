@@ -50,6 +50,16 @@ extraResources:
   # `npm run build:windowembed` before this step.
   - from: native/windowembed/bin/Release/net8.0/win-x64/publish/AnchoranWindowEmbed.exe
     to: AnchoranWindowEmbed.exe
+  # Process-launcher helper (native/launcher) — spawns kioskhook/the
+  # watchdog with explorer.exe reported as their parent instead of
+  # Anchoran, so both survive Task Manager's grouped "End task" on
+  # Anchoran itself. Built via `npm run build:launcher`.
+  - from: native/launcher/bin/Release/net8.0/win-x64/publish/AnchoranLauncher.exe
+    to: AnchoranLauncher.exe
+  # Crash watchdog (native/watchdog), replacing the earlier Node-script
+  # version — see native/watchdog/Program.cs. Built via `npm run build:watchdog`.
+  - from: native/watchdog/bin/Release/net8.0/win-x64/publish/AnchoranWatchdog.exe
+    to: AnchoranWatchdog.exe
 
 win:
   target:

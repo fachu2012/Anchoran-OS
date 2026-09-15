@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { usePreferencesStore, DEFAULT_PREFERENCES } from "@/theme/preferencesStore";
 import { useNotificationStore } from "@/notifications/notificationStore";
 import { ANCHORAN_VERSION } from "@/core/version";
-import { ANCHORAN_SIMPLIFIED_VERSION, simplifiedLabelFor, baseVersion } from "@/core/buildNumber";
+import { ANCHORAN_SIMPLIFIED_VERSION, ANCHORAN_MAJOR_VERSION, simplifiedLabelFor, baseVersion } from "@/core/buildNumber";
 import { WALLPAPERS, getWallpaper } from "@/desktop/wallpapers";
 import { playNotificationSound } from "@/core/sound";
 import { useUpdateHistoryStore } from "@/core/updateHistory";
@@ -1559,7 +1559,8 @@ function AboutSection() {
   return (
     <div>
       <AnchoranLogo size={56} color="var(--anchoran-accent)" style={{ marginBottom: 14 }} />
-      <h2 style={{ margin: "0 0 4px", fontWeight: 500 }}>Anchoran OS</h2>
+      {/* Same title typography as Anchover's own "ANCHORAN OS #" heading, but not all-caps here. */}
+      <h2 style={{ margin: "0 0 4px", fontWeight: 600, fontSize: 20 }}>Anchoran OS {ANCHORAN_MAJOR_VERSION}</h2>
       <p style={{ color: "var(--anchoran-text-secondary)", marginTop: 0 }}>{ANCHORAN_SIMPLIFIED_VERSION}</p>
       <div style={{ display: "flex", gap: 8 }}>
         <button

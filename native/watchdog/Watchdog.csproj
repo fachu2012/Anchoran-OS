@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Anchoran's crash watchdog, native — see Program.cs for the full
+    design. Same "small self-contained .NET exe, no C/C++ toolchain
+    needed" reasoning as kioskhook/windowembed/launcher. This replaces
+    the earlier electron/watchdog.ts, which ran as a plain Node script
+    over the packaged Electron binary itself (via ELECTRON_RUN_AS_NODE)
+    — functionally fine on its own, but that meant "the watchdog" was
+    still, as far as Windows' process-tree bookkeeping is concerned,
+    just another copy of Anchoran's own executable, which is exactly
+    why Task Manager's grouped "End task" could still reach and kill it
+    even once it was spawned detached. A genuinely separate .exe,
+    launched through AnchoranLauncher's parent-process spoofing (see
+    native/launcher/Program.cs), is what actually fixes that.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>AnchoranWatchdog</AssemblyName>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseWindowsForms>false</UseWindowsForms>
+  </PropertyGroup>
+
+</Project>
