@@ -21,6 +21,12 @@ export interface AnchoranSystemInfo {
 contextBridge.exposeInMainWorld("anchoran", {
   getVersion: (): Promise<string> => ipcRenderer.invoke("anchoran:get-version"),
   confirmExit: (): void => ipcRenderer.send("anchoran:confirm-exit"),
+  /** Reports a fatal renderer-side crash (a React render error the top-level catch in src/main.tsx caught) — see main.ts's anchoran:renderer-fatal-error. */
+  rendererFatalError: (message: string): void => ipcRenderer.send("anchoran:renderer-fatal-error", message),
+  /** "Restart Anchoran" on the crash screen (WatchdogCrashScreen). */
+  crashRestart: (): void => ipcRenderer.send("anchoran:crash-restart"),
+  /** "Force close Anchoran" on the crash screen (WatchdogCrashScreen). */
+  crashForceClose: (): void => ipcRenderer.send("anchoran:crash-force-close"),
   restart: (): void => ipcRenderer.send("anchoran:restart"),
   onRequestExitConfirmation: (callback: () => void): void => {
     ipcRenderer.on("anchoran:request-exit-confirmation", callback);

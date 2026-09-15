@@ -182,16 +182,38 @@ internal static class Program
         // window" chrome, then reparent — Anchoran's own window frame
         // (drawn in the DOM) takes over playing the part of a title
         // bar/border from here on.
+        //
+        // Every one of these three calls can fail silently — Win32
+        // returns 0/NULL on failure and nothing throws — so each is
+        // checked explicitly now. The single most common real cause of
+        // "the app launches fine but never actually ends up embedded"
+        // is SetParent failing due to UIPI (User Interface Privilege
+        // Isolation): Windows refuses to let a process reparent a
+        // window that belongs to a DIFFERENT integrity level (e.g. the
+        // target auto-elevated to admin while Anchoran itself did
+        // not) — previously this failed completely silently and
+        // "EMBEDDED" was reported anyway, which is exactly what made
+        // this bug so hard to even notice was happening.
+        Marshal.SetLastSystemError(0);
         var style = NativeMethods.GetWindowLongW(_childHwnd, GWL_STYLE);
         style &= ~(WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_POPUP);
         style |= WS_CHILD;
-        NativeMethods.SetWindowLongW(_childHwnd, GWL_STYLE, style);
+        if (NativeMethods.SetWindowLongW(_childHwnd, GWL_STYLE, style) == 0 && Marshal.GetLastWin32Error() != 0)
+        {
+            ReportEmbedFailure("SetWindowLong(GWL_STYLE)");
+            return 1;
+        }
 
         var exStyle = NativeMethods.GetWindowLongW(_childHwnd, GWL_EXSTYLE);
         exStyle &= ~(WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE | WS_EX_APPWINDOW);
         NativeMethods.SetWindowLongW(_childHwnd, GWL_EXSTYLE, exStyle);
 
-        NativeMethods.SetParent(_childHwnd, parentHwnd);
+        Marshal.SetLastSystemError(0);
+        if (NativeMethods.SetParent(_childHwnd, parentHwnd) == 0)
+        {
+            ReportEmbedFailure("SetParent");
+            return 1;
+        }
         NativeMethods.SetWindowPos(_childHwnd, 0, 0, 0, 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
 
         Console.WriteLine($"EMBEDDED {_childHwnd}");
@@ -327,6 +349,22 @@ internal static class Program
             }
         }
         return result;
+    }
+
+    /// <summary>
+    /// Reports why reparenting failed, with the real Win32 error code —
+    /// specifically calling out UIPI (integrity-level mismatch) since
+    /// it's by far the most common real cause, so the message is
+    /// actionable instead of a bare error number.
+    /// </summary>
+    private static void ReportEmbedFailure(string apiName)
+    {
+        var errorCode = Marshal.GetLastWin32Error();
+        var hint = errorCode == 5 // ERROR_ACCESS_DENIED
+            ? " — this usually means the target app is running at a higher privilege level than Anchoran (e.g. it auto-elevated to Administrator); Windows blocks reparenting across integrity levels (UIPI), with no way around it short of running Anchoran itself elevated too."
+            : "";
+        Console.WriteLine($"ERROR {apiName} failed (Win32 error {errorCode}){hint}");
+        Console.Out.Flush();
     }
 
     private static void Detach()

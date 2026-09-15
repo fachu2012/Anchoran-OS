@@ -1,18 +1,36 @@
 // Anchoran Kiosk Hook — a tiny standalone helper for Anchoran OS's
-// optional "System Mode".
+// System Mode (unconditional since the BootConfirmGate the user
+// agrees to on every launch — see src/boot/BootConfirmGate.tsx).
 //
-// What it does: while running, it installs a Windows low-level
-// keyboard hook (WH_KEYBOARD_LL) and swallows exactly two things —
-// the Windows key (so Explorer's own Start Menu never opens) and
-// Alt+Tab (so Explorer's own task switcher never opens) — printing a
-// line to stdout each time so the Electron app that spawned it can
-// react with its own Launcher / window switcher instead. Nothing else
-// is touched: every other key passes through completely normally.
+// What it does, on top of the keyboard hook described below: the
+// moment it starts, it takes an inventory of every OTHER real,
+// currently-visible top-level window on the desktop (never
+// Anchoran's own, never something already hidden/minimized-to-tray
+// before Anchoran even started), hides each one (SW_HIDE — the
+// window and its process both keep running completely normally,
+// nothing is closed) and drops its owning process to
+// IDLE_PRIORITY_CLASS (near-zero CPU, not suspended/frozen). On
+// exit — by ANY path, see the safety guarantees below — every one of
+// those exact windows is shown again and every one of those exact
+// processes has its real original priority restored, using the
+// inventory taken at startup, never a blind "unhide everything" that
+// could touch a window the user had a real reason to keep hidden on
+// their own.
+//
+// It also installs a Windows low-level keyboard hook (WH_KEYBOARD_LL)
+// and swallows exactly two things — the Windows key (so Explorer's
+// own Start Menu never opens) and Alt+Tab (so Explorer's own task
+// switcher never opens) — printing a line to stdout each time so the
+// Electron app that spawned it can react with its own Launcher /
+// window switcher instead. Nothing else is touched: every other key
+// passes through completely normally.
 //
 // Safety guarantees this file is written to uphold:
 //   - Ctrl+Alt+Delete can never be intercepted by a user-mode hook —
 //     that is enforced by Windows itself, not by this code, and stays
-//     true no matter what this process does.
+//     true no matter what this process does. Neither can the real
+//     Sign out from that screen: it tears down the whole session,
+//     this process included, unconditionally.
 //   - This process only ever exists while Anchoran chose to start it,
 //     and:
 //       1. exits immediately on an "EXIT" command over stdin (the
@@ -20,7 +38,10 @@
 //       2. exits on its own within ~1s if its parent process (passed
 //          as the first argument, Anchoran's PID) is no longer
 //          running — so a crash or a forced kill of Anchoran can never
-//          leave this hook running with no way to reach it.
+//          leave this hook running, or every other app hidden/
+//          throttled with no way to bring them back.
+//   - Both exit paths above ALWAYS restore every window/process this
+//     process touched before it actually quits — see RestoreAll().
 //   - No key is ever suppressed unless this process is alive and this
 //     exact hook is installed; the moment it exits, Windows
 //     immediately regains normal Win-key/Alt+Tab behavior with no
@@ -29,7 +50,8 @@
 // stdin protocol (line-based): "EXIT" to shut down cleanly.
 // stdout protocol (line-based): "WIN" when the Windows key was
 // pressed and swallowed, "ALTTAB" when Alt+Tab was pressed and
-// swallowed, "READY" once the hook is installed and listening.
+// swallowed, "READY" once the hook is installed, the takeover is
+// done, and everything is listening.
 
 using System.Runtime.InteropServices;
 
@@ -51,6 +73,12 @@ internal static class Program
     // Kept as a static field so the delegate is never garbage-collected
     // while the unmanaged hook still holds a reference to it.
     private static readonly NativeMethods.LowLevelKeyboardProc HookProcDelegate = HookProc;
+
+    // Exactly the windows/processes this run hid/throttled — restored
+    // from this list and nothing else, see TakeOverDesktop/RestoreAll.
+    private static readonly List<nint> _hiddenWindows = new();
+    private static readonly Dictionary<int, uint> _throttledProcessOriginalPriority = new();
+    private static int _restoreGuard; // Interlocked flag: RestoreAll runs at most once, even if both exit paths race.
 
     private static int Main(string[] args)
     {
@@ -94,6 +122,8 @@ internal static class Program
             return 1;
         }
 
+        TakeOverDesktop(parentPid);
+
         Console.WriteLine("READY");
         Console.Out.Flush();
 
@@ -126,8 +156,108 @@ internal static class Program
             NativeMethods.DispatchMessageW(in msg);
         }
 
+        RestoreAll();
         NativeMethods.UnhookWindowsHookEx(_hookHandle);
         return 0;
+    }
+
+    /// <summary>
+    /// Hides every other real, currently-visible top-level window and
+    /// throttles its owning process — see this file's own header for
+    /// exactly what counts as "real" and why. Building the inventory
+    /// (_hiddenWindows / _throttledProcessOriginalPriority) as we go is
+    /// what makes RestoreAll() exact instead of a blind "show
+    /// everything" that could also un-hide something the user had a
+    /// real reason to keep hidden before Anchoran ever started.
+    /// </summary>
+    private static void TakeOverDesktop(int? anchoranPid)
+    {
+        var currentPid = Environment.ProcessId;
+        // Anchoran itself only ever occupies the PRIMARY display (see
+        // createMainWindow() in electron/main.ts, always
+        // screen.getPrimaryDisplay()) — on a multi-monitor setup, a
+        // window on any OTHER monitor is left completely alone (never
+        // hidden, never throttled): Anchoran doesn't cover that screen,
+        // so hiding what's already there would just leave that whole
+        // monitor blank for no reason instead of still being usable.
+        // Point (0,0) is always on the primary monitor by Windows'
+        // own convention, so MonitorFromPoint there reliably gets its
+        // handle without needing Anchoran's own window handle.
+        var primaryMonitor = NativeMethods.MonitorFromPoint(default, NativeMethods.MONITOR_DEFAULTTOPRIMARY);
+        NativeMethods.EnumWindows((hwnd, _) =>
+        {
+            if (!NativeMethods.IsWindowVisible(hwnd)) return true; // already hidden on its own — leave it alone
+            if (NativeMethods.GetWindow(hwnd, NativeMethods.GW_OWNER) != 0) return true; // a popup/tool window, not a real top-level app window
+            if (NativeMethods.GetWindowTextLengthW(hwnd) == 0) return true; // no titlebar text — not a real user-facing window
+            if (NativeMethods.MonitorFromWindow(hwnd, NativeMethods.MONITOR_DEFAULTTONEAREST) != primaryMonitor) return true; // on a different monitor than Anchoran — leave it alone
+
+            NativeMethods.GetWindowThreadProcessId(hwnd, out var ownerPid);
+            if (ownerPid == 0) return true;
+            var ownerPidInt = unchecked((int)ownerPid);
+            // Never touch Anchoran's own windows, or (belt-and-suspenders,
+            // in case a window somehow reports pid 0/itself oddly) this
+            // helper's own process.
+            if (ownerPidInt == anchoranPid || ownerPidInt == currentPid) return true;
+
+            NativeMethods.ShowWindow(hwnd, NativeMethods.SW_HIDE);
+            _hiddenWindows.Add(hwnd);
+
+            if (!_throttledProcessOriginalPriority.ContainsKey(ownerPidInt))
+            {
+                var procHandle = NativeMethods.OpenProcess(
+                    NativeMethods.PROCESS_SET_INFORMATION | NativeMethods.PROCESS_QUERY_LIMITED_INFORMATION,
+                    false,
+                    ownerPid
+                );
+                if (procHandle != 0)
+                {
+                    var originalPriority = NativeMethods.GetPriorityClass(procHandle);
+                    if (originalPriority != 0)
+                    {
+                        _throttledProcessOriginalPriority[ownerPidInt] = originalPriority;
+                        NativeMethods.SetPriorityClass(procHandle, NativeMethods.IDLE_PRIORITY_CLASS);
+                    }
+                    NativeMethods.CloseHandle(procHandle);
+                }
+                // OpenProcess/GetPriorityClass failing (a protected system
+                // process, insufficient rights, …) just leaves that one
+                // process at its normal priority — its window is still
+                // hidden above, which is the part that actually matters
+                // for "Anchoran has the whole screen".
+            }
+            return true;
+        }, 0);
+    }
+
+    /// <summary>
+    /// Undoes exactly what TakeOverDesktop() did — shows every window
+    /// it hid and restores every process's real original priority.
+    /// Called from the single fallthrough point both real exit paths
+    /// (an "EXIT" command, or the parent-process watchdog) share, so
+    /// this always runs before the process actually quits. Idempotent
+    /// (via _restoreGuard) since nothing about correctness depends on
+    /// it running more than once.
+    /// </summary>
+    private static void RestoreAll()
+    {
+        if (Interlocked.Exchange(ref _restoreGuard, 1) != 0) return;
+
+        foreach (var hwnd in _hiddenWindows)
+        {
+            NativeMethods.ShowWindow(hwnd, NativeMethods.SW_SHOW);
+        }
+        _hiddenWindows.Clear();
+
+        foreach (var (pid, originalPriority) in _throttledProcessOriginalPriority)
+        {
+            var procHandle = NativeMethods.OpenProcess(NativeMethods.PROCESS_SET_INFORMATION, false, unchecked((uint)pid));
+            if (procHandle != 0)
+            {
+                NativeMethods.SetPriorityClass(procHandle, originalPriority);
+                NativeMethods.CloseHandle(procHandle);
+            }
+        }
+        _throttledProcessOriginalPriority.Clear();
     }
 
     private static void WatchParent(int parentPid, uint mainThreadId)
@@ -176,6 +306,16 @@ internal static class Program
 internal static partial class NativeMethods
 {
     public delegate nint LowLevelKeyboardProc(int nCode, nint wParam, nint lParam);
+    public delegate bool EnumWindowsProc(nint hWnd, nint lParam);
+
+    public const uint GW_OWNER = 4;
+    public const int SW_HIDE = 0;
+    public const int SW_SHOW = 5;
+    public const uint PROCESS_SET_INFORMATION = 0x0200;
+    public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+    public const uint IDLE_PRIORITY_CLASS = 0x00000040;
+    public const uint MONITOR_DEFAULTTOPRIMARY = 1;
+    public const uint MONITOR_DEFAULTTONEAREST = 2;
 
     [StructLayout(LayoutKind.Sequential)]
     public struct KBDLLHOOKSTRUCT
@@ -237,4 +377,45 @@ internal static partial class NativeMethods
 
     [LibraryImport("user32.dll")]
     public static partial short GetAsyncKeyState(int vKey);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool EnumWindows(EnumWindowsProc lpEnumFunc, nint lParam);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool IsWindowVisible(nint hWnd);
+
+    [LibraryImport("user32.dll")]
+    public static partial nint GetWindow(nint hWnd, uint uCmd);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextLengthW")]
+    public static partial int GetWindowTextLengthW(nint hWnd);
+
+    [LibraryImport("user32.dll")]
+    public static partial uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ShowWindow(nint hWnd, int nCmdShow);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    public static partial nint OpenProcess(uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, uint dwProcessId);
+
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool CloseHandle(nint hObject);
+
+    [LibraryImport("kernel32.dll")]
+    public static partial uint GetPriorityClass(nint hProcess);
+
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool SetPriorityClass(nint hProcess, uint dwPriorityClass);
+
+    [LibraryImport("user32.dll")]
+    public static partial nint MonitorFromWindow(nint hWnd, uint dwFlags);
+
+    [LibraryImport("user32.dll")]
+    public static partial nint MonitorFromPoint(POINT pt, uint dwFlags);
 }

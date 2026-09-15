@@ -4,7 +4,6 @@ import { persistGet, persistSet } from "@/core/persist";
 import { useWindowStore } from "@/windowmanager/windowStore";
 import { usePreferencesStore } from "@/theme/preferencesStore";
 import { useProfilesStore } from "@/core/profilesStore";
-import { useSystemModeStore } from "@/desktop/systemModeStore";
 import { useInstalledAppsStore } from "@/applications/installedAppsStore";
 import { APP_LIST } from "@/applications/registry";
 import { WALLPAPERS } from "@/desktop/wallpapers";
@@ -37,7 +36,7 @@ const KNOWN_COMMANDS = [
   "get", "grep", "help", "history", "killall", "killexplorer", "listprofiles", "listwindows", "logs",
   "ls", "mkdir", "move", "mv", "myip", "netcheck", "ping", "ps", "pslist", "pwd", "regquery",
   "resetlayout", "resetpin", "restart", "restartexplorer", "restore", "rm", "runscript", "scale", "set",
-  "shutdown", "sleep", "startup", "sysinfo", "system", "systemmode", "taskkill", "theme",
+  "shutdown", "sleep", "startup", "sysinfo", "system", "taskkill", "theme",
   "touch", "unset", "uptime", "wallpaper", "whoami", "wipe",
 ];
 
@@ -96,7 +95,7 @@ function findApp(query: string) {
  * there is deliberately no in-terminal command that grants it, since
  * that would be an admin shell with no authentication at all), and raw
  * with no window chrome at all inside the crash screen (see
- * core/ErrorBoundary.tsx), always already in admin mode there since a
+ * boot/WatchdogCrashScreen.tsx), always already in admin mode there since a
  * crash is exactly when you'd need the deeper commands and there's no
  * normal desktop left to unlock it from.
  */
@@ -162,8 +161,6 @@ export function TerminalConsole({
   const prefs = usePreferencesStore();
   const profiles = useProfilesStore((s) => s.profiles);
   const activeProfileId = useProfilesStore((s) => s.activeProfileId);
-  const systemModeStart = useSystemModeStore((s) => s.start);
-  const systemModeStop = useSystemModeStore((s) => s.stop);
   const installedApps = useInstalledAppsStore((s) => s.installed);
   const installApp = useInstalledAppsStore((s) => s.install);
   const uninstallApp = useInstalledAppsStore((s) => s.uninstall);
@@ -456,7 +453,7 @@ export function TerminalConsole({
                   "",
                   "Administrator commands:",
                   "  whoami, uptime, sysinfo, ps, taskkill <pid>, forcequit <app>, killall",
-                  "  startup, startup remove <name>, systemmode on|off",
+                  "  startup, startup remove <name>",
                   "  df, du <path>, emptyrecyclebin, clearcache, backup, restore, wipe --confirm",
                   "  set NAME=value, get [NAME], unset NAME — persistent env vars, expand as $NAME",
                   "  theme light|dark, wallpaper <name>, accent <hex>, scale <value>",
@@ -928,18 +925,6 @@ export function TerminalConsole({
         if (!items) print("startup: not available outside the Anchoran desktop app.");
         else if (items.length === 0) print("Nothing set to start up.");
         else print(items.map((i) => `${i.name}${i.exists ? "" : " (target not found)"}`).join("\n"));
-        break;
-      }
-      case "systemmode": {
-        if (!isAdmin) break;
-        if (args[0] === "on") {
-          await systemModeStart();
-          const err = useSystemModeStore.getState().error;
-          print(err ? `systemmode: ${err}` : "System Mode started.");
-        } else if (args[0] === "off") {
-          await systemModeStop();
-          print("System Mode stopped.");
-        } else print("systemmode: usage: systemmode on|off");
         break;
       }
       case "df": {

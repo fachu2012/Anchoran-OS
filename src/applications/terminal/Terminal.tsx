@@ -8,7 +8,7 @@ import { TerminalTabs } from "./TerminalTabs";
  * in-terminal command that grants it mid-session, since that would be
  * an admin shell with no authentication at all. The crash screen's own
  * always-admin, no-chrome instance renders TerminalConsole directly
- * instead — see core/ErrorBoundary.tsx.
+ * instead — see boot/WatchdogCrashScreen.tsx.
  */
 export function TerminalApp({ startAdmin, windowId }: { startAdmin?: boolean; windowId?: string }) {
   return (

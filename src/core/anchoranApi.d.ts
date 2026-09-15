@@ -19,6 +19,12 @@ declare global {
   interface AnchoranBridge {
     getVersion: () => Promise<string>;
     confirmExit: () => void;
+    /** Reports a fatal renderer-side crash (caught by the top-level catch in src/main.tsx) to the main process, which forwards it to the crash watchdog. */
+    rendererFatalError: (message: string) => void;
+    /** "Restart Anchoran" on the crash screen. */
+    crashRestart: () => void;
+    /** "Force close Anchoran" on the crash screen. */
+    crashForceClose: () => void;
     restart: () => void;
     onRequestExitConfirmation: (callback: () => void) => void;
     onToggleLauncher: (callback: () => void) => void;

@@ -5,6 +5,50 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.0] - 2026-09-14
+
+**Update type:** feature
+
+A deliberate jump from v3.5.6 straight to v3.8.0 (skipping v3.6/v3.7 on
+purpose) — this update moves Anchoran meaningfully closer to being a
+real, independent desktop environment rather than an app that happens
+to run on Windows, and the version jump marks that.
+
+### Added
+- **A fullscreen, terminal/BIOS-style confirmation screen** ("Confirm
+  Anchoran OS startup? [y/n]") shows before anything else, every
+  single launch — explaining in plain terms that this session,
+  Anchoran will take exclusive control of the display and hide/
+  throttle every other running Windows app. Answering "n" ends
+  Anchoran itself (2s of black, then exits) instead of starting.
+  Deliberately not a Settings toggle, not persisted.
+- **Anchoran now actually takes over the display**, not just the
+  Windows key/Alt+Tab: on startup it hides every other real,
+  currently-visible top-level window and drops its process to
+  near-zero CPU (not suspended/closed) — restored exactly, by exact
+  window/process, the moment Anchoran exits by any path. Scoped to
+  only the monitor Anchoran itself occupies — a second monitor stays
+  completely untouched and usable.
+- **System Mode's Settings toggle and `systemmode on|off` Terminal
+  command are both gone.** This is unconditional behavior now, not an
+  opt-in — the boot confirmation screen above is what you agree to it
+  with, every time, instead of a checkbox set once and forgotten.
+- **Every real "close Anchoran" path** (the normal desktop Shut down
+  button, after its own animation; anything with no animation of its
+  own) now ends with 2 seconds of plain black screen before the
+  process actually exits — a deliberate, uniform final beat.
+- **A crash watchdog, running as a genuinely separate process**, so it
+  can still react even when Anchoran itself dies outright — a
+  main-process crash before any of Anchoran's own error handling even
+  runs, a renderer that never recovers, anything. Detects it (a
+  heartbeat that stops, or the process confirmed gone) and shows one
+  consistent crash screen: the real error, an already-admin Terminal
+  (no PIN — by the time you're here, there's nothing left to gate),
+  "Restart Anchoran", and "Force close Anchoran" (hands control back
+  to Windows, including restoring anything System Mode had hidden/
+  throttled). Replaces the old in-process React error screen, which
+  could only ever catch one narrow class of crash.
+
 ## [3.5.6] - 2026-09-14
 
 **Update type:** critical

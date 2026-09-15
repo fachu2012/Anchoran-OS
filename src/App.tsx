@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 import { BootScreen } from "@/boot/BootScreen";
+import { BootConfirmGate } from "@/boot/BootConfirmGate";
 import { Desktop } from "@/desktop/Desktop";
 import { LockScreen } from "@/lock/LockScreen";
 import { ExitConfirmDialog } from "@/power/ExitConfirmDialog";
@@ -31,6 +32,22 @@ import { DeleteOwnProfileConfirm } from "@/applications/settings/DeleteOwnProfil
 const WELCOMED_KEY = "welcomed";
 
 export default function App() {
+  // Fullscreen y/n confirmation, before anything else in the app even
+  // mounts — see BootConfirmGate's own header comment for why this
+  // replaced a Settings toggle: starting Anchoran now also takes over
+  // the whole display and hides/throttles every other Windows app, so
+  // it's asked in plain terms every single launch instead of set once
+  // and forgotten. Deliberately not persisted.
+  const [startupConfirmed, setStartupConfirmed] = useState(false);
+  // A deliberate, uniform final beat for every real "close Anchoran
+  // entirely" path (the normal desktop Shut down button, after its own
+  // ShutdownScreen animation finishes; anything with no animation of
+  // its own, like a force-close — this IS that path's whole visible
+  // exit) — a plain black screen for exactly 2 seconds, then the real
+  // process exit. Every genuine full-exit trigger should call
+  // triggerDramaticExit() below instead of window.anchoran.confirmExit()
+  // directly, so this beat can never be skipped by any one path.
+  const [exitingBlackScreen, setExitingBlackScreen] = useState(false);
   const [booted, setBooted] = useState(false);
   const [locked, setLocked] = useState(false);
   const [exitDialogOpen, setExitDialogOpen] = useState(false);
@@ -254,11 +271,11 @@ export default function App() {
       );
     });
 
-    // System Mode now starts on by default every launch (not
-    // persisted — a fresh, deliberate start each time, same safety
-    // model as before, just flipped to auto-on instead of requiring a
-    // manual toggle in Settings each session). Turning it off in
-    // Settings only lasts for the current session.
+    // System Mode is unconditional now — no Settings toggle, no
+    // Terminal command, nothing to turn it off with. The user already
+    // explicitly agreed to this exact session (BootConfirmGate, before
+    // any of this even mounted) — starting it here just carries that
+    // through into the real desktop.
     useSystemModeStore.getState().start();
 
     // First-ever boot after installing: the welcome wizard (username,
@@ -332,12 +349,25 @@ export default function App() {
     // continuously (see preferencesStore / fs.ts), so there is no
     // separate "save" step needed before any of these. Anchoran has no
     // long-running internal app processes beyond its own React windows.
-    if (exitMode === "shutdown") window.anchoran?.confirmExit();
+    if (exitMode === "shutdown") triggerDramaticExit();
     else if (exitMode === "restart") window.anchoran?.restart();
     else if (exitMode === "sleep") {
       setLocked(true);
       setExitMode(null);
     }
+  }
+
+  function triggerDramaticExit() {
+    setExitingBlackScreen(true);
+    setTimeout(() => window.anchoran?.confirmExit(), 2000);
+  }
+
+  if (exitingBlackScreen) {
+    return <div style={{ position: "fixed", inset: 0, background: "#000" }} />;
+  }
+
+  if (!startupConfirmed) {
+    return <BootConfirmGate onConfirm={() => setStartupConfirmed(true)} />;
   }
 
   return (

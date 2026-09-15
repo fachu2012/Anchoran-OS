@@ -1,6 +1,9 @@
 import { app, BrowserWindow, Menu, clipboard, desktopCapturer, dialog, globalShortcut, ipcMain, nativeImage, net, protocol, safeStorage, screen, session, shell, webContents } from "electron";
 import path from "node:path";
 import fs from "node:fs";
+// Aliased: Electron's own `net` (imported below, for net.fetch) would
+// otherwise collide with this identical-named Node builtin.
+import nodeNet from "node:net";
 import os from "node:os";
 import crypto from "node:crypto";
 import https from "node:https";
@@ -30,6 +33,19 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 const isDev = process.env.ANCHORAN_DEV === "1";
+
+/**
+ * Set by the watchdog (electron/watchdog.ts) when it relaunches
+ * Anchoran after detecting a fatal crash/hang — see
+ * `--anchoran-crash-screen <message>` in that file's own header
+ * comment. When present, app.whenReady() below shows ONLY the crash
+ * screen (createCrashScreenWindow) instead of Anchoran's normal
+ * desktop, and this instance never spawns its own watchdog (it's
+ * already handling the one crash it was spawned for).
+ */
+const crashScreenArgIndex = process.argv.indexOf("--anchoran-crash-screen");
+const isCrashScreenMode = crashScreenArgIndex !== -1;
+const crashScreenMessage = isCrashScreenMode ? (process.argv[crashScreenArgIndex + 1] ?? "Anchoran crashed.") : "";
 
 // Chromium's default autoplay policy blocks any audio (including a
 // synthesized Web Audio API tone) from starting until a real user
@@ -252,6 +268,112 @@ function createMainWindow() {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+}
+
+/**
+ * Shown instead of Anchoran's normal desktop when this instance was
+ * relaunched by the watchdog after a fatal crash/hang (see
+ * `isCrashScreenMode` above and electron/watchdog.ts). Loads the exact
+ * same renderer bundle as createMainWindow, just with a `?crash=1`
+ * query the renderer's own entry point (src/main.tsx) checks to render
+ * WatchdogCrashScreen instead of the normal <App/> — no separate
+ * build, no duplicated UI code.
+ */
+function createCrashScreenWindow(message: string) {
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const win = new BrowserWindow({
+    x: primaryDisplay.bounds.x,
+    y: primaryDisplay.bounds.y,
+    width: primaryDisplay.bounds.width,
+    height: primaryDisplay.bounds.height,
+    frame: false,
+    fullscreen: true,
+    autoHideMenuBar: true,
+    backgroundColor: "#08090D",
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  win.removeMenu();
+  mainWindow = win; // so the existing admin-Terminal/IPC plumbing that reads `mainWindow` still works on this screen too
+  const query = `crash=1&msg=${encodeURIComponent(message)}`;
+  if (isDev) {
+    win.loadURL(`http://localhost:5173?${query}`);
+  } else {
+    win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { search: `?${query}` });
+  }
+  win.once("ready-to-show", () => win.show());
+  win.on("closed", () => {
+    if (mainWindow === win) mainWindow = null;
+  });
+}
+
+/**
+ * The crash watchdog (electron/watchdog.ts) — spawned once per normal
+ * (non-crash-screen) Anchoran launch, connected to over a named pipe
+ * this same process pings every WATCHDOG_PING_INTERVAL_MS. See that
+ * file's own header for the full design. sendCrashToWatchdog() is the
+ * one function that actually reports a fatal error — called from both
+ * this process's own `uncaughtException` handler and the
+ * "anchoran:renderer-fatal-error" IPC handler below, so a crash
+ * anywhere (main process or renderer) is reported identically.
+ */
+const WATCHDOG_PING_INTERVAL_MS = 5000;
+let watchdogSocket: nodeNet.Socket | null = null;
+
+function spawnWatchdog() {
+  const watchdogScript = path.join(__dirname, "watchdog.js");
+  const args = app.isPackaged
+    ? [String(process.pid), process.execPath]
+    : [String(process.pid), process.execPath, path.join(__dirname, "..")];
+  try {
+    const child = spawn(process.execPath, [watchdogScript, ...args], {
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+      detached: true,
+      stdio: "ignore",
+    });
+    child.unref();
+  } catch (err) {
+    logToDisk("watchdog", `Failed to spawn: ${err instanceof Error ? err.message : String(err)}`);
+    return;
+  }
+
+  const pipePath = `\\\\.\\pipe\\anchoran-watchdog-${process.pid}`;
+  const connect = () => {
+    const socket = nodeNet.createConnection(pipePath);
+    socket.on("connect", () => {
+      watchdogSocket = socket;
+    });
+    socket.on("error", () => {
+      // The watchdog may not have finished starting its pipe server
+      // yet — a brief retry window covers that race without treating
+      // it as a real failure.
+      watchdogSocket = null;
+      setTimeout(connect, 500);
+    });
+  };
+  connect();
+
+  setInterval(() => {
+    try {
+      watchdogSocket?.write("PING\n");
+    } catch {
+      // A write failing just means this beat is missed — the retry
+      // logic above already handles reconnecting.
+    }
+  }, WATCHDOG_PING_INTERVAL_MS);
+}
+
+function sendCrashToWatchdog(message: string) {
+  try {
+    watchdogSocket?.write(`CRASH:${JSON.stringify({ message })}\n`);
+  } catch {
+    // Nothing more this process can do — it's already on its way down.
+  }
 }
 
 /**
@@ -1585,6 +1707,44 @@ ipcMain.on("anchoran:confirm-exit", () => {
   app.quit();
 });
 
+/**
+ * A React render crash reached the renderer's own top-level catch
+ * (src/main.tsx — replaced the old in-process ErrorBoundary) — the
+ * main process itself is still alive, so the watchdog's own passive
+ * "did Anchoran's process die?" detection would never notice this on
+ * its own. Report it explicitly, then actually end this session (a
+ * broken render tree isn't something to keep running) so the
+ * watchdog's already-existing relaunch-as-crash-screen path handles
+ * it exactly like any other fatal error, main-process or not.
+ */
+ipcMain.on("anchoran:renderer-fatal-error", (_event, message: string) => {
+  logToDisk("renderer:fatal", message);
+  sendCrashToWatchdog(typeof message === "string" && message ? message : "A renderer error crashed Anchoran.");
+  isQuittingConfirmed = true;
+  app.quit();
+});
+
+/** "Restart Anchoran" on the crash screen — a normal fresh instance, no crash flag. This crash-screen instance then quits itself. */
+ipcMain.on("anchoran:crash-restart", () => {
+  const args = app.isPackaged ? [] : [path.join(__dirname, "..")];
+  spawn(process.execPath, args, { detached: true, stdio: "ignore" }).unref();
+  isQuittingConfirmed = true;
+  app.quit();
+});
+
+/**
+ * "Force close Anchoran" on the crash screen — just quits this crash-
+ * screen instance itself. kioskhook (from the ORIGINAL, now-confirmed-
+ * dead session) already detects its dead parent on its own within
+ * ~1s via its own built-in watchdog thread and restores every window/
+ * process it had hidden/throttled — see native/kioskhook/Program.cs's
+ * WatchParent. Nothing here needs to reach it directly.
+ */
+ipcMain.on("anchoran:crash-force-close", () => {
+  isQuittingConfirmed = true;
+  app.quit();
+});
+
 ipcMain.on("anchoran:restart", () => {
   isQuittingConfirmed = true;
   app.relaunch();
@@ -2330,7 +2490,12 @@ app.whenReady().then(() => {
     return { success: true };
   });
 
-  createMainWindow();
+  if (isCrashScreenMode) {
+    createCrashScreenWindow(crashScreenMessage);
+  } else {
+    createMainWindow();
+    spawnWatchdog();
+  }
   startDriveWatcher();
   registerGlobalShortcuts();
   interceptWebviewDownloads();
