@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
-import { usePreferencesStore } from "@/theme/preferencesStore";
+import { ANCHORAN_CLASSIC_BLUE } from "@/theme/brandColor";
 
 export type TheaterMode = "update" | "install";
 
@@ -48,7 +48,6 @@ export function UpdateTheater({
   targetVersion: string;
   onComplete: () => void;
 }) {
-  const accentColor = usePreferencesStore((s) => s.accentColor);
   const copy = COPY[mode];
   const [restartsRemaining] = useState(() => randomInt(1, 4)); // 1-3
   const [cyclesDone, setCyclesDone] = useState(0);
@@ -118,14 +117,14 @@ export function UpdateTheater({
     >
       {!blank && (
         <>
-          <AnchoranLogo size={56} color={accentColor} style={{ opacity: 0.9 }} />
+          <AnchoranLogo size={56} color={ANCHORAN_CLASSIC_BLUE} style={{ opacity: 0.9 }} />
           <div style={{ color: "#F3F4F6", fontSize: 17, fontWeight: 300 }}>{copy.working}</div>
           <div style={{ width: 220, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.14)", overflow: "hidden" }}>
             <div
               style={{
                 height: "100%",
                 width: `${percent}%`,
-                background: accentColor,
+                background: ANCHORAN_CLASSIC_BLUE,
                 borderRadius: 2,
                 transition: "width 120ms linear",
               }}

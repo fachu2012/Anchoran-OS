@@ -120,7 +120,23 @@ internal static class Program
         var pipeName = $"anchoran-watchdog-{anchoranPid}";
         while (Volatile.Read(ref _done) == 0)
         {
-            using var server = new NamedPipeServerStream(pipeName, PipeDirection.In, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+            // PipeDirection.InOut, not .In — even though this side only
+            // ever reads (Anchoran only ever writes PING/CRASH, never
+            // reads anything back): a pipe instance created .In-only
+            // grants the connecting client write-only access, and
+            // Node's net.createConnection() opens named pipes expecting
+            // full read+write access by default, which Windows then
+            // denies against a write-only instance — the connection
+            // just silently never succeeds. Confirmed via live testing:
+            // this is why the watchdog's crash screen never appeared
+            // even once, across every version since it was rewritten
+            // native in v3.8.1 — including "anchoran testcrash 1"
+            // reproducing it every time, unrelated to v3.8.4's own
+            // separate sendCrashToWatchdogAndThen() timing fix (that
+            // fix made the send attempt real, but the connection it was
+            // attempting to reach was never actually reachable to begin
+            // with).
+            using var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
             try
             {
                 await server.WaitForConnectionAsync();

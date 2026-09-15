@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { usePreferencesStore } from "@/theme/preferencesStore";
+import { ANCHORAN_CLASSIC_BLUE } from "@/theme/brandColor";
 import { fetchUpdateInfo } from "@/core/updateInfo";
 import { versionLabelFor } from "@/core/buildNumber";
 import { ANCHORAN_VERSION } from "@/core/version";
@@ -76,7 +77,7 @@ export function UpdateReadyScreen({
           padding: 24,
         }}
       >
-        <AnchoranLogo size={48} color={accentColor} style={{ opacity: 0.92 }} />
+        <AnchoranLogo size={48} color={ANCHORAN_CLASSIC_BLUE} style={{ opacity: 0.92 }} />
         <div style={{ color: "#F3F4F6", fontSize: 15.5, fontWeight: 300, textAlign: "center", maxWidth: 420 }}>
           This update moves Anchoran's built-in utility and game apps to the Webstore
         </div>
@@ -148,7 +149,7 @@ export function UpdateReadyScreen({
         animation: "update-ready-in 400ms cubic-bezier(0.16,1,0.3,1)",
       }}
     >
-      <AnchoranLogo size={56} color={accentColor} style={{ opacity: 0.92 }} />
+      <AnchoranLogo size={56} color={ANCHORAN_CLASSIC_BLUE} style={{ opacity: 0.92 }} />
       <div style={{ color: "#F3F4F6", fontSize: 16, fontWeight: 300, letterSpacing: 0.4 }}>
         Anchoran OS {versionLabelFor(version)} is ready to install
       </div>

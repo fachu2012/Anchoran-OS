@@ -5,6 +5,45 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.5] - 2026-09-15
+
+**Update type:** critical
+
+Two more real bugs found via live testing on v3.8.4 — one a straight
+regression v3.8.4 itself introduced, one that had actually been there
+since the watchdog was first rewritten native in v3.8.1.
+
+### Fixed
+- **The Windows key stopped opening the Launcher again, immediately
+  after v3.8.4** — its new Progman/WorkerW check used a P/Invoke
+  binding (`char[]` through the newer `LibraryImport` marshaling) that
+  isn't a safe pattern for an out-parameter buffer; thrown from inside
+  `EnumWindows`' own native callback, an exception there is exactly the
+  kind of thing that can take the whole process down. Switched to the
+  same plain `DllImport` + `StringBuilder` pattern every other Win32
+  string-buffer call in this codebase already uses.
+- **The crash watchdog's screen never appeared, ever — not once,
+  including every `anchoran testcrash 1`** — its named pipe was created
+  `PipeDirection.In` (read-only from the watchdog's side), but Node's
+  `net.createConnection()` always opens a named pipe expecting full
+  read+write access; Windows silently refuses that against a
+  write-only pipe instance, so the connection never actually succeeded,
+  on any version since the watchdog was rewritten native in v3.8.1.
+  v3.8.4's own crash-report timing fix made the *send attempt* real,
+  but the connection it was reaching for was never reachable to begin
+  with. Now `PipeDirection.InOut`, matching kioskhook's own (already
+  working) pipe.
+
+### Changed
+- **The lone Anchoran icon (and its loading bars) is now always the
+  classic brand blue everywhere it appears solo**, not just the boot
+  screen — the shutdown/restart/sleep screen, both update screens
+  (UpdateReadyScreen, UpdateTheater's progress bar), the "finishing a
+  silent update" boot variant, and the standalone installer's own
+  progress bar (already a fixed, non-accent blue — nudged to the exact
+  same hex for consistency). Matches the scope `brandColor.ts` already
+  documented but hadn't fully carried out yet.
+
 ## [3.8.4] - 2026-09-15
 
 **Update type:** stability

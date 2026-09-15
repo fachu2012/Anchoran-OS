@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
 import { usePreferencesStore } from "@/theme/preferencesStore";
+import { ANCHORAN_CLASSIC_BLUE } from "@/theme/brandColor";
 
 // "update" used to be a mode here too, but the update flow now has its
 // own, much more elaborate pre-install sequence — see UpdateTheater.
@@ -53,7 +54,7 @@ export function ShutdownScreen({ mode, onComplete }: { mode: ExitMode; onComplet
     >
       <AnchoranLogo
         size={170}
-        color={accentColor}
+        color={ANCHORAN_CLASSIC_BLUE}
         style={{
           opacity: stage === "blackout" ? 0 : 0.92,
           transform: stage === "blackout" ? "scale(0.9)" : "scale(1)",

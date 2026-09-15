@@ -45,7 +45,13 @@ body {
 .fill {
   height: 100%;
   width: 0%;
-  background: #5b84e8;
+  /* Anchoran's classic brand blue — see src/theme/brandColor.ts in the
+     main app for the same hex. This installer runs standalone, before
+     Anchoran itself (or any profile/accent) exists, so it was always
+     a fixed color, never accent-driven; aligned to the exact same hex
+     here for consistency across every "solitary Anchoran branding"
+     moment, boot through install. */
+  background: #6e9bf7;
   border-radius: 2px;
   transition: width 400ms ease;
 }

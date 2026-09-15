@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ANCHORAN_SIMPLIFIED_VERSION, simplifiedLabelFor } from "@/core/buildNumber";
 import { AnchoranLogo } from "@/components/AnchoranLogo";
-import { usePreferencesStore } from "@/theme/preferencesStore";
 import { ANCHORAN_CLASSIC_BLUE } from "@/theme/brandColor";
 
 const FADE_MS = 500;
@@ -197,7 +196,6 @@ const PHRASE_FADE_MS = 350;
  * before the desktop appears.
  */
 function FinishingUpdateBoot({ version, onDone }: { version: string; onDone: () => void }) {
-  const accentColor = usePreferencesStore((s) => s.accentColor);
   const [phraseIndex, setPhraseIndex] = useState(-1); // -1 = show the version line first
   const [visible, setVisible] = useState(true);
 
@@ -242,7 +240,7 @@ function FinishingUpdateBoot({ version, onDone }: { version: string; onDone: () 
         pointerEvents: visible ? "auto" : "none",
       }}
     >
-      <AnchoranLogo size={130} color={accentColor} style={{ opacity: 0.95 }} />
+      <AnchoranLogo size={130} color={ANCHORAN_CLASSIC_BLUE} style={{ opacity: 0.95 }} />
       <div
         key={phraseIndex}
         style={{

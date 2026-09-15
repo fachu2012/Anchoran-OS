@@ -245,10 +245,10 @@ internal static class Program
     /// </summary>
     private static bool IsDesktopBackgroundWindow(nint hwnd)
     {
-        var buffer = new char[256];
-        var length = NativeMethods.GetClassNameW(hwnd, buffer, buffer.Length);
+        var buffer = new StringBuilder(256);
+        var length = NativeMethods.GetClassNameW(hwnd, buffer, buffer.Capacity);
         if (length <= 0) return false;
-        var className = new string(buffer, 0, length);
+        var className = buffer.ToString();
         return className.Equals("Progman", StringComparison.OrdinalIgnoreCase)
             || className.Equals("WorkerW", StringComparison.OrdinalIgnoreCase);
     }
@@ -477,8 +477,23 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll", EntryPoint = "GetWindowTextLengthW")]
     public static partial int GetWindowTextLengthW(nint hWnd);
 
-    [LibraryImport("user32.dll", EntryPoint = "GetClassNameW", StringMarshalling = StringMarshalling.Utf16)]
-    public static partial int GetClassNameW(nint hWnd, [Out] char[] lpClassName, int nMaxCount);
+    // Plain DllImport + StringBuilder here, not LibraryImport — a
+    // source-generated LibraryImport binding for a char[]/StringBuilder
+    // out-parameter needs marshaling info the generator doesn't infer
+    // correctly from a bare [Out] char[], and this specific call sat
+    // on EnumWindows' own callback (invoked from native code for every
+    // single window on the desktop): an exception there is exactly the
+    // kind of thing that can take the WHOLE process down (a managed
+    // exception unwinding across a native call boundary), silently
+    // killing kioskhook itself mid-TakeOverDesktop — matching a real,
+    // live-tested regression right after this call was added in v3.8.4:
+    // the Windows key stopped opening Anchoran's Launcher and started
+    // opening Explorer's own Start Menu instead, exactly what happens
+    // once nothing is left alive to swallow the key anymore. StringBuilder is the
+    // same, boring, thoroughly-proven marshaling path every other
+    // Win32 string-buffer call in this codebase already uses.
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetClassNameW(nint hWnd, StringBuilder lpClassName, int nMaxCount);
 
     [LibraryImport("user32.dll")]
     public static partial uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
