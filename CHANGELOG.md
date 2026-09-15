@@ -5,6 +5,27 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.2] - 2026-09-15
+
+**Update type:** stability
+
+### Fixed
+- **The boot screen's icon visibly shifted position** when the loading
+  bar appeared or disappeared — the bar being conditionally rendered
+  changed the centered column's total height, nudging the icon up when
+  the bar showed up and back down when it went away. The icon and the
+  bar's slot are now both always present in the layout, toggled only
+  via opacity, so the icon never moves.
+
+### Changed
+- **The boot screen's timing is now fully staged and more deliberate**:
+  black screen (3s) → lone icon appears abruptly (5s, bar area reserved
+  but invisible) → the bar appears abruptly at 0% (3s) → it fills
+  slowly with random pauses in between (5-8s, randomized) → it holds at
+  100%, still visible (2s) → icon and bar vanish together back to black
+  (3s) → a smooth fade into the lock screen (handled by the lock
+  screen's own existing entrance animation).
+
 ## [3.8.1] - 2026-09-14
 
 **Update type:** feature
