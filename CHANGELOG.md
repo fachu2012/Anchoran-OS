@@ -5,6 +5,37 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.4] - 2026-09-15
+
+**Update type:** stability
+
+Two more real bugs found via live testing on v3.8.3, both in the
+crash-recovery/desktop-takeover machinery this whole v3.8.x line has
+been about.
+
+### Fixed
+- **The desktop background (and any Lively Wallpaper running) never
+  came back after Anchoran closed, by any exit path** — kioskhook was
+  hiding Explorer's own "Progman"/"WorkerW" windows along with every
+  other app, and Windows doesn't always repaint them cleanly after a
+  hide/show cycle. There was never any actual benefit to touching them
+  in the first place (Anchoran's own fullscreen window already covers
+  the whole desktop while it's running) — they're now never
+  hidden/throttled at all.
+- **`anchoran testcrash 1` (and any real renderer crash) could close
+  Anchoran with no crash screen at all** — the crash message was
+  written to the watchdog's socket and `app.quit()` called right after,
+  with no guarantee the write had actually reached the watchdog yet
+  (worse, no connection at all if the watchdog's own pipe hadn't
+  finished connecting — a real race just after launch). Reporting a
+  crash now always waits for a real send attempt to actually happen
+  before Anchoran quits.
+- **kioskhook's fallback "force it closed" safety net didn't actually
+  reach kioskhook anymore** — since v3.8.1's `AnchoranLauncher.exe`
+  reparenting fix, the process this fallback was killing was the
+  launcher (kioskhook's new OS parent), not kioskhook itself; kioskhook
+  now reports its own real pid so this fallback can actually target it.
+
 ## [3.8.3] - 2026-09-15
 
 **Update type:** critical

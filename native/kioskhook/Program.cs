@@ -186,6 +186,7 @@ internal static class Program
             if (NativeMethods.GetWindow(hwnd, NativeMethods.GW_OWNER) != 0) return true; // a popup/tool window, not a real top-level app window
             if (NativeMethods.GetWindowTextLengthW(hwnd) == 0) return true; // no titlebar text — not a real user-facing window
             if (NativeMethods.MonitorFromWindow(hwnd, NativeMethods.MONITOR_DEFAULTTONEAREST) != primaryMonitor) return true; // on a different monitor than Anchoran — leave it alone
+            if (IsDesktopBackgroundWindow(hwnd)) return true; // Explorer's own desktop/wallpaper — see the helper's own comment for why this is never touched
 
             NativeMethods.GetWindowThreadProcessId(hwnd, out var ownerPid);
             if (ownerPid == 0) return true;
@@ -223,6 +224,33 @@ internal static class Program
             }
             return true;
         }, 0);
+    }
+
+    /// <summary>
+    /// "Progman" (Windows' own desktop/wallpaper window, title "Program
+    /// Manager" — real title text, so it would otherwise pass every
+    /// other filter above) and "WorkerW" (the sibling window a
+    /// third-party wallpaper engine like Lively Wallpaper hosts its
+    /// animated content in) are deliberately never hidden/throttled at
+    /// all — confirmed via live testing as a real bug: Anchoran's own
+    /// fullscreen window already fully covers the desktop the entire
+    /// time it's running, so hiding these ones underneath changes
+    /// nothing visible while Anchoran is up, and only risked exactly
+    /// what was reported — the desktop background (and any Lively
+    /// Wallpaper running) never visually coming back after Anchoran
+    /// closed, matching a known Windows quirk where a hidden Progman/
+    /// WorkerW doesn't always repaint cleanly on SW_SHOW. Simplest real
+    /// fix: never touch either in the first place — there was never any
+    /// benefit to hiding them, only this risk.
+    /// </summary>
+    private static bool IsDesktopBackgroundWindow(nint hwnd)
+    {
+        var buffer = new char[256];
+        var length = NativeMethods.GetClassNameW(hwnd, buffer, buffer.Length);
+        if (length <= 0) return false;
+        var className = new string(buffer, 0, length);
+        return className.Equals("Progman", StringComparison.OrdinalIgnoreCase)
+            || className.Equals("WorkerW", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -272,7 +300,13 @@ internal static class Program
             _pipeServer = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.None);
             _pipeServer.WaitForConnection();
             _pipeWriter = new StreamWriter(_pipeServer, Encoding.UTF8) { AutoFlush = true };
-            WritePipeLine("READY");
+            // Carries this process's own real PID — main.ts has no
+            // other reliable way to learn it, since it's spawned
+            // through AnchoranLauncher (which reparents it to
+            // explorer.exe and doesn't report it back), not directly —
+            // needed for a real, working fallback kill; see
+            // electron/main.ts's stopKioskHook() for why that matters.
+            WritePipeLine($"READY:{Environment.ProcessId}");
 
             using var reader = new StreamReader(_pipeServer, Encoding.UTF8, false, 1024, leaveOpen: true);
             string? line;
@@ -442,6 +476,9 @@ internal static partial class NativeMethods
 
     [LibraryImport("user32.dll", EntryPoint = "GetWindowTextLengthW")]
     public static partial int GetWindowTextLengthW(nint hWnd);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetClassNameW", StringMarshalling = StringMarshalling.Utf16)]
+    public static partial int GetClassNameW(nint hWnd, [Out] char[] lpClassName, int nMaxCount);
 
     [LibraryImport("user32.dll")]
     public static partial uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);

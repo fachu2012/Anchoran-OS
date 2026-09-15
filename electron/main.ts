@@ -191,9 +191,10 @@ process.on("uncaughtException", (err) => {
   // "anchoran:renderer-fatal-error" does, then actually end this
   // session, so the watchdog's relaunch-as-crash-screen path handles a
   // main-process crash exactly like any other fatal error.
-  sendCrashToWatchdog(err.message || "Anchoran's main process crashed.");
-  isQuittingConfirmed = true;
-  app.quit();
+  sendCrashToWatchdogAndThen(err.message || "Anchoran's main process crashed.", () => {
+    isQuittingConfirmed = true;
+    app.quit();
+  });
 });
 process.on("unhandledRejection", (reason) => {
   logToDisk("main:unhandledRejection", String(reason));
@@ -294,9 +295,10 @@ function createMainWindow() {
   mainWindow.webContents.on("render-process-gone", (_event, details) => {
     if (details.reason === "clean-exit") return;
     logToDisk("renderer:process-gone", `reason=${details.reason} exitCode=${details.exitCode}`);
-    sendCrashToWatchdog(`Anchoran's renderer process ended unexpectedly (${details.reason}).`);
-    isQuittingConfirmed = true;
-    app.quit();
+    sendCrashToWatchdogAndThen(`Anchoran's renderer process ended unexpectedly (${details.reason}).`, () => {
+      isQuittingConfirmed = true;
+      app.quit();
+    });
   });
 }
 
@@ -431,11 +433,65 @@ function spawnWatchdog() {
   }, WATCHDOG_PING_INTERVAL_MS);
 }
 
-function sendCrashToWatchdog(message: string) {
+/**
+ * Reports a fatal error to the watchdog, THEN calls `then` — never
+ * before the message has had a real chance to actually reach it. A
+ * plain `watchdogSocket?.write(...)` followed immediately by
+ * `app.quit()` (the previous shape of every call site below) is a real
+ * race: `Socket.write()` only queues the data, it doesn't confirm the
+ * OS has sent it, and if `watchdogSocket` isn't connected yet at all
+ * (a real, observed case — a crash moments after launch, before the
+ * watchdog's own pipe server and this process's connection to it have
+ * both finished spinning up) the message was silently dropped
+ * entirely, with nothing else ever retrying it. Confirmed via live
+ * testing: `anchoran testcrash 1` closed Anchoran with no crash screen
+ * at all when this raced.
+ *
+ * `then` always eventually runs — this process is on its way down
+ * either way — but only after either a live write had a moment to
+ * flush, or a fresh connection attempt made one real effort and hit
+ * its own bound.
+ */
+function sendCrashToWatchdogAndThen(message: string, then: () => void) {
+  const payload = `CRASH:${JSON.stringify({ message })}\n`;
+  let settled = false;
+  const finish = () => {
+    if (settled) return;
+    settled = true;
+    then();
+  };
+
+  if (watchdogSocket) {
+    try {
+      watchdogSocket.write(payload);
+    } catch {
+      // Falls through to the same flush delay regardless — nothing
+      // more to do about a write failure this late.
+    }
+    setTimeout(finish, 200);
+    return;
+  }
+
+  // No live connection right now — open one just for this message
+  // rather than dropping the single most important thing this process
+  // ever sends.
   try {
-    watchdogSocket?.write(`CRASH:${JSON.stringify({ message })}\n`);
+    const socket = nodeNet.createConnection(`\\\\.\\pipe\\anchoran-watchdog-${process.pid}`);
+    socket.on("connect", () => {
+      try {
+        socket.write(payload);
+      } catch {
+        // best-effort
+      }
+      setTimeout(finish, 200);
+    });
+    socket.on("error", () => finish());
+    // Absolute upper bound in case neither "connect" nor "error" ever
+    // fires (a genuinely wedged pipe) — this process must still
+    // eventually quit rather than hang here forever.
+    setTimeout(finish, 1200);
   } catch {
-    // Nothing more this process can do — it's already on its way down.
+    finish();
   }
 }
 
@@ -1782,9 +1838,10 @@ ipcMain.on("anchoran:confirm-exit", () => {
  */
 ipcMain.on("anchoran:renderer-fatal-error", (_event, message: string) => {
   logToDisk("renderer:fatal", message);
-  sendCrashToWatchdog(typeof message === "string" && message ? message : "A renderer error crashed Anchoran.");
-  isQuittingConfirmed = true;
-  app.quit();
+  sendCrashToWatchdogAndThen(typeof message === "string" && message ? message : "A renderer error crashed Anchoran.", () => {
+    isQuittingConfirmed = true;
+    app.quit();
+  });
 });
 
 /** "Restart Anchoran" on the crash screen — a normal fresh instance, no crash flag. This crash-screen instance then quits itself. */
@@ -2312,6 +2369,10 @@ ipcMain.handle("anchoran:changeto-install", () => {
  */
 let kioskHookProcess: ReturnType<typeof spawn> | null = null;
 let kioskHookSocket: nodeNet.Socket | null = null;
+// kioskhook's own real OS pid, learned from its "READY:<pid>" line —
+// see stopKioskHook() for why this, not kioskHookProcess, is what a
+// real fallback kill needs since v3.8.1.
+let kioskHookPid: number | null = null;
 
 function kioskHookExePath(): string {
   return app.isPackaged
@@ -2327,13 +2388,37 @@ function stopKioskHook() {
     // Falls through to a hard kill below regardless.
   }
   const proc = kioskHookProcess;
+  const pidToKill = kioskHookPid;
   kioskHookProcess = null;
+  kioskHookPid = null;
   kioskHookSocket?.destroy();
   kioskHookSocket = null;
-  // Give it a moment to exit cleanly (releasing the hook) before
-  // forcing it, so a slow shutdown never leaves the hook installed.
+  // Give it a moment to exit cleanly (releasing the hook, restoring
+  // every window/process it hid/throttled) before forcing it, so a
+  // slow shutdown never leaves the hook installed or windows hidden.
+  //
+  // The fallback below kills kioskhook by its own real pid
+  // (pidToKill, learned from its "READY:<pid>" line), NOT `proc.kill()`
+  // — `proc` here is AnchoranLauncher, kioskhook's actual OS parent
+  // since v3.8.1's reparenting fix, and killing it does nothing to
+  // kioskhook itself (a real bug: that fallback silently stopped
+  // working the moment kioskhook started being spawned through the
+  // launcher, since Windows doesn't cascade-kill a reparented child
+  // when its launcher dies). If the pid was never learned at all (the
+  // pipe never connected), there's genuinely nothing left to target —
+  // kioskhook's own WatchParent thread (native/kioskhook/Program.cs)
+  // is the real, independent safety net in that case: it notices this
+  // process's pid disappearing on its own and self-restores regardless
+  // of anything below.
   setTimeout(() => {
-    if (!proc.killed) proc.kill();
+    if (proc.killed) return;
+    if (pidToKill != null) {
+      try {
+        process.kill(pidToKill);
+      } catch {
+        // Already gone, or never existed under that pid anymore — fine.
+      }
+    }
   }, 1500);
 }
 
@@ -2363,7 +2448,10 @@ ipcMain.handle("anchoran:system-mode-start", () => {
     kioskHookProcess = child;
 
     child.on("exit", () => {
-      if (kioskHookProcess === child) kioskHookProcess = null;
+      if (kioskHookProcess === child) {
+        kioskHookProcess = null;
+        kioskHookPid = null;
+      }
       kioskHookSocket?.destroy();
       kioskHookSocket = null;
       mainWindow?.webContents.send("anchoran:system-mode-status", false);
@@ -2394,6 +2482,9 @@ ipcMain.handle("anchoran:system-mode-start", () => {
         for (const line of lines) {
           if (line === "WIN" || line === "ALTTAB") {
             mainWindow?.webContents.send("anchoran:system-mode-key", line);
+          } else if (line.startsWith("READY:")) {
+            const pid = Number(line.slice("READY:".length));
+            if (Number.isFinite(pid)) kioskHookPid = pid;
           }
         }
       });
