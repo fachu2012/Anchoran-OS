@@ -58,7 +58,8 @@ extraResources:
     to: AnchoranLauncher.exe
   # Crash watchdog (native/watchdog), replacing the earlier Node-script
   # version — see native/watchdog/Program.cs. Built via `npm run build:watchdog`.
-  - from: native/watchdog/bin/Release/net8.0/win-x64/publish/AnchoranWatchdog.exe
+  # net8.0-windows, not net8.0 — see Watchdog.csproj for why (WinForms).
+  - from: native/watchdog/bin/Release/net8.0-windows/win-x64/publish/AnchoranWatchdog.exe
     to: AnchoranWatchdog.exe
 
 win:

@@ -368,7 +368,7 @@ function launcherExePath(): string {
 function watchdogExePath(): string {
   return app.isPackaged
     ? path.join(process.resourcesPath, "AnchoranWatchdog.exe")
-    : path.join(__dirname, "..", "native", "watchdog", "bin", "Release", "net8.0", "win-x64", "publish", "AnchoranWatchdog.exe");
+    : path.join(__dirname, "..", "native", "watchdog", "bin", "Release", "net8.0-windows", "win-x64", "publish", "AnchoranWatchdog.exe"); // net8.0-windows, not net8.0 — see Watchdog.csproj for why (WinForms)
 }
 
 /**
@@ -434,26 +434,23 @@ function spawnWatchdog() {
 }
 
 /**
- * Reports a fatal error to the watchdog, THEN calls `then` — never
- * before the message has had a real chance to actually reach it. A
- * plain `watchdogSocket?.write(...)` followed immediately by
- * `app.quit()` (the previous shape of every call site below) is a real
- * race: `Socket.write()` only queues the data, it doesn't confirm the
- * OS has sent it, and if `watchdogSocket` isn't connected yet at all
- * (a real, observed case — a crash moments after launch, before the
+ * Sends one line to the watchdog, THEN calls `then` — never before the
+ * message has had a real chance to actually reach it. A plain
+ * `watchdogSocket?.write(...)` followed immediately by `app.quit()` is
+ * a real race: `Socket.write()` only queues the data, it doesn't
+ * confirm the OS has sent it, and if `watchdogSocket` isn't connected
+ * yet at all (a real, observed case — right after launch, before the
  * watchdog's own pipe server and this process's connection to it have
  * both finished spinning up) the message was silently dropped
  * entirely, with nothing else ever retrying it. Confirmed via live
  * testing: `anchoran testcrash 1` closed Anchoran with no crash screen
  * at all when this raced.
  *
- * `then` always eventually runs — this process is on its way down
- * either way — but only after either a live write had a moment to
- * flush, or a fresh connection attempt made one real effort and hit
- * its own bound.
+ * `then` always eventually runs — this process is quitting either way
+ * — but only after either a live write had a moment to flush, or a
+ * fresh connection attempt made one real effort and hit its own bound.
  */
-function sendCrashToWatchdogAndThen(message: string, then: () => void) {
-  const payload = `CRASH:${JSON.stringify({ message })}\n`;
+function sendToWatchdogAndThen(payload: string, then: () => void) {
   let settled = false;
   const finish = () => {
     if (settled) return;
@@ -493,6 +490,26 @@ function sendCrashToWatchdogAndThen(message: string, then: () => void) {
   } catch {
     finish();
   }
+}
+
+/** Reports a fatal error to the watchdog — see sendToWatchdogAndThen() for why this never just fires-and-forgets. */
+function sendCrashToWatchdogAndThen(message: string, then: () => void) {
+  sendToWatchdogAndThen(`CRASH:${JSON.stringify({ message })}\n`, then);
+}
+
+/**
+ * Tells the watchdog this process is quitting ON PURPOSE — the normal
+ * "Shut down Anchoran" flow, a Terminal-initiated restart, or "n" on
+ * the boot confirmation screen — so it doesn't mistake the resulting
+ * process exit for a crash. A real, live-tested bug without this: any
+ * of those normal, deliberate closes still made the watchdog show its
+ * crash screen, since all it could see from outside was "the process
+ * we're watching just disappeared" — indistinguishable, on its own,
+ * from an actual crash. See native/watchdog/Program.cs for how it
+ * uses this.
+ */
+function sendGracefulToWatchdogAndThen(then: () => void) {
+  sendToWatchdogAndThen("GRACEFUL\n", then);
 }
 
 /**
@@ -1822,8 +1839,10 @@ ipcMain.on("anchoran:move-to-display", (_event, displayId: number) => {
 });
 
 ipcMain.on("anchoran:confirm-exit", () => {
-  isQuittingConfirmed = true;
-  app.quit();
+  sendGracefulToWatchdogAndThen(() => {
+    isQuittingConfirmed = true;
+    app.quit();
+  });
 });
 
 /**
@@ -1844,7 +1863,7 @@ ipcMain.on("anchoran:renderer-fatal-error", (_event, message: string) => {
   });
 });
 
-/** "Restart Anchoran" on the crash screen — a normal fresh instance, no crash flag. This crash-screen instance then quits itself. */
+/** "Auto-Repair Anchoran" on the crash screen — a normal fresh instance, no crash flag. This crash-screen instance then quits itself. */
 ipcMain.on("anchoran:crash-restart", () => {
   const args = app.isPackaged ? [] : [path.join(__dirname, "..")];
   spawn(process.execPath, args, { detached: true, stdio: "ignore" }).unref();
@@ -1911,9 +1930,11 @@ ipcMain.handle("anchoran:test-crash", (_event, type: number) => {
 });
 
 ipcMain.on("anchoran:restart", () => {
-  isQuittingConfirmed = true;
-  app.relaunch();
-  app.quit();
+  sendGracefulToWatchdogAndThen(() => {
+    isQuittingConfirmed = true;
+    app.relaunch();
+    app.quit();
+  });
 });
 
 /**

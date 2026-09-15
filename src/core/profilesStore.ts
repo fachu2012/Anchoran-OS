@@ -201,6 +201,50 @@ export const useProfilesStore = create<ProfilesState>((set, get) => ({
   },
 }));
 
+/**
+ * Keeps `profiles` in sync with live edits to the ACTIVE profile.
+ * Before this existed, `profiles`' own copy of the active profile
+ * (its PIN, accent, wallpaper, name, avatar, theme) only ever got
+ * refreshed at the moment switchProfile() ran (it snapshots the
+ * OUTGOING profile on the way out) — so any Settings change made
+ * while staying on that same profile (e.g. setting a PIN in
+ * Settings → Users, then immediately creating another profile without
+ * ever switching away) was invisible to `profiles` indefinitely. A
+ * real, live-tested bug: an owner set their own PIN, created a second
+ * profile, and "Run as Administrator" then reported no admin account
+ * on this PC had a PIN set at all — findAdminByPin() was still reading
+ * `profiles`' stale, pre-PIN copy of the owner, since nothing had ever
+ * switched away from it since.
+ */
+function installActiveProfileSync() {
+  usePreferencesStore.subscribe(() => {
+    const { profiles, activeProfileId, hydrated } = useProfilesStore.getState();
+    if (!hydrated || !activeProfileId) return;
+    const idx = profiles.findIndex((p) => p.id === activeProfileId);
+    if (idx === -1) return;
+    const current = profiles[idx];
+    // Guest is reset to fixed defaults on every entry by its own store
+    // and deliberately never persists anything back — leave it alone.
+    if (current.isGuest) return;
+    const fresh = snapshotFromPreferences(activeProfileId, current.isAdmin, current.isOwner);
+    if (
+      fresh.name === current.name &&
+      fresh.avatarDataUrl === current.avatarDataUrl &&
+      fresh.lockPin === current.lockPin &&
+      fresh.accentColor === current.accentColor &&
+      fresh.wallpaperId === current.wallpaperId &&
+      fresh.customWallpaperDataUrl === current.customWallpaperDataUrl &&
+      fresh.themeMode === current.themeMode
+    ) {
+      return; // Nothing actually changed (e.g. this fired from our own applyToPreferences during a switch) — skip the no-op persist.
+    }
+    const next = profiles.map((p, i) => (i === idx ? fresh : p));
+    useProfilesStore.setState({ profiles: next });
+    persist(next, activeProfileId);
+  });
+}
+installActiveProfileSync();
+
 Promise.all([
   persistGet<Profile[]>("config", STORAGE_KEY, []),
   persistGet<string>("config", ACTIVE_KEY, ""),

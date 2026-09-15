@@ -16,7 +16,14 @@
   -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <!-- -windows, not plain net8.0: WinForms (System.Windows.Forms,
+         referenced below) is part of the Windows Desktop runtime pack,
+         only available under a "-windows" target framework moniker —
+         needed for the always-ready black "curtain" window described
+         in Program.cs, so the crash screen can appear instantly
+         instead of waiting on a whole fresh Electron process to cold-
+         boot. -->
+    <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -26,7 +33,7 @@
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <UseWindowsForms>false</UseWindowsForms>
+    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
 </Project>

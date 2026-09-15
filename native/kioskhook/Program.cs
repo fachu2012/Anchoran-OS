@@ -182,45 +182,65 @@ internal static class Program
         var primaryMonitor = NativeMethods.MonitorFromPoint(default, NativeMethods.MONITOR_DEFAULTTOPRIMARY);
         NativeMethods.EnumWindows((hwnd, _) =>
         {
-            if (!NativeMethods.IsWindowVisible(hwnd)) return true; // already hidden on its own — leave it alone
-            if (NativeMethods.GetWindow(hwnd, NativeMethods.GW_OWNER) != 0) return true; // a popup/tool window, not a real top-level app window
-            if (NativeMethods.GetWindowTextLengthW(hwnd) == 0) return true; // no titlebar text — not a real user-facing window
-            if (NativeMethods.MonitorFromWindow(hwnd, NativeMethods.MONITOR_DEFAULTTONEAREST) != primaryMonitor) return true; // on a different monitor than Anchoran — leave it alone
-            if (IsDesktopBackgroundWindow(hwnd)) return true; // Explorer's own desktop/wallpaper — see the helper's own comment for why this is never touched
-
-            NativeMethods.GetWindowThreadProcessId(hwnd, out var ownerPid);
-            if (ownerPid == 0) return true;
-            var ownerPidInt = unchecked((int)ownerPid);
-            // Never touch Anchoran's own windows, or (belt-and-suspenders,
-            // in case a window somehow reports pid 0/itself oddly) this
-            // helper's own process.
-            if (ownerPidInt == anchoranPid || ownerPidInt == currentPid) return true;
-
-            NativeMethods.ShowWindow(hwnd, NativeMethods.SW_HIDE);
-            _hiddenWindows.Add(hwnd);
-
-            if (!_throttledProcessOriginalPriority.ContainsKey(ownerPidInt))
+            // Everything in this callback runs inside EnumWindows' own
+            // native call, invoked once per window on the whole desktop
+            // — an unhandled managed exception unwinding across that
+            // native boundary is exactly what took the entire process
+            // down in a real, live-tested regression (v3.8.4's own new
+            // Progman/WorkerW check, via an unsafe P/Invoke binding —
+            // fixed separately, but the actual lesson is this callback
+            // must never be allowed to crash the process over any ONE
+            // misbehaving window again, from that bug or any other).
+            // Skipping just that one window and moving on is always the
+            // safe choice — a window that isn't hidden here is, at
+            // worst, still visible underneath Anchoran, not a reason to
+            // lose the keyboard hook and the whole desktop takeover.
+            try
             {
-                var procHandle = NativeMethods.OpenProcess(
-                    NativeMethods.PROCESS_SET_INFORMATION | NativeMethods.PROCESS_QUERY_LIMITED_INFORMATION,
-                    false,
-                    ownerPid
-                );
-                if (procHandle != 0)
+                if (!NativeMethods.IsWindowVisible(hwnd)) return true; // already hidden on its own — leave it alone
+                if (NativeMethods.GetWindow(hwnd, NativeMethods.GW_OWNER) != 0) return true; // a popup/tool window, not a real top-level app window
+                if (NativeMethods.GetWindowTextLengthW(hwnd) == 0) return true; // no titlebar text — not a real user-facing window
+                if (NativeMethods.MonitorFromWindow(hwnd, NativeMethods.MONITOR_DEFAULTTONEAREST) != primaryMonitor) return true; // on a different monitor than Anchoran — leave it alone
+                if (IsDesktopBackgroundWindow(hwnd)) return true; // Explorer's own desktop/wallpaper — see the helper's own comment for why this is never touched
+
+                NativeMethods.GetWindowThreadProcessId(hwnd, out var ownerPid);
+                if (ownerPid == 0) return true;
+                var ownerPidInt = unchecked((int)ownerPid);
+                // Never touch Anchoran's own windows, or (belt-and-suspenders,
+                // in case a window somehow reports pid 0/itself oddly) this
+                // helper's own process.
+                if (ownerPidInt == anchoranPid || ownerPidInt == currentPid) return true;
+
+                NativeMethods.ShowWindow(hwnd, NativeMethods.SW_HIDE);
+                _hiddenWindows.Add(hwnd);
+
+                if (!_throttledProcessOriginalPriority.ContainsKey(ownerPidInt))
                 {
-                    var originalPriority = NativeMethods.GetPriorityClass(procHandle);
-                    if (originalPriority != 0)
+                    var procHandle = NativeMethods.OpenProcess(
+                        NativeMethods.PROCESS_SET_INFORMATION | NativeMethods.PROCESS_QUERY_LIMITED_INFORMATION,
+                        false,
+                        ownerPid
+                    );
+                    if (procHandle != 0)
                     {
-                        _throttledProcessOriginalPriority[ownerPidInt] = originalPriority;
-                        NativeMethods.SetPriorityClass(procHandle, NativeMethods.IDLE_PRIORITY_CLASS);
+                        var originalPriority = NativeMethods.GetPriorityClass(procHandle);
+                        if (originalPriority != 0)
+                        {
+                            _throttledProcessOriginalPriority[ownerPidInt] = originalPriority;
+                            NativeMethods.SetPriorityClass(procHandle, NativeMethods.IDLE_PRIORITY_CLASS);
+                        }
+                        NativeMethods.CloseHandle(procHandle);
                     }
-                    NativeMethods.CloseHandle(procHandle);
+                    // OpenProcess/GetPriorityClass failing (a protected system
+                    // process, insufficient rights, …) just leaves that one
+                    // process at its normal priority — its window is still
+                    // hidden above, which is the part that actually matters
+                    // for "Anchoran has the whole screen".
                 }
-                // OpenProcess/GetPriorityClass failing (a protected system
-                // process, insufficient rights, …) just leaves that one
-                // process at its normal priority — its window is still
-                // hidden above, which is the part that actually matters
-                // for "Anchoran has the whole screen".
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"TakeOverDesktop: skipped one window after an error: {ex.Message}");
             }
             return true;
         }, 0);
@@ -367,21 +387,36 @@ internal static class Program
 
     private static nint HookProc(int nCode, nint wParam, nint lParam)
     {
-        if (nCode >= 0 && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN))
+        // This runs on every single keypress, from inside Windows' own
+        // native hook-dispatch call — the same "an unhandled exception
+        // across a native call boundary can take the whole process
+        // down" risk as TakeOverDesktop's EnumWindows callback (see its
+        // own comment). Falling through to CallNextHookEx on any error
+        // here is always the safe choice: worse case, one key isn't
+        // swallowed this one time — not losing the hook, and every
+        // other app hidden underneath, for the rest of the session.
+        try
         {
-            var info = Marshal.PtrToStructure<NativeMethods.KBDLLHOOKSTRUCT>(lParam);
-
-            if (info.vkCode == VK_LWIN || info.vkCode == VK_RWIN)
+            if (nCode >= 0 && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN))
             {
-                WritePipeLine("WIN");
-                return 1; // Swallow — Explorer's Start Menu never sees it.
-            }
+                var info = Marshal.PtrToStructure<NativeMethods.KBDLLHOOKSTRUCT>(lParam);
 
-            if (info.vkCode == VK_TAB && (NativeMethods.GetAsyncKeyState(VK_MENU) & 0x8000) != 0)
-            {
-                WritePipeLine("ALTTAB");
-                return 1; // Swallow — Explorer's task switcher never sees it.
+                if (info.vkCode == VK_LWIN || info.vkCode == VK_RWIN)
+                {
+                    WritePipeLine("WIN");
+                    return 1; // Swallow — Explorer's Start Menu never sees it.
+                }
+
+                if (info.vkCode == VK_TAB && (NativeMethods.GetAsyncKeyState(VK_MENU) & 0x8000) != 0)
+                {
+                    WritePipeLine("ALTTAB");
+                    return 1; // Swallow — Explorer's task switcher never sees it.
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"HookProc: passing this key through after an error: {ex.Message}");
         }
 
         return NativeMethods.CallNextHookEx(_hookHandle, nCode, wParam, lParam);

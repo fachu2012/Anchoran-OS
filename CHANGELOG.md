@@ -5,6 +5,57 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.6] - 2026-09-15
+
+**Update type:** stability
+
+A batch of real bugs found via live testing on v3.8.5, plus a redesign
+of the crash screen and how the watchdog reacts.
+
+### Fixed
+- **A freshly-set PIN could leave "Run as Administrator" saying no
+  admin account on this PC had one configured at all** — reproduced on
+  a brand new install: create the owner profile through the setup
+  wizard, set its PIN there, never switch profiles, then try to open
+  an Administrator Terminal. The wizard's PIN field (and Settings →
+  Users' own PIN field) only ever updated the live preferences state
+  for whichever profile is currently active; the separate list every
+  other profile's data lives in only ever got that update at the
+  moment of actually switching profiles — so as long as you stayed on
+  the same profile the whole time, it never found out. `profiles` now
+  stays in sync with the active profile's live edits continuously, not
+  just at switch time.
+- **Every normal, deliberate way to close Anchoran — the Launcher's
+  "Shut down", answering "n" on the boot confirmation, Alt+F4 → Exit —
+  still made the watchdog show its crash screen**, since all it could
+  see from outside was "the process we're watching just disappeared",
+  indistinguishable on its own from an actual crash. Anchoran now tells
+  the watchdog it's closing on purpose right before it actually does;
+  the watchdog shows "(Shutting down Anchoran…)" for 3 seconds and
+  quits cleanly instead.
+- **The Windows key still wasn't reliably reaching Anchoran** — hardened
+  kioskhook further: both the `EnumWindows` callback (used to hide/
+  throttle other apps) and the keyboard hook callback itself now catch
+  and skip past any error inside them individually, instead of an
+  unhandled exception in either taking the entire process down again
+  the way v3.8.4's own Progman/WorkerW check briefly did.
+
+### Changed
+- **The crash watchdog now keeps an always-ready, hidden black
+  "curtain" window** (a native window, not Electron) instead of only
+  reacting after the fact — revealing it is close to instant, covering
+  the real crash screen's own few seconds of cold-start (a whole fresh
+  Electron process) instead of leaving the bare Windows desktop visible
+  in between, which live testing measured at as long as 6 seconds.
+- **The crash screen is redesigned**, closer to Windows' own "stop"
+  screen in layout and framing (a big ":(", a plain-language headline,
+  the technical detail kept small below it) while staying Anchoran's
+  own dark theme, not Windows' blue. The Administrator Terminal is no
+  longer shown by default — an "Open Anchoran Terminal" button reveals
+  it — and the two action buttons are now "Auto-Repair Anchoran"
+  (renamed from "Restart Anchoran") and "Exit Anchoran" (renamed from
+  "Force close Anchoran").
+
 ## [3.8.5] - 2026-09-15
 
 **Update type:** critical
