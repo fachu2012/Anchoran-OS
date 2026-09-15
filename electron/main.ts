@@ -2299,14 +2299,19 @@ ipcMain.handle("anchoran:changeto-install", () => {
  * boot confirmation screen is what you agree to it with, every launch
  * — there is no Settings toggle or Terminal command for it anymore;
  * src/desktop/systemModeStore.ts is just the thin start()/stop() API
- * App.tsx calls, not a user-facing switch). This block only ever
- * manages that one child process: starting it, relaying its two
- * possible stdout lines ("WIN" / "ALTTAB") to the renderer, and making
- * sure it is always stopped — unconditionally on every path out of
- * the app (quit, crash, window-all-closed) — since Windows only
- * regains normal key handling once this process is gone.
+ * App.tsx calls, not a user-facing switch). This block manages that
+ * one child process (starting it, making sure it's always stopped —
+ * unconditionally on every path out of the app, since Windows only
+ * regains normal key handling once this process is gone) and a
+ * separate named pipe connection to it, carrying its "WIN"/"ALTTAB"
+ * lines to the renderer and Anchoran's own "EXIT" command to it — see
+ * native/kioskhook/Program.cs's header for why this is a named pipe
+ * and not stdin/stdout (a real bug: routing kioskhook's spawn through
+ * AnchoranLauncher in v3.8.1 broke its stdout reaching this process,
+ * silently disabling the Windows key/Alt+Tab from v3.8.1 onward).
  */
 let kioskHookProcess: ReturnType<typeof spawn> | null = null;
+let kioskHookSocket: nodeNet.Socket | null = null;
 
 function kioskHookExePath(): string {
   return app.isPackaged
@@ -2317,12 +2322,14 @@ function kioskHookExePath(): string {
 function stopKioskHook() {
   if (!kioskHookProcess) return;
   try {
-    kioskHookProcess.stdin?.write("EXIT\n");
+    kioskHookSocket?.write("EXIT\n");
   } catch {
     // Falls through to a hard kill below regardless.
   }
   const proc = kioskHookProcess;
   kioskHookProcess = null;
+  kioskHookSocket?.destroy();
+  kioskHookSocket = null;
   // Give it a moment to exit cleanly (releasing the hook) before
   // forcing it, so a slow shutdown never leaves the hook installed.
   setTimeout(() => {
@@ -2347,35 +2354,55 @@ ipcMain.handle("anchoran:system-mode-start", () => {
   try {
     // Routed through AnchoranLauncher (see launcherExePath() above) so
     // kioskhook reports explorer.exe as its parent instead of Anchoran
-    // and survives a grouped "End task" on Anchoran itself — the
-    // launcher forwards this process's own stdin/stdout down to
-    // kioskhook unchanged, so the WIN/ALTTAB stdout lines and "EXIT"
-    // stdin command below keep working exactly as before.
+    // and survives a grouped "End task" on Anchoran itself. Talking to
+    // it happens entirely over the named pipe connected below, not
+    // through this child process's own stdio — see the block comment
+    // above for why.
     const launcher = launcherExePath();
     const child = fs.existsSync(launcher) ? spawn(launcher, [exePath, String(process.pid)]) : spawn(exePath, [String(process.pid)]);
     kioskHookProcess = child;
 
-    child.stdout.setEncoding("utf-8");
-    let buffer = "";
-    child.stdout.on("data", (chunk: string) => {
-      buffer += chunk;
-      const lines = buffer.split(/\r?\n/);
-      buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        if (line === "WIN" || line === "ALTTAB") {
-          mainWindow?.webContents.send("anchoran:system-mode-key", line);
-        }
-      }
-    });
-
     child.on("exit", () => {
       if (kioskHookProcess === child) kioskHookProcess = null;
+      kioskHookSocket?.destroy();
+      kioskHookSocket = null;
       mainWindow?.webContents.send("anchoran:system-mode-status", false);
     });
     child.on("error", (err) => {
       logToDisk("system-mode", `Helper process error: ${err.message}`);
       if (kioskHookProcess === child) kioskHookProcess = null;
     });
+
+    // kioskhook creates its pipe server only after its hook is
+    // installed and the desktop takeover is done — connecting can
+    // legitimately fail if this races ahead of that, so retry briefly
+    // rather than treating the first attempt as final (same pattern
+    // spawnWatchdog() already uses for its own pipe).
+    const pipePath = `\\\\.\\pipe\\anchoran-kioskhook-${process.pid}`;
+    let buffer = "";
+    const connect = () => {
+      if (kioskHookProcess !== child) return; // stopped/replaced before this attempt landed
+      const socket = nodeNet.createConnection(pipePath);
+      socket.setEncoding("utf-8");
+      socket.on("connect", () => {
+        kioskHookSocket = socket;
+      });
+      socket.on("data", (chunk: string) => {
+        buffer += chunk;
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (line === "WIN" || line === "ALTTAB") {
+            mainWindow?.webContents.send("anchoran:system-mode-key", line);
+          }
+        }
+      });
+      socket.on("error", () => {
+        if (kioskHookSocket === socket) kioskHookSocket = null;
+        setTimeout(connect, 300);
+      });
+    };
+    connect();
 
     return { success: true };
   } catch (err) {

@@ -5,6 +5,25 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.3] - 2026-09-15
+
+**Update type:** critical
+
+### Fixed
+- **The Windows key stopped opening the Launcher on every version since
+  v3.8.1** — kioskhook talked to Anchoran over its stdout/stdin, and
+  v3.8.1 started spawning kioskhook through the new `AnchoranLauncher.exe`
+  (to survive a Task Manager grouped "End task"), which tried to forward
+  its own inherited stdio handles two hops deep to kioskhook. That
+  two-hop handle forwarding didn't reliably carry kioskhook's output
+  back to Anchoran in practice, so every "WIN" line kioskhook still sent
+  when the Windows key was pressed was silently lost. kioskhook now
+  talks to Anchoran over its own dedicated named pipe instead (the same
+  pattern the crash watchdog already used) — a direct connection with
+  no intermediary process's handle-inheritance behavior to depend on.
+  `AnchoranLauncher.exe` itself no longer attempts any stdio forwarding
+  at all, since neither helper it spawns needs it anymore.
+
 ## [3.8.2] - 2026-09-15
 
 **Update type:** stability

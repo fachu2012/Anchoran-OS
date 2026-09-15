@@ -29,15 +29,16 @@
 // Usage: AnchoranLauncher.exe <targetExePath> [args...]
 // This process stays alive for as long as the target it launched does
 // — see LaunchWithParent's doc comment for exactly why — and exits
-// with that same exit code once the target finally does. It also
-// forwards its own stdin/stdout/stderr straight through to the
-// target, so a caller that talks to the target over stdio (kioskhook's
-// WIN/ALTTAB lines and its EXIT command, specifically) sees no
-// difference from launching it directly. If reparenting fails for any
-// reason (no explorer.exe found, the API call itself fails), it falls
-// back to a normal launch rather than not starting the target at all —
-// a normal (still Anchoran-child) launch is strictly better than no
-// launch, even though it reopens the exact bug this exists to fix.
+// with that same exit code once the target finally does. It does NOT
+// forward its own stdin/stdout/stderr to the target — see
+// LaunchWithParent's doc comment for why that was tried and removed;
+// both kioskhook and the watchdog talk to Anchoran over their own
+// dedicated named pipes instead, entirely independent of this process.
+// If reparenting fails for any reason (no explorer.exe found, the API
+// call itself fails), it falls back to a normal launch rather than not
+// starting the target at all — a normal (still Anchoran-child) launch
+// is strictly better than no launch, even though it reopens the exact
+// bug this exists to fix.
 
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -181,28 +182,19 @@ internal static class Program
             startupInfo.StartupInfo.cb = Marshal.SizeOf<NativeMethods.STARTUPINFOEX>();
             startupInfo.lpAttributeList = attributeList;
 
-            // Explicitly pass this launcher's own stdin/stdout/stderr
-            // down to the target — Node's spawn() already handed this
-            // launcher inheritable pipe handles for those (the same
-            // mechanism that lets a direct `spawn(exePath)` forward
-            // stdio today); reusing them here means kioskhook's stdout
-            // (its "WIN"/"ALTTAB" lines) and stdin (the "EXIT" command)
-            // keep working unchanged even though it's now launched one
-            // hop further away, through this process. bInheritHandles
-            // below is what actually makes any inheritance possible —
-            // handle inheritance is always resolved against the real
-            // calling process's own handle table, regardless of which
-            // parent PID gets reported via PROC_THREAD_ATTRIBUTE_PARENT_PROCESS,
-            // so this and the reparenting above don't conflict.
-            startupInfo.StartupInfo.dwFlags |= NativeMethods.STARTF_USESTDHANDLES;
-            startupInfo.StartupInfo.hStdInput = NativeMethods.GetStdHandle(NativeMethods.STD_INPUT_HANDLE);
-            startupInfo.StartupInfo.hStdOutput = NativeMethods.GetStdHandle(NativeMethods.STD_OUTPUT_HANDLE);
-            startupInfo.StartupInfo.hStdError = NativeMethods.GetStdHandle(NativeMethods.STD_ERROR_HANDLE);
-
-            // CreateProcessW's lpCommandLine must be a writable buffer
-            // (the API is documented to modify it in place) — a
-            // StringBuilder, not a plain string, is the standard P/Invoke
-            // way to satisfy that.
+            // Deliberately NOT forwarding this launcher's own stdin/
+            // stdout/stderr down to the target (an earlier version of
+            // this file did, via STARTF_USESTDHANDLES + bInheritHandles).
+            // That two-hop handle-inheritance trick turned out not to
+            // reliably carry kioskhook's stdout back to Anchoran in
+            // practice — a real, confirmed bug: the Windows key silently
+            // stopped opening the Launcher on every version once
+            // kioskhook started being spawned through here. Both
+            // kioskhook and the watchdog now talk to Anchoran over their
+            // own dedicated named pipes instead (see their own Program.cs
+            // files) — a direct connection this launcher isn't part of
+            // and can't interfere with — so there is nothing left here
+            // that needs stdio forwarded at all.
             var commandLine = new StringBuilder(BuildCommandLine(exePath, args));
 
             var created = NativeMethods.CreateProcessW(
@@ -210,7 +202,7 @@ internal static class Program
                 commandLine,
                 IntPtr.Zero,
                 IntPtr.Zero,
-                true,
+                false,
                 NativeMethods.EXTENDED_STARTUPINFO_PRESENT | NativeMethods.CREATE_NO_WINDOW,
                 IntPtr.Zero,
                 null,
@@ -258,10 +250,6 @@ internal static partial class NativeMethods
     public const uint PROCESS_CREATE_PROCESS = 0x0080;
     public const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
     public const uint CREATE_NO_WINDOW = 0x08000000;
-    public const int STARTF_USESTDHANDLES = 0x00000100;
-    public const int STD_INPUT_HANDLE = -10;
-    public const int STD_OUTPUT_HANDLE = -11;
-    public const int STD_ERROR_HANDLE = -12;
     public const uint INFINITE = 0xFFFFFFFF;
     public static readonly nint PROC_THREAD_ATTRIBUTE_PARENT_PROCESS = 0x00020000;
 
@@ -310,9 +298,6 @@ internal static partial class NativeMethods
     [LibraryImport("kernel32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool CloseHandle(nint hObject);
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    public static partial nint GetStdHandle(int nStdHandle);
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     public static partial uint WaitForSingleObject(nint hHandle, uint dwMilliseconds);

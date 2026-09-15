@@ -47,13 +47,37 @@
 //     immediately regains normal Win-key/Alt+Tab behavior with no
 //     further action needed.
 //
-// stdin protocol (line-based): "EXIT" to shut down cleanly.
-// stdout protocol (line-based): "WIN" when the Windows key was
-// pressed and swallowed, "ALTTAB" when Alt+Tab was pressed and
-// swallowed, "READY" once the hook is installed, the takeover is
-// done, and everything is listening.
+// Talks to Anchoran over a Windows named pipe
+// (`\\.\pipe\anchoran-kioskhook-<anchoranPid>`), not stdin/stdout.
+// Line-based protocol, same shape as the crash watchdog's own pipe
+// (see native/watchdog/Program.cs): this process sends "READY" once
+// the hook is installed and the takeover is done, "WIN" whenever the
+// Windows key is pressed and swallowed, "ALTTAB" whenever Alt+Tab is
+// pressed and swallowed; Anchoran sends "EXIT" to ask for a clean
+// shutdown.
+//
+// This was a plain stdin/stdout protocol before — broken by
+// native/launcher's own reparenting trick (see that file's own
+// comments): once kioskhook started being spawned through
+// AnchoranLauncher instead of directly, in v3.8.1 (when System Mode
+// became unconditional and kioskhook started running every session),
+// the launcher's attempt to forward its own inherited stdio handles
+// two hops deep turned out not to reliably carry kioskhook's stdout
+// back to Anchoran — the Windows key stopped opening the Launcher on
+// every version since, since Anchoran was blind to every "WIN" line
+// kioskhook still sent. A named pipe is a direct connection between
+// this process and Anchoran, with no intermediary process (the
+// launcher exits the instant it creates kioskhook) whose own handle
+// inheritance behavior it depends on.
+//
+// This is talking to Anchoran's main process just like the crash
+// watchdog does. kioskhook is the ONLY consumer/producer of this pipe
+// (Anchoran connects as the client) — nothing about the reparenting
+// itself changes; only the channel used to talk back to Anchoran does.
 
+using System.IO.Pipes;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace AnchoranKioskHook;
 
@@ -80,6 +104,10 @@ internal static class Program
     private static readonly Dictionary<int, uint> _throttledProcessOriginalPriority = new();
     private static int _restoreGuard; // Interlocked flag: RestoreAll runs at most once, even if both exit paths race.
 
+    private static NamedPipeServerStream? _pipeServer;
+    private static StreamWriter? _pipeWriter;
+    private static readonly object _pipeWriteLock = new();
+
     private static int Main(string[] args)
     {
         if (!OperatingSystem.IsWindows())
@@ -88,26 +116,9 @@ internal static class Program
             return 1;
         }
 
-        // Pin stdin/stdout to UTF-8 explicitly rather than whatever
-        // console codepage the environment defaults to — the parent
-        // (Node's child_process) always writes/reads UTF-8, and a
-        // mismatched encoding here would corrupt the "EXIT" line just
-        // enough that the string comparison below silently never
-        // matches, leaving this process running with no visible error.
-        try
-        {
-            Console.InputEncoding = System.Text.Encoding.UTF8;
-            Console.OutputEncoding = System.Text.Encoding.UTF8;
-        }
-        catch (IOException)
-        {
-            // Not attached to a real console/pipe that allows changing
-            // the encoding — safe to continue with the default.
-        }
-
         // PostQuitMessage only ever affects the CALLING thread's own
         // message queue — every Win32 thread has its own — so the
-        // stdin-reader and watchdog threads below (which are not the
+        // pipe-server and watchdog threads below (which are not the
         // thread running the GetMessage loop) must instead post WM_QUIT
         // directly to this thread's queue by id.
         var mainThreadId = NativeMethods.GetCurrentThreadId();
@@ -124,23 +135,8 @@ internal static class Program
 
         TakeOverDesktop(parentPid);
 
-        Console.WriteLine("READY");
-        Console.Out.Flush();
-
-        var stdinThread = new Thread(() =>
-        {
-            string? line;
-            while ((line = Console.In.ReadLine()) != null)
-            {
-                if (line.Trim().Equals("EXIT", StringComparison.OrdinalIgnoreCase))
-                {
-                    NativeMethods.PostThreadMessageW(mainThreadId, WM_QUIT, 0, 0);
-                    break;
-                }
-            }
-        })
-        { IsBackground = true };
-        stdinThread.Start();
+        var pipeThread = new Thread(() => RunPipeServer(parentPid, mainThreadId)) { IsBackground = true };
+        pipeThread.Start();
 
         if (parentPid is int pidValue)
         {
@@ -260,6 +256,63 @@ internal static class Program
         _throttledProcessOriginalPriority.Clear();
     }
 
+    /// <summary>
+    /// Hosts the named pipe Anchoran connects to as a client (see this
+    /// file's header for why this replaced a plain stdin/stdout
+    /// protocol) — blocks this background thread waiting for that
+    /// connection, then reads "EXIT" lines from it exactly like the old
+    /// stdin thread did, while HookProc (via WritePipeLine) writes
+    /// "WIN"/"ALTTAB" lines out the other direction as they happen.
+    /// </summary>
+    private static void RunPipeServer(int? anchoranPid, uint mainThreadId)
+    {
+        var pipeName = anchoranPid is int pid ? $"anchoran-kioskhook-{pid}" : "anchoran-kioskhook";
+        try
+        {
+            _pipeServer = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.None);
+            _pipeServer.WaitForConnection();
+            _pipeWriter = new StreamWriter(_pipeServer, Encoding.UTF8) { AutoFlush = true };
+            WritePipeLine("READY");
+
+            using var reader = new StreamReader(_pipeServer, Encoding.UTF8, false, 1024, leaveOpen: true);
+            string? line;
+            while ((line = reader.ReadLine()) != null)
+            {
+                if (line.Trim().Equals("EXIT", StringComparison.OrdinalIgnoreCase))
+                {
+                    NativeMethods.PostThreadMessageW(mainThreadId, WM_QUIT, 0, 0);
+                    break;
+                }
+            }
+        }
+        catch
+        {
+            // The pipe never connecting, or breaking later, isn't this
+            // thread's job to react to further — WatchParent's own
+            // pid-based poll is the real safety net for "Anchoran died"
+            // regardless of this channel's state; an "EXIT" that can
+            // never arrive this way just means RestoreAll() only ever
+            // happens via that path (or the message loop ending some
+            // other way) instead.
+        }
+    }
+
+    private static void WritePipeLine(string line)
+    {
+        lock (_pipeWriteLock)
+        {
+            try
+            {
+                _pipeWriter?.WriteLine(line);
+            }
+            catch
+            {
+                // Best-effort — a broken pipe here just means this one
+                // signal is lost, not a reason to crash the hook.
+            }
+        }
+    }
+
     private static void WatchParent(int parentPid, uint mainThreadId)
     {
         while (true)
@@ -286,15 +339,13 @@ internal static class Program
 
             if (info.vkCode == VK_LWIN || info.vkCode == VK_RWIN)
             {
-                Console.WriteLine("WIN");
-                Console.Out.Flush();
+                WritePipeLine("WIN");
                 return 1; // Swallow — Explorer's Start Menu never sees it.
             }
 
             if (info.vkCode == VK_TAB && (NativeMethods.GetAsyncKeyState(VK_MENU) & 0x8000) != 0)
             {
-                Console.WriteLine("ALTTAB");
-                Console.Out.Flush();
+                WritePipeLine("ALTTAB");
                 return 1; // Swallow — Explorer's task switcher never sees it.
             }
         }
