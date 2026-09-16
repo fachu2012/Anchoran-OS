@@ -104,9 +104,8 @@ body,
 #root {
   /* Night Light / brightness: one filter chain set by ThemeProvider. */
   filter: var(--anchoran-display-filter, none);
-  /* Both the Settings → UI scale slider and the "Large text"
-     accessibility toggle resolve to this one zoom factor. */
-  zoom: calc(var(--anchoran-ui-scale, 1) * var(--anchoran-text-scale, 1));
+  /* The "Large text" accessibility toggle resolves to this zoom factor. */
+  zoom: var(--anchoran-text-scale, 1);
 }
 
 [data-large-text="on"] {

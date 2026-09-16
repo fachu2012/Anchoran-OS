@@ -64,7 +64,6 @@ export interface AnchoranPreferences {
   themeMode: ThemeMode;
   accentColor: AccentColor;
   wallpaperId: string;
-  uiScale: number;
   animationsEnabled: boolean;
   username: string;
   soundEnabled: boolean;
@@ -88,7 +87,7 @@ export interface AnchoranPreferences {
   brightness: number;
   /** Accessibility: stronger borders/contrast and flatter colors throughout the UI. */
   highContrast: boolean;
-  /** Accessibility: scales up UI text beyond what uiScale alone affects. */
+  /** Accessibility: scales up UI text and elements throughout Anchoran. */
   largeText: boolean;
   /** Minutes of inactivity before Anchoran auto-locks; 0 disables it. Only takes effect once a PIN is set. */
   autoLockMinutes: number;

@@ -46,7 +46,6 @@ const TRACKED_LABELS: Record<string, string> = {
   themeMode: "Theme",
   accentColor: "Accent color",
   wallpaperId: "Wallpaper",
-  uiScale: "Interface scale",
   animationsEnabled: "Animations",
   soundEnabled: "System sounds",
   soundVolume: "Volume",

@@ -4,7 +4,6 @@ import { usePreferencesStore } from "./preferencesStore";
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const themeMode = usePreferencesStore((s) => s.themeMode);
   const accentColor = usePreferencesStore((s) => s.accentColor);
-  const uiScale = usePreferencesStore((s) => s.uiScale);
   const animationsEnabled = usePreferencesStore((s) => s.animationsEnabled);
   const nightLightEnabled = usePreferencesStore((s) => s.nightLightEnabled);
   const brightness = usePreferencesStore((s) => s.brightness);
@@ -18,10 +17,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.style.setProperty("--anchoran-accent", accentColor);
   }, [accentColor]);
-
-  useEffect(() => {
-    document.documentElement.style.setProperty("--anchoran-ui-scale", String(uiScale));
-  }, [uiScale]);
 
   useEffect(() => {
     document.documentElement.setAttribute(

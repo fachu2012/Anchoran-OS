@@ -5,6 +5,17 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.11] - 2026-09-16
+
+**Update type:** cleanup
+
+### Removed
+- **The "Interface scale" slider in Settings → Display**, entirely — not
+  just the visible control: its preference field, persistence,
+  `anchoran scale <value>` Terminal command, and the CSS zoom factor it
+  fed all go with it. "Large text" (Settings → Display → Accessibility)
+  is Anchoran's one remaining way to scale up text/UI size.
+
 ## [3.8.10] - 2026-09-16
 
 **Update type:** stability

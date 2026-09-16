@@ -8,7 +8,6 @@ export const DEFAULT_PREFERENCES: AnchoranPreferences = {
   themeMode: "dark",
   accentColor: "#6E9BF7",
   wallpaperId: "default",
-  uiScale: 1,
   animationsEnabled: true,
   username: "user",
   soundEnabled: true,
@@ -30,7 +29,6 @@ interface PreferencesState extends AnchoranPreferences {
   setAccentColor: (color: string) => void;
   setWallpaper: (wallpaperId: string) => void;
   setCustomWallpaper: (dataUrl: string) => void;
-  setUiScale: (scale: number) => void;
   setAnimationsEnabled: (enabled: boolean) => void;
   setUsername: (name: string) => void;
   setSoundEnabled: (enabled: boolean) => void;
@@ -59,7 +57,6 @@ function toPersistable(s: AnchoranPreferences): AnchoranPreferences {
     themeMode: s.themeMode,
     accentColor: s.accentColor,
     wallpaperId: s.wallpaperId,
-    uiScale: s.uiScale,
     animationsEnabled: s.animationsEnabled,
     username: s.username,
     soundEnabled: s.soundEnabled,
@@ -98,10 +95,6 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   },
   setCustomWallpaper: (customWallpaperDataUrl) => {
     set({ customWallpaperDataUrl, wallpaperId: "custom" });
-    persist(get());
-  },
-  setUiScale: (uiScale) => {
-    set({ uiScale });
     persist(get());
   },
   setAnimationsEnabled: (animationsEnabled) => {

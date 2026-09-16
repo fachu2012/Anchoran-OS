@@ -36,7 +36,7 @@ const KNOWN_COMMANDS = [
   "df", "du", "echo", "emptyrecyclebin", "exit", "exportlogs", "find", "forcequit", "format",
   "get", "grep", "help", "history", "killall", "killexplorer", "listprofiles", "listwindows", "logs",
   "ls", "mkdir", "move", "mv", "myip", "netcheck", "ping", "ps", "pslist", "pwd", "regquery",
-  "resetlayout", "resetpin", "restart", "restartexplorer", "restore", "rm", "runscript", "scale", "set",
+  "resetlayout", "resetpin", "restart", "restartexplorer", "restore", "rm", "runscript", "set",
   "shutdown", "sleep", "startup", "sysinfo", "system", "taskkill", "theme",
   "touch", "unset", "uptime", "wallpaper", "whoami", "wipe",
 ];
@@ -76,7 +76,7 @@ function formatUptime(totalSeconds: number) {
 function lineKind(text: string): "error" | "success" | "neutral" {
   if (/^(root|user)@anchoran:/.test(text)) return "neutral";
   if (/error|couldn't|can't|failed|refused|not found|not available|invalid/i.test(text)) return "error";
-  if (/^(installed|opening|closed|unset|removed|alias .* set|change to v.* \? |download complete|update|wallpaper set|theme set|accent color set|interface scale set)/i.test(text)) {
+  if (/^(installed|opening|closed|unset|removed|alias .* set|change to v.* \? |download complete|update|wallpaper set|theme set|accent color set)/i.test(text)) {
     return "success";
   }
   return "neutral";
@@ -457,7 +457,7 @@ export function TerminalConsole({
                   "  startup, startup remove <name>",
                   "  df, du <path>, emptyrecyclebin, clearcache, backup, restore, wipe --confirm",
                   "  set NAME=value, get [NAME], unset NAME — persistent env vars, expand as $NAME",
-                  "  theme light|dark, wallpaper <name>, accent <hex>, scale <value>",
+                  "  theme light|dark, wallpaper <name>, accent <hex>",
                   "  logs, logs --errors, crashinfo, exportlogs, anchoran changeto [vX.Y.Z | #H#.#]",
                   "  shutdown, restart, sleep, resetpin --confirm",
                   "  listprofiles, delprofile <id>, regquery <key>",
@@ -1091,17 +1091,6 @@ export function TerminalConsole({
         }
         prefs.setAccentColor(args[0]);
         print(`Accent color set to ${args[0]}.`);
-        break;
-      }
-      case "scale": {
-        if (!isAdmin) break;
-        const value = Number(args[0]);
-        if (!value || value < 0.5 || value > 2) {
-          print("scale: usage: scale <0.5–2>");
-          break;
-        }
-        prefs.setUiScale(value);
-        print(`Interface scale set to ${value}.`);
         break;
       }
       case "logs": {

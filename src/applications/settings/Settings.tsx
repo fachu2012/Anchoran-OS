@@ -68,7 +68,6 @@ const SETTINGS_INDEX: { label: string; section: (typeof SECTIONS)[number] }[] = 
   { label: "Animations", section: "Appearance" },
   { label: "Wallpaper", section: "Personalization" },
   { label: "Custom wallpaper", section: "Personalization" },
-  { label: "Interface scale", section: "Display" },
   { label: "Monitor / Display", section: "Display" },
   { label: "Volume", section: "Sound" },
   { label: "Volume mixer", section: "Sound" },
@@ -361,20 +360,6 @@ export function SettingsApp() {
           <>
             <div className="settings-row">
               <div>
-                <div className="settings-row-label">Interface scale</div>
-                <div className="settings-row-desc">Adjust the size of text and elements.</div>
-              </div>
-              <input
-                type="range"
-                min={0.85}
-                max={1.25}
-                step={0.05}
-                value={prefs.uiScale}
-                onChange={(e) => prefs.setUiScale(Number(e.target.value))}
-              />
-            </div>
-            <div className="settings-row">
-              <div>
                 <div className="settings-row-label">Brightness</div>
                 <div className="settings-row-desc">Dims the whole display, like a laptop's brightness keys.</div>
               </div>
@@ -412,7 +397,7 @@ export function SettingsApp() {
             <div className="settings-row">
               <div>
                 <div className="settings-row-label">Large text</div>
-                <div className="settings-row-desc">Scales up text and UI elements beyond the interface scale above.</div>
+                <div className="settings-row-desc">Scales up text and UI elements throughout Anchoran.</div>
               </div>
               <input
                 type="checkbox"
@@ -422,7 +407,6 @@ export function SettingsApp() {
             </div>
             <ResetSectionButton
               onReset={() => {
-                prefs.setUiScale(DEFAULT_PREFERENCES.uiScale);
                 prefs.setBrightness(DEFAULT_PREFERENCES.brightness);
                 prefs.setNightLightEnabled(DEFAULT_PREFERENCES.nightLightEnabled);
                 prefs.setHighContrast(DEFAULT_PREFERENCES.highContrast);
@@ -1211,7 +1195,6 @@ function PrivacySection() {
       if (typeof parsed.accentColor === "string") prefs.setAccentColor(parsed.accentColor);
       if (typeof parsed.wallpaperId === "string") prefs.setWallpaper(parsed.wallpaperId);
       if (typeof parsed.customWallpaperDataUrl === "string") prefs.setCustomWallpaper(parsed.customWallpaperDataUrl);
-      if (typeof parsed.uiScale === "number") prefs.setUiScale(parsed.uiScale);
       if (typeof parsed.animationsEnabled === "boolean") prefs.setAnimationsEnabled(parsed.animationsEnabled);
       if (typeof parsed.soundEnabled === "boolean") prefs.setSoundEnabled(parsed.soundEnabled);
       if (typeof parsed.soundVolume === "number") prefs.setSoundVolume(parsed.soundVolume);
