@@ -5,6 +5,23 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.9] - 2026-09-16
+
+**Update type:** stability
+
+### Fixed
+- **v3.8.8's own new "desktop takeover failed" notification had a real
+  gap**, found immediately by testing it: `system-mode-start`'s success
+  result only ever reflected a successful *spawn* of kioskhook, which
+  resolves well before the helper has actually finished installing its
+  low-level keyboard hook — a hook-install failure (`SetWindowsHookExW`
+  returning null) exits the helper a moment *after* that success result
+  already went out, so it was never reported anywhere. kioskhook's exit
+  is now itself checked: an unrequested exit (i.e. not one caused by a
+  deliberate stop) with a nonzero code now raises the same visible
+  notification, carrying kioskhook's own last diagnostic line when it
+  has one.
+
 ## [3.8.8] - 2026-09-15
 
 **Update type:** stability

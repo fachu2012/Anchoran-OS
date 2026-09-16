@@ -124,6 +124,7 @@ declare global {
     systemModeStatus: () => Promise<{ running: boolean; supported: boolean }>;
     onSystemModeKey: (callback: (key: "WIN" | "ALTTAB") => void) => void;
     onSystemModeStatusChange: (callback: (running: boolean) => void) => void;
+    onSystemModeFailed: (callback: (reason: string) => void) => void;
 
     embedStart: (windowId: string, exePath: string) => Promise<{ success: boolean; error?: string }>;
     embedBounds: (windowId: string, x: number, y: number, width: number, height: number) => void;

@@ -2485,16 +2485,32 @@ ipcMain.handle("anchoran:system-mode-start", () => {
     // protocol moved off stdout onto the named pipe — meaning any real
     // native-side error was completely invisible. Logging it here
     // closes that blind spot.
+    let lastStderrLine = "";
     child.stderr?.setEncoding("utf-8");
     child.stderr?.on("data", (chunk: string) => {
       const trimmed = chunk.trim();
-      if (trimmed) logToDisk("system-mode:kioskhook-stderr", trimmed);
+      if (trimmed) {
+        lastStderrLine = trimmed;
+        logToDisk("system-mode:kioskhook-stderr", trimmed);
+      }
     });
 
-    child.on("exit", () => {
+    child.on("exit", (code) => {
+      // system-mode-start's own {success:true} result only reflects a
+      // successful *spawn* — it resolves well before kioskhook has
+      // finished installing its keyboard hook (SetWindowsHookExW can
+      // still fail, e.g. "Failed to install the keyboard hook." on
+      // stderr), so a failure at that point exits the process shortly
+      // after with no way for the earlier promise result to report it.
+      // Checking kioskHookProcess === child (same guard stopKioskHook()
+      // relies on, by nulling it before killing) tells a deliberate stop
+      // apart from exactly this: an unrequested exit nobody asked for.
       if (kioskHookProcess === child) {
         kioskHookProcess = null;
         kioskHookPid = null;
+        if (code !== 0) {
+          mainWindow?.webContents.send("anchoran:system-mode-failed", lastStderrLine || `The helper exited unexpectedly (code ${code}).`);
+        }
       }
       kioskHookSocket?.destroy();
       kioskHookSocket = null;

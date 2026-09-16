@@ -110,6 +110,15 @@ export default function App() {
       else if (key === "ALTTAB") useWindowStore.getState().cycleFocus(1);
     });
 
+    // The "started successfully" check below only covers a successful
+    // *spawn* — the native helper can still fail a moment later (e.g.
+    // its keyboard hook install) and exit on its own, after that first
+    // check already passed. This is the only place that failure ever
+    // becomes visible, since nothing else polls the helper's liveness.
+    window.anchoran?.onSystemModeFailed((reason) => {
+      pushNotification("Desktop takeover stopped working", `The Windows key, Alt+Tab, and hiding other apps won't work this session: ${reason}`);
+    });
+
     // PrintScreen / Ctrl+Shift+S — Screenshot moved out to the
     // "image-tools" Webstore plugin (see CHANGELOG's Anchoran App SDK
     // migration), so this no longer opens a bundled app directly. If

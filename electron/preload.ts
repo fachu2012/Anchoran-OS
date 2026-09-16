@@ -198,6 +198,9 @@ contextBridge.exposeInMainWorld("anchoran", {
   onSystemModeStatusChange: (callback: (running: boolean) => void): void => {
     ipcRenderer.on("anchoran:system-mode-status", (_e, running) => callback(running));
   },
+  onSystemModeFailed: (callback: (reason: string) => void): void => {
+    ipcRenderer.on("anchoran:system-mode-failed", (_e, reason) => callback(reason));
+  },
 
   // Real external Windows app embedding — see electron/main.ts's
   // embed-* handlers and native/windowembed/Program.cs for the full
