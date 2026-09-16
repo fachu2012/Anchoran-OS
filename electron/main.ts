@@ -2052,15 +2052,21 @@ ipcMain.handle("anchoran:check-for-updates", () => {
 });
 
 ipcMain.on("anchoran:quit-and-install-update", () => {
-  isQuittingConfirmed = true;
   if (pendingUpdateVersion) configStore.set("pendingUpdateVersion", pendingUpdateVersion);
-  // quitAndInstall() with no arguments defaults to isSilent=false, which
-  // re-shows the full NSIS wizard instead of the seamless "Restart &
-  // Update" experience Anchoran's UI promises — isSilent=true runs the
-  // installer with /S, isForceRunAfter=true makes sure AnchoranOS
-  // relaunches afterward even though this app isn't built with NSIS's
-  // own "run after finish" option checked.
-  autoUpdater.quitAndInstall(true, true);
+  // A real gap, found via live testing: this quits the app to run the
+  // silent installer, same as every other deliberate-quit path below —
+  // but until now, none of them told the watchdog first, so updating
+  // (or "anchoran changeto") looked exactly like a crash to it.
+  sendGracefulToWatchdogAndThen(() => {
+    isQuittingConfirmed = true;
+    // quitAndInstall() with no arguments defaults to isSilent=false, which
+    // re-shows the full NSIS wizard instead of the seamless "Restart &
+    // Update" experience Anchoran's UI promises — isSilent=true runs the
+    // installer with /S, isForceRunAfter=true makes sure AnchoranOS
+    // relaunches afterward even though this app isn't built with NSIS's
+    // own "run after finish" option checked.
+    autoUpdater.quitAndInstall(true, true);
+  });
 });
 
 /**
@@ -2351,7 +2357,6 @@ ipcMain.handle("anchoran:changeto-install", () => {
   if (!pendingChangeToPath || !pendingChangeToVersion) {
     return { success: false, error: "No downloaded version pending — run changeto again." };
   }
-  isQuittingConfirmed = true;
   configStore.set("pendingUpdateVersion", pendingChangeToVersion);
   sendChangeToStatus({ state: "installing" });
   try {
@@ -2361,9 +2366,15 @@ ipcMain.handle("anchoran:changeto-install", () => {
     sendChangeToStatus({ state: "error", message });
     return { success: false, error: message };
   }
-  // A short delay so the installer has actually launched before this
-  // process (and the files it might be holding open) goes away.
-  setTimeout(() => app.quit(), 500);
+  // Same real gap as "anchoran:quit-and-install-update" above — tell
+  // the watchdog this is deliberate before quitting, not just after
+  // starting the installer, so it never reads this as a crash either.
+  sendGracefulToWatchdogAndThen(() => {
+    isQuittingConfirmed = true;
+    // A short delay so the installer has actually launched before this
+    // process (and the files it might be holding open) goes away.
+    setTimeout(() => app.quit(), 500);
+  });
   return { success: true };
 });
 

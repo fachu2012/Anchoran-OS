@@ -5,6 +5,19 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.7] - 2026-09-15
+
+**Update type:** stability
+
+### Fixed
+- **Updating Anchoran (from inside the app, or via `anchoran changeto`)
+  still made the watchdog show its crash screen right after**, same
+  root cause v3.8.6 fixed for every other deliberate close — but these
+  two quit straight through electron-updater's own `quitAndInstall()`
+  (or, for `changeto`, spawning the update package directly), neither
+  of which ever went through the one place v3.8.6's "this is
+  deliberate" signal was added. Both now send it too, before quitting.
+
 ## [3.8.6] - 2026-09-15
 
 **Update type:** stability
