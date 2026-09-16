@@ -84,6 +84,13 @@ internal static class Program
     private const int RelaunchHoldMs = 1500; // grace period after spawning the real crash screen, before this process exits
 
     private static long _lastPingAtTicks = Environment.TickCount64;
+    // Set only once the first real "PING" has actually been received —
+    // see PollLoopAsync for why the heartbeat-timeout check must not
+    // run before that. _lastPingAtTicks alone isn't enough to tell the
+    // two cases apart, since it starts at this process's own launch
+    // time (a plausible-looking but meaningless "last ping"), not at
+    // Anchoran's.
+    private static volatile bool _everPinged;
     private static long _lastGracefulAtTicks = -1;
     private static int _done; // 0 = still watching, 1 = already reacted (Interlocked guard)
 
@@ -179,11 +186,26 @@ internal static class Program
                 await React(execPath, appEntryDir, "Anchoran's process ended unexpectedly.");
                 return;
             }
-            var silentForMs = Environment.TickCount64 - Volatile.Read(ref _lastPingAtTicks);
-            if (silentForMs > HeartbeatTimeoutMs)
+            // Before the first real PING ever arrives, _lastPingAtTicks
+            // only reflects this watchdog process's OWN start time, not
+            // Anchoran's — a false "went silent" reading purely from how
+            // long the pipe connection and cold start happen to take
+            // (native exe extraction, antivirus scanning a freshly
+            // unpacked binary, a slow disk), unrelated to whether
+            // Anchoran is actually fine. Confirmed via live testing: it
+            // could fire while the user was still simply reading the
+            // BIOS confirmation screen, well before typing anything, and
+            // wrongly revealed the crash curtain over a perfectly
+            // healthy session (the IsAnchoranStillRunning check above is
+            // what actually catches a real early death instead).
+            if (_everPinged)
             {
-                await React(execPath, appEntryDir, "Anchoran stopped responding.");
-                return;
+                var silentForMs = Environment.TickCount64 - Volatile.Read(ref _lastPingAtTicks);
+                if (silentForMs > HeartbeatTimeoutMs)
+                {
+                    await React(execPath, appEntryDir, "Anchoran stopped responding.");
+                    return;
+                }
             }
         }
     }
@@ -223,6 +245,7 @@ internal static class Program
                     if (line == "PING")
                     {
                         Volatile.Write(ref _lastPingAtTicks, Environment.TickCount64);
+                        _everPinged = true;
                     }
                     else if (line == "GRACEFUL")
                     {

@@ -5,6 +5,30 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.10] - 2026-09-16
+
+**Update type:** stability
+
+### Fixed
+- **A real, live-tested bug found on the BIOS boot confirmation screen:
+  it could get stuck showing a solid black screen, only recovering once
+  Alt+F4 was pressed** — reported as suspiciously close to the crash
+  watchdog's own black "curtain" window, which turned out to be exactly
+  right. The watchdog's 15-second "went silent" heartbeat check was
+  timed from its own process start, not from Anchoran's first real
+  `PING` — if establishing the pipe connection and sending that first
+  ping happened to take longer than 15s (a slow cold start of the
+  freshly-extracted native `.exe`, an antivirus scan, a loaded disk),
+  the watchdog wrongly concluded Anchoran had stopped responding and
+  revealed its crash curtain over a perfectly healthy session, often
+  caught right at the BIOS screen simply because that's the first thing
+  a user sits on long enough to notice. Alt+F4 "fixed" it only by
+  closing that curtain window (its default behavior), not by doing
+  anything to kioskhook. The heartbeat check is now held off entirely
+  until the very first real ping actually arrives — a process dying
+  before that point is still caught immediately by the existing,
+  independent "is Anchoran's pid still alive" check.
+
 ## [3.8.9] - 2026-09-16
 
 **Update type:** stability
