@@ -276,7 +276,26 @@ export default function App() {
     // explicitly agreed to this exact session (BootConfirmGate, before
     // any of this even mounted) — starting it here just carries that
     // through into the real desktop.
-    useSystemModeStore.getState().start();
+    //
+    // A real, previously-silent gap: if kioskhook fails to start at all
+    // (missing .exe, a spawn error, …), nothing ever surfaced that —
+    // the old Settings → System Mode section used to show
+    // useSystemModeStore's own `error` field, but nothing replaced that
+    // once that whole section was removed when this became
+    // unconditional. The Windows key/Alt+Tab (and the desktop takeover)
+    // would then just silently not work, indistinguishable from a bug
+    // in kioskhook's own logic — worth ruling out with a real,
+    // visible notification instead of guessing blind.
+    useSystemModeStore.getState().start()
+      .then(() => {
+        const { error } = useSystemModeStore.getState();
+        if (error) {
+          pushNotification("Desktop takeover couldn't start", `The Windows key, Alt+Tab, and hiding other apps won't work this session: ${error}`);
+        }
+      })
+      .catch((err) => {
+        pushNotification("Desktop takeover couldn't start", err instanceof Error ? err.message : String(err));
+      });
 
     // First-ever boot after installing: the welcome wizard (username,
     // PIN, avatar, wallpaper) takes the place of both the lock screen

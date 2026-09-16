@@ -5,6 +5,23 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.8] - 2026-09-15
+
+**Update type:** stability
+
+### Added
+- **A real, visible notification if the desktop takeover (kioskhook —
+  the Windows key, Alt+Tab, hiding other apps) fails to start at all**
+  — since it became unconditional, nothing surfaced this anywhere;
+  a failure was completely silent. Also: kioskhook's own diagnostic
+  output (hook-install failures, its defensive per-window/per-keypress
+  error catches from v3.8.6) is now captured and written to Anchoran's
+  own log instead of going nowhere, readable via `anchoran logs` /
+  `anchoran exportlogs`. Neither is a fix on its own — the Windows key
+  still not reliably reaching Anchoran, reported via live testing even
+  after v3.8.5/v3.8.6's hardening, needs to actually be seen happening
+  once before it can be root-caused further.
+
 ## [3.8.7] - 2026-09-15
 
 **Update type:** stability

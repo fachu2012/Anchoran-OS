@@ -2479,6 +2479,18 @@ ipcMain.handle("anchoran:system-mode-start", () => {
     const child = fs.existsSync(launcher) ? spawn(launcher, [exePath, String(process.pid)]) : spawn(exePath, [String(process.pid)]);
     kioskHookProcess = child;
 
+    // kioskhook's own diagnostic Console.Error.WriteLine calls (hook
+    // install failures, the per-window/per-keypress defensive catches)
+    // used to go into a pipe nobody ever read, once its WIN/ALTTAB
+    // protocol moved off stdout onto the named pipe — meaning any real
+    // native-side error was completely invisible. Logging it here
+    // closes that blind spot.
+    child.stderr?.setEncoding("utf-8");
+    child.stderr?.on("data", (chunk: string) => {
+      const trimmed = chunk.trim();
+      if (trimmed) logToDisk("system-mode:kioskhook-stderr", trimmed);
+    });
+
     child.on("exit", () => {
       if (kioskHookProcess === child) {
         kioskHookProcess = null;
