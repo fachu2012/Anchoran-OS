@@ -232,22 +232,20 @@ jobs:
             release/update-info.json
 
       # Builds the release description from CHANGELOG.md itself, so it
-      # never falls back to old boilerplate — pulls out every version
-      # section from this release's own back through (but not including)
-      # the last stable release's — i.e. this version's own changes plus
-      # every I.P.U.-only version that shipped since the last real
-      # release, all of it, as one combined "Update summary". For the
-      # very first I.P.U. in a fresh streak that's just this one
-      # version's section, same as before. A release later found to be
-      # non-installable (a critical bug, or superseded by a required
-      # newer version) still gets its wording adjusted by hand — see the
-      # versioning rules in README.md — this is just the default.
+      # never falls back to old boilerplate — pulls out ONLY this
+      # version's own section (from its "## [x.y.z]" header up to, but
+      # not including, the next one), never accumulating prior I.P.U.s'
+      # sections into one combined "Update summary" even when this is
+      # one of several I.P.U.s in a row since the last stable release.
+      # A release later found to be non-installable (a critical bug, or
+      # superseded by a required newer version) still gets its wording
+      # adjusted by hand — see the versioning rules in README.md — this
+      # is just the default.
       - name: Build release description
         shell: bash
         env:
           IS_IPU: ${{ steps.channel.outputs.is_ipu }}
           VERSION: ${{ steps.channel.outputs.base_version }}
-          PREV_VERSION: ${{ steps.prev.outputs.prev_version }}
           # The compact form ("Build-#H#.#[ I.P.U.]", or "vX.Y.Z" for the
           # old-style era) — the release body isn't one of the three
           # places (the release's own title, the update-ready screen,
@@ -263,10 +261,10 @@ jobs:
             fi
             echo "Update summary:"
             echo
-            awk -v ver="$VERSION" -v prev="$PREV_VERSION" '
+            awk -v ver="$VERSION" '
               /^## \[/ {
-                if (prev != "" && index($0, "[" prev "]") > 0) exit
-                if (index($0, "[" ver "]") > 0) { found = 1 }
+                if (found) exit
+                if (index($0, "[" ver "]") > 0) found = 1
               }
               found { print }
             ' CHANGELOG.md
