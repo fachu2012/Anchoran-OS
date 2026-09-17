@@ -188,8 +188,6 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
     [win, focusWindow, setBounds, minSize]
   );
 
-  if (win.isMinimized) return null;
-
   // Maximized fills the entire screen — the taskbar auto-hides itself
   // while any window is maximized (see Taskbar.tsx), so there's no
   // reason to reserve space for it here the way snapping-to-an-edge
@@ -202,6 +200,14 @@ export function WindowFrame({ win, children }: { win: AnchoranWindow; children: 
     ...(minimizeOffset
       ? ({ "--wm-min-dx": `${minimizeOffset.dx}px`, "--wm-min-dy": `${minimizeOffset.dy}px` } as CSSPropertiesWithVars)
       : {}),
+    // A real, live-tested bug: this used to `return null` while
+    // minimized instead, which fully unmounted the window's whole
+    // React subtree — including any <audio>/<video> element an app
+    // (Media Player) had playing, killing it outright instead of just
+    // hiding it, exactly the opposite of how minimizing a real OS
+    // window works. Hiding via display instead keeps everything
+    // mounted (and playing) underneath.
+    ...(win.isMinimized ? { display: "none" } : {}),
   };
 
   return (

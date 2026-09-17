@@ -5,6 +5,22 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.16] - 2026-09-16
+
+**Update type:** stability
+
+### Fixed
+- **Minimizing a window paused and reset whatever it was playing** —
+  reported live: Media Player's own song stopped and rewound to 0:00
+  the moment its window was minimized. Root cause: a minimized window
+  used to `return null` instead of just hiding, which fully unmounted
+  its entire React subtree — including any `<audio>`/`<video>` element
+  an app had playing — destroying it outright instead of leaving it
+  running in the background, the opposite of how minimizing works on a
+  real OS. Minimized windows are now hidden with `display: none`
+  instead, keeping everything (and anything it's playing) mounted and
+  alive underneath.
+
 ## [3.8.15] - 2026-09-16
 
 **Update type:** stability
