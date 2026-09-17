@@ -53,7 +53,7 @@ function defaultGuestProfile(): Profile {
 const STORAGE_KEY = "profiles";
 const ACTIVE_KEY = "activeProfileId";
 
-function snapshotFromPreferences(id: string, isAdmin = false, isOwner = false): Profile {
+function snapshotFromPreferences(id: string, isAdmin = false, isOwner = false, isGuest = false): Profile {
   const p = usePreferencesStore.getState();
   return {
     id,
@@ -66,6 +66,7 @@ function snapshotFromPreferences(id: string, isAdmin = false, isOwner = false): 
     themeMode: p.themeMode,
     isAdmin,
     isOwner,
+    ...(isGuest ? { isGuest: true } : {}),
   };
 }
 
@@ -172,10 +173,10 @@ export const useProfilesStore = create<ProfilesState>((set, get) => ({
     if (id === activeProfileId) return;
     const target = profiles.find((p) => p.id === id);
     if (!target) return;
-    // Save the outgoing profile's live state before loading the new one in, preserving its admin/owner flags (those aren't part of preferencesStore).
+    // Save the outgoing profile's live state before loading the new one in, preserving its admin/owner/guest flags (those aren't part of preferencesStore) — losing isGuest here was a real bug: the very first switch away from Guest silently turned its `profiles` entry into what looked like an ordinary profile, making "Make admin"/"Delete" appear for it in Settings.
     const outgoing = profiles.find((p) => p.id === activeProfileId);
     const updated = profiles.map((p) =>
-      p.id === activeProfileId ? snapshotFromPreferences(activeProfileId, outgoing?.isAdmin, outgoing?.isOwner) : p
+      p.id === activeProfileId ? snapshotFromPreferences(activeProfileId, outgoing?.isAdmin, outgoing?.isOwner, outgoing?.isGuest) : p
     );
     set({ profiles: updated, activeProfileId: id });
     persist(updated, id);
@@ -278,6 +279,14 @@ Promise.all([
   }
   if (!profiles.some((p) => p.id === GUEST_PROFILE_ID)) {
     profiles = [...profiles, defaultGuestProfile()];
+    dirty = true;
+  } else if (!profiles.find((p) => p.id === GUEST_PROFILE_ID)?.isGuest) {
+    // Repairs an install already hit by the switchProfile() bug above:
+    // its permanent Guest entry lost isGuest (set to undefined) the
+    // first time anyone ever switched away from Guest, before that fix
+    // existed — fixing the bug going forward doesn't repair state it
+    // already corrupted, so this patches it back on the next load.
+    profiles = profiles.map((p) => (p.id === GUEST_PROFILE_ID ? { ...p, isGuest: true } : p));
     dirty = true;
   }
   if (!profiles.some((p) => p.id === activeProfileId)) activeProfileId = profiles.find((p) => !p.isGuest)?.id ?? profiles[0].id;

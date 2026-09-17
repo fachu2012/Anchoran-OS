@@ -5,6 +5,23 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.13] - 2026-09-16
+
+**Update type:** security/stability
+
+### Fixed
+- **The permanent Guest profile could end up showing "Make admin" and
+  "Delete" in Settings → Users, both of which should be permanently
+  impossible for Guest.** Root cause: `switchProfile()` saves a
+  snapshot of the profile being switched AWAY FROM before loading the
+  next one in, to capture any live edits made while it was active —
+  but that snapshot never preserved `isGuest`, so the very first time
+  anyone ever switched away from Guest, its `profiles` entry silently
+  lost that flag for good, and every `!p.isGuest` guard in the app
+  (including the ones already correctly hiding those two buttons)
+  started treating it like an ordinary profile. Fixed at the source,
+  plus a one-time repair on load for any install already hit by it.
+
 ## [3.8.12] - 2026-09-16
 
 **Update type:** cleanup + fix
