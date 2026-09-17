@@ -5,6 +5,26 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.12] - 2026-09-16
+
+**Update type:** cleanup + fix
+
+### Fixed
+- **The Webstore's plugin detail view could open already scrolled near
+  the bottom of the page instead of at the top**, most visible on a
+  plugin with a long "Recent changes" version history — the scrollable
+  container was reused between the catalog grid and the detail view, so
+  its scroll position from wherever it was before (a long previous
+  detail view, or a scrolled grid) carried straight into the next thing
+  opened. It's now reset to the top every time a plugin's detail view
+  opens or you go back to the grid.
+
+### Removed
+- **"Large text" in Settings → Display → Accessibility**, entirely —
+  its preference field, persistence, and the CSS zoom factor it fed.
+  Combined with v3.8.11's "Interface scale" removal, Anchoran no longer
+  has a dedicated text/UI scale setting.
+
 ## [3.8.11] - 2026-09-16
 
 **Update type:** cleanup

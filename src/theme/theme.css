@@ -104,12 +104,6 @@ body,
 #root {
   /* Night Light / brightness: one filter chain set by ThemeProvider. */
   filter: var(--anchoran-display-filter, none);
-  /* The "Large text" accessibility toggle resolves to this zoom factor. */
-  zoom: var(--anchoran-text-scale, 1);
-}
-
-[data-large-text="on"] {
-  --anchoran-text-scale: 1.18;
 }
 
 body {

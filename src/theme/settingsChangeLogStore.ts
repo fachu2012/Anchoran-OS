@@ -52,7 +52,6 @@ const TRACKED_LABELS: Record<string, string> = {
   nightLightEnabled: "Night Light",
   brightness: "Brightness",
   highContrast: "High contrast",
-  largeText: "Large text",
   autoLockMinutes: "Auto-lock",
 };
 

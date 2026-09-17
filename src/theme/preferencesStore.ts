@@ -19,7 +19,6 @@ export const DEFAULT_PREFERENCES: AnchoranPreferences = {
   nightLightEnabled: false,
   brightness: 1,
   highContrast: false,
-  largeText: false,
   autoLockMinutes: 0,
 };
 
@@ -39,7 +38,6 @@ interface PreferencesState extends AnchoranPreferences {
   setNightLightEnabled: (enabled: boolean) => void;
   setBrightness: (brightness: number) => void;
   setHighContrast: (enabled: boolean) => void;
-  setLargeText: (enabled: boolean) => void;
   setAutoLockMinutes: (minutes: number) => void;
 }
 
@@ -68,7 +66,6 @@ function toPersistable(s: AnchoranPreferences): AnchoranPreferences {
     nightLightEnabled: s.nightLightEnabled,
     brightness: s.brightness,
     highContrast: s.highContrast,
-    largeText: s.largeText,
     autoLockMinutes: s.autoLockMinutes,
   };
 }
@@ -135,10 +132,6 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   },
   setHighContrast: (highContrast) => {
     set({ highContrast });
-    persist(get());
-  },
-  setLargeText: (largeText) => {
-    set({ largeText });
     persist(get());
   },
   setAutoLockMinutes: (autoLockMinutes) => {

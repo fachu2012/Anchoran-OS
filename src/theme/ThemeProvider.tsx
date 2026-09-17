@@ -8,7 +8,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const nightLightEnabled = usePreferencesStore((s) => s.nightLightEnabled);
   const brightness = usePreferencesStore((s) => s.brightness);
   const highContrast = usePreferencesStore((s) => s.highContrast);
-  const largeText = usePreferencesStore((s) => s.largeText);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", themeMode);
@@ -39,10 +38,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.setAttribute("data-high-contrast", highContrast ? "on" : "off");
   }, [highContrast]);
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-large-text", largeText ? "on" : "off");
-  }, [largeText]);
 
   return <>{children}</>;
 }

@@ -394,23 +394,11 @@ export function SettingsApp() {
                 onChange={(e) => prefs.setHighContrast(e.target.checked)}
               />
             </div>
-            <div className="settings-row">
-              <div>
-                <div className="settings-row-label">Large text</div>
-                <div className="settings-row-desc">Scales up text and UI elements throughout Anchoran.</div>
-              </div>
-              <input
-                type="checkbox"
-                checked={prefs.largeText}
-                onChange={(e) => prefs.setLargeText(e.target.checked)}
-              />
-            </div>
             <ResetSectionButton
               onReset={() => {
                 prefs.setBrightness(DEFAULT_PREFERENCES.brightness);
                 prefs.setNightLightEnabled(DEFAULT_PREFERENCES.nightLightEnabled);
                 prefs.setHighContrast(DEFAULT_PREFERENCES.highContrast);
-                prefs.setLargeText(DEFAULT_PREFERENCES.largeText);
               }}
             />
             <DisplaySection />
@@ -1199,7 +1187,6 @@ function PrivacySection() {
       if (typeof parsed.soundEnabled === "boolean") prefs.setSoundEnabled(parsed.soundEnabled);
       if (typeof parsed.soundVolume === "number") prefs.setSoundVolume(parsed.soundVolume);
       if (typeof parsed.highContrast === "boolean") prefs.setHighContrast(parsed.highContrast);
-      if (typeof parsed.largeText === "boolean") prefs.setLargeText(parsed.largeText);
       setStatus("Settings profile imported.");
     } catch {
       setStatus("That file isn't a valid Anchoran settings profile.");

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 import { IconTile } from "@/components/IconTile";
 import { fetchPluginCatalog, type PluginManifest } from "@/applications/appcenter/pluginCatalog";
@@ -90,6 +90,7 @@ export function AppCenterApp() {
   // needs to read it.
   const [autoUpdateVersion, setAutoUpdateVersion] = useState(0);
   const [selectedPlugin, setSelectedPlugin] = useState<PluginManifest | null>(null);
+  const mainScrollRef = useRef<HTMLDivElement | null>(null);
   const [pluginBusy, setPluginBusy] = useState<string | null>(null);
   const [webstoreChangelog, setWebstoreChangelog] = useState<string | null>(null);
   const [webstoreChangelogLoading, setWebstoreChangelogLoading] = useState(false);
@@ -124,6 +125,16 @@ export function AppCenterApp() {
   useEffect(() => {
     if (category === "My Creations") setCreations(readLocalCreations());
   }, [category]);
+
+  // Opening a plugin's detail view (or going back to the grid) reuses
+  // the same scrollable .webstore-main container instead of mounting a
+  // fresh one, so its scrollTop otherwise carries over untouched — a
+  // long "Version history" list could leave the grid scrolled down,
+  // and the very next plugin opened would then render already scrolled
+  // near its own bottom instead of starting at the top.
+  useEffect(() => {
+    mainScrollRef.current?.scrollTo({ top: 0 });
+  }, [selectedPlugin, category]);
 
   function openCreation(creation: LocalCreation) {
     openApp("pluginHost", { pluginId: "code-studio", title: creation.name, openPath: creation.id });
@@ -274,7 +285,7 @@ export function AppCenterApp() {
         </div>
       )}
 
-      <div className="webstore-main">
+      <div className="webstore-main" ref={mainScrollRef}>
         {category === "Community" ? (
           selectedPlugin ? (
             <div className="webstore-detail">

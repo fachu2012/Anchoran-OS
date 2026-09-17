@@ -87,8 +87,6 @@ export interface AnchoranPreferences {
   brightness: number;
   /** Accessibility: stronger borders/contrast and flatter colors throughout the UI. */
   highContrast: boolean;
-  /** Accessibility: scales up UI text and elements throughout Anchoran. */
-  largeText: boolean;
   /** Minutes of inactivity before Anchoran auto-locks; 0 disables it. Only takes effect once a PIN is set. */
   autoLockMinutes: number;
 }
