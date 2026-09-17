@@ -942,6 +942,34 @@ function setupPermissionPolicy() {
   });
 }
 
+/**
+ * Real bug found via live testing: the Webstore's Image Tools plugin
+ * (and Magnifier/Recorder — every capture-using plugin migrated out of
+ * Anchoran OS in v3.4.0) switched from the privileged
+ * `anchoran:get-capture-sources` IPC channel to the standard
+ * `navigator.mediaDevices.getDisplayMedia()`, since a sandboxed plugin
+ * has no access to that privileged channel — but Electron's
+ * `getDisplayMedia()` always rejects immediately unless a session has
+ * `setDisplayMediaRequestHandler()` registered; Chrome's own real
+ * screen-picker UI has no Electron equivalent unless this handler
+ * supplies one itself. Nothing here ever set one, so every plugin
+ * capture attempt failed at the very first await with a generic
+ * rejection, always shown as "permission denied or cancelled"
+ * regardless of the real cause. Anchoran itself only ever runs on one
+ * monitor's worth of desktop it actually owns (see kioskhook's own
+ * primary-monitor-only scope), so auto-granting the first real screen
+ * source — no extra picker dialog — is the correct, unambiguous
+ * choice here, not a security compromise.
+ */
+function setupDisplayMediaCapture() {
+  session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
+    desktopCapturer
+      .getSources({ types: ["screen"] })
+      .then((sources) => callback(sources.length > 0 ? { video: sources[0] } : {}))
+      .catch(() => callback({}));
+  });
+}
+
 /** Browser: fetches an image URL from a page (e.g. right-click → "Set as wallpaper") and returns it as a data URL, since the renderer's webview guest can't be trusted to read cross-origin image bytes itself. */
 ipcMain.handle("anchoran:fetch-image-as-data-url", async (_event, url: string) => {
   try {
@@ -2796,6 +2824,7 @@ app.whenReady().then(() => {
   interceptWebviewDownloads();
   setupTrackerBlocking();
   setupPermissionPolicy();
+  setupDisplayMediaCapture();
   setInterval(sampleCpuUsage, 1000);
   if (!isDev) {
     autoUpdater.checkForUpdates().catch((err) => {

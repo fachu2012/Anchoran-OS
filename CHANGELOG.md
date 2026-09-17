@@ -5,6 +5,31 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.14] - 2026-09-16
+
+**Update type:** stability
+
+### Fixed
+- **Image Tools' screen capture always failed with "Couldn't capture
+  the screen (permission denied or cancelled)".** Every capture-using
+  plugin migrated out to the Webstore in v3.4.0 switched from the
+  privileged `anchoran:get-capture-sources` IPC channel (only available
+  to Anchoran's own trusted renderer) to the standard
+  `navigator.mediaDevices.getDisplayMedia()` — but Electron always
+  rejects that call unless a session has
+  `setDisplayMediaRequestHandler()` registered, and nothing here ever
+  registered one. Anchoran only ever owns the one monitor's worth of
+  desktop it's running on (the same scope kioskhook itself is limited
+  to), so the new handler auto-grants the real primary screen source
+  with no extra picker dialog.
+
+### Changed
+- **PrintScreen/Ctrl+Shift+S now opens Image Tools straight into
+  "Select area…"** (drag to pick a region, release to see it captured)
+  instead of landing on the plain hint screen with nothing captured
+  yet — the same flow its own toolbar button already ran, just started
+  automatically.
+
 ## [3.8.13] - 2026-09-16
 
 **Update type:** security/stability

@@ -119,19 +119,24 @@ export default function App() {
       pushNotification("Desktop takeover stopped working", `The Windows key, Alt+Tab, and hiding other apps won't work this session: ${reason}`);
     });
 
-    // PrintScreen / Ctrl+Shift+S — Screenshot moved out to the
-    // "image-tools" Webstore plugin (see CHANGELOG's Anchoran App SDK
-    // migration), so this no longer opens a bundled app directly. If
-    // the user has installed it, opens straight into it via PluginHost
-    // — this global hotkey is exactly the kind of thing Anchoran can
-    // still wire up to a plugin window by id, even though the app
-    // itself isn't bundled anymore. If it isn't installed, points the
-    // user at the Webstore instead of silently doing nothing.
+    // PrintScreen / Ctrl+Shift+S — opens straight into Image Tools'
+    // own "Select area…" region capture (the same drag-to-select,
+    // then-shows-the-result flow its toolbar button already runs),
+    // instead of just opening the app with nothing captured yet.
+    // openPath carries the sentinel PluginHost forwards into the
+    // plugin's mount() ctx — see anchoranSDK.ts and this plugin's own
+    // README in the Anchoran-Webstore repo for the contract. If Image
+    // Tools isn't installed, points the user at the Webstore instead
+    // of silently doing nothing.
     window.anchoran?.onTriggerScreenshot(async () => {
       if (lockedRef.current) return;
       const installed = await window.anchoran?.pluginIsInstalled("image-tools");
       if (installed) {
-        useWindowStore.getState().openApp("pluginHost", { pluginId: "image-tools", title: "Image Tools" });
+        useWindowStore.getState().openApp("pluginHost", {
+          pluginId: "image-tools",
+          title: "Image Tools",
+          openPath: "anchoran://capture-region",
+        });
       } else {
         pushNotification("Screenshot", 'Install "Image Tools" from the Webstore to use the screenshot shortcut.');
       }
