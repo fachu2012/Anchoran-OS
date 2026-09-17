@@ -1437,7 +1437,13 @@ function AboutSection() {
   // Release notes, in the app — the same raw CHANGELOG.md the
   // Terminal's own `anchoran changelog` command already fetches, just
   // surfaced as a real panel instead of only ever plain-text output,
-  // and defaulting to the version actually running right now.
+  // and defaulting to the version actually running right now. Shows
+  // ONLY this exact version's own section — deliberately not every
+  // I.P.U. since this device's last real run, even when several
+  // shipped in a row with no stable release cut in between (matches
+  // the same rule release.yml's own release-description builder
+  // follows for GitHub releases, per explicit instruction: never
+  // accumulate other I.P.U.s' changelog text into one, anywhere).
   async function showReleaseNotes() {
     setReleaseNotesLoading(true);
     try {
@@ -1449,16 +1455,8 @@ function AboutSection() {
         setReleaseNotes(`No changelog entry found for ${ANCHORAN_SIMPLIFIED_VERSION}.`);
         return;
       }
-      // Insider Preview Updates can chain (2.9.9-IPU, 3.0.0-IPU, …) with
-      // no stable release cut in between — a device that jumped straight
-      // from its last real version to this one, skipping every I.P.U.
-      // along the way, should still see everything that changed, not
-      // just this version's own section. useUpdateHistoryStore records
-      // exactly what this device was actually running before, so that's
-      // the real lower bound — not just "the previous version number".
-      const fromVersion = useUpdateHistoryStore.getState().history[0]?.fromVersion ?? null;
-      const endMarker = fromVersion ? `## [${baseVersion(fromVersion)}]` : null;
-      const end = endMarker ? text.indexOf(endMarker, start + marker.length) : -1;
+      const nextHeaderMatch = /^## \[/m.exec(text.slice(start + marker.length));
+      const end = nextHeaderMatch ? start + marker.length + nextHeaderMatch.index : -1;
       setReleaseNotes(text.slice(start, end === -1 ? undefined : end).trim());
     } catch {
       setReleaseNotes("Couldn't reach GitHub to fetch the release notes.");

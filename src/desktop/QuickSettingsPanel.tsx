@@ -87,6 +87,18 @@ export function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
   const openApp = useWindowStore((s) => s.openApp);
   const status = useSystemStatus();
   const batteryPercent = Math.round(status.batteryLevel * 100);
+  // Subscribing to `s.levels` itself, not `s.getLevel` — a real,
+  // live-tested bug: `getLevel` is a stable function reference that
+  // never changes across store updates, so selecting it never
+  // triggered a re-render when the actual volume changed underneath.
+  // The real audio/video element's volume DID update correctly (see
+  // MediaPlayer.tsx's own selector, `s.getLevel("mediaPlayer")`, which
+  // calls the function from inside the selector itself and so
+  // properly returns fresh data every time) — only these sliders'
+  // displayed position stayed frozen at whatever it was when this
+  // panel first opened, exactly matching a report of "the volume
+  // changes but the slider itself doesn't move".
+  const levels = useVolumeMixerStore((s) => s.levels);
   const getLevel = useVolumeMixerStore((s) => s.getLevel);
   const setVolume = useVolumeMixerStore((s) => s.setVolume);
   const setMuted = useVolumeMixerStore((s) => s.setMuted);

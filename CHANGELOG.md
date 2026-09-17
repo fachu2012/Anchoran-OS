@@ -5,6 +5,29 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.17] - 2026-09-16
+
+**Update type:** stability
+
+### Fixed
+- **The per-app volume sliders in Quick Settings (Browser, Media
+  Player) never visually moved when dragged with the mouse, even
+  though the real volume did change underneath** — reported live.
+  Root cause: the panel subscribed to `getLevel`, a stable function
+  reference that never changes across store updates, instead of the
+  actual `levels` state — Zustand only re-renders a component when a
+  *subscribed* value changes, so dragging a slider updated the real
+  audio/video volume correctly (confirmed by Media Player's own,
+  correctly-written selector) but never triggered a re-render to move
+  the slider's own displayed position. Now subscribes to the real
+  state directly.
+- **The in-app "What's New" panel (Settings → About) could show
+  several I.P.U.s' worth of changelog text combined into one**,
+  whenever a device updated across more than one I.P.U. in a row since
+  its last real run — now shows only the exact version currently
+  installed, matching the same rule already applied to every GitHub
+  release's own description.
+
 ## [3.8.16] - 2026-09-16
 
 **Update type:** stability
