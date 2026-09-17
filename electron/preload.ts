@@ -21,6 +21,8 @@ export interface AnchoranSystemInfo {
 contextBridge.exposeInMainWorld("anchoran", {
   getVersion: (): Promise<string> => ipcRenderer.invoke("anchoran:get-version"),
   confirmExit: (): void => ipcRenderer.send("anchoran:confirm-exit"),
+  /** BootConfirmGate: keeps Anchoran's own window re-asserting itself to the top of the z-order for as long as the BIOS screen is up, so the watchdog's own topmost "curtain" (if it ever reveals) can't just win that fight once and stay ahead of it — see main.ts's anchoran:set-boot-gate-active. */
+  setBootGateActive: (active: boolean): void => ipcRenderer.send("anchoran:set-boot-gate-active", active),
   /** Reports a fatal renderer-side crash (a React render error the top-level catch in src/main.tsx caught) — see main.ts's anchoran:renderer-fatal-error. */
   rendererFatalError: (message: string): void => ipcRenderer.send("anchoran:renderer-fatal-error", message),
   /** "Restart Anchoran" on the crash screen (WatchdogCrashScreen). */

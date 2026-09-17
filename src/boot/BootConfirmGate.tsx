@@ -98,6 +98,20 @@ export function BootConfirmGate({ onConfirm }: { onConfirm: () => void }) {
   const [blackout, setBlackout] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Keeps this window re-asserting itself to the top of the z-order
+  // for as long as this whole screen is up — see main.ts's
+  // anchoran:set-boot-gate-active. Live-tested bug: the watchdog's own
+  // topmost black "curtain" can win a one-shot topmost fight and sit
+  // in front of this screen, covering it entirely — most likely
+  // exactly here, before Anchoran's first real ping has had time to
+  // reach the watchdog. This only stops the moment the component
+  // unmounts (booting into the desktop, or the dramatic exit on "n"),
+  // never earlier.
+  useEffect(() => {
+    window.anchoran?.setBootGateActive(true);
+    return () => window.anchoran?.setBootGateActive(false);
+  }, []);
+
   // Reveal BOOT_LINES one at a time, each waiting its own `afterMs`
   // after the previous line, then hand off to the input phase.
   useEffect(() => {

@@ -434,6 +434,38 @@ function spawnWatchdog() {
 }
 
 /**
+ * The watchdog's own black "curtain" (native/watchdog/Program.cs) is a
+ * WinForms window created WS_EX_TOPMOST and `.Activate()`d — a real,
+ * live-tested bug even after v3.8.10's heartbeat-timing fix: whenever
+ * the curtain does legitimately reveal itself (or, on some machines,
+ * briefly and wrongly), it wins the z-order fight against Anchoran's
+ * own BrowserWindow outright and visibly covers the BIOS confirmation
+ * screen — Electron has no equivalent of "always on top, but ABOVE
+ * that other always-on-top window specifically"; Windows only tracks
+ * one flat topmost band, and whichever window most recently asserted
+ * it sits highest within that band. The fix isn't a one-time
+ * `setAlwaysOnTop(true)` (the curtain can re-assert itself after), it's
+ * re-asserting on a steady beat for as long as the BIOS gate is up, so
+ * Anchoran's own window keeps reclaiming the top of that band instead
+ * of losing it once and staying lost.
+ */
+let bootGateTopmostInterval: NodeJS.Timeout | null = null;
+ipcMain.on("anchoran:set-boot-gate-active", (_event, active: boolean) => {
+  if (bootGateTopmostInterval) {
+    clearInterval(bootGateTopmostInterval);
+    bootGateTopmostInterval = null;
+  }
+  if (!active || !mainWindow) return;
+  const reassert = () => {
+    if (!mainWindow) return;
+    mainWindow.setAlwaysOnTop(true);
+    mainWindow.moveTop();
+  };
+  reassert();
+  bootGateTopmostInterval = setInterval(reassert, 500);
+});
+
+/**
  * Sends one line to the watchdog, THEN calls `then` — never before the
  * message has had a real chance to actually reach it. A plain
  * `watchdogSocket?.write(...)` followed immediately by `app.quit()` is
@@ -2560,6 +2592,17 @@ ipcMain.handle("anchoran:system-mode-start", () => {
       if (kioskHookProcess !== child) return; // stopped/replaced before this attempt landed
       const socket = nodeNet.createConnection(pipePath);
       socket.setEncoding("utf-8");
+      // A single-shot guard: "error" fires immediately before "close"
+      // on a failed connection, and both used to independently retry —
+      // without this, that pair would schedule TWO concurrent
+      // connect() attempts for one real disconnect.
+      let retried = false;
+      const reconnect = () => {
+        if (retried) return;
+        retried = true;
+        if (kioskHookSocket === socket) kioskHookSocket = null;
+        setTimeout(connect, 300);
+      };
       socket.on("connect", () => {
         kioskHookSocket = socket;
       });
@@ -2576,10 +2619,15 @@ ipcMain.handle("anchoran:system-mode-start", () => {
           }
         }
       });
-      socket.on("error", () => {
-        if (kioskHookSocket === socket) kioskHookSocket = null;
-        setTimeout(connect, 300);
-      });
+      socket.on("error", reconnect);
+      // A real, live-tested bug on the OTHER side of this same
+      // channel (see native/kioskhook/Program.cs's RunPipeServer): a
+      // clean pipe close with no preceding "error" — the pipe server
+      // disposing its stream to loop back for a fresh connection,
+      // exactly what its own fix now does whenever this side ever
+      // reconnects — used to leave this side never retrying at all,
+      // since only "error" was ever wired to reconnect().
+      socket.on("close", reconnect);
     };
     connect();
 

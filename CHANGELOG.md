@@ -5,6 +5,41 @@ All notable changes to Anchoran OS are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [3.8.15] - 2026-09-16
+
+**Update type:** stability
+
+### Fixed
+- **A likely real root cause of the long-standing Windows key
+  issue, found via code review after live testing showed kioskhook's
+  v3.8.8/v3.8.9 diagnostics never firing at all**: kioskhook's own
+  named pipe server created its `NamedPipeServerStream` and called
+  `WaitForConnection()` exactly once — a .NET named pipe server
+  instance only ever accepts ONE connection for its entire lifetime.
+  If Anchoran's client side ever disconnected and reconnected for any
+  reason after the first successful connect, kioskhook had nothing
+  left to accept that new connection with: the hook kept running
+  completely normally (desktop still taken over, keys still
+  intercepted), but every future "WIN"/"ALTTAB" write silently hit a
+  dead pipe with zero diagnostics on either side — exactly matching a
+  report of the Windows key simply not working, with no crash and no
+  notification. kioskhook's pipe server now loops and opens a fresh
+  server instance for each connection cycle, the same pattern the
+  watchdog's own pipe already used. The mirror-image bug on Anchoran's
+  own side is fixed too: its client only ever retried reconnecting on
+  a socket `"error"`, never on a clean `"close"` with no error — which
+  a reconnecting kioskhook (after this same fix) would trigger.
+- **The BIOS boot confirmation screen could still get covered by the
+  watchdog's black "curtain" even after v3.8.10's heartbeat-timing
+  fix.** The curtain is a native WinForms window created topmost —
+  Windows only tracks one flat "always on top" band, and whichever
+  window most recently asserted itself into it sits highest, so a
+  one-shot `setAlwaysOnTop(true)` on Anchoran's own side only wins that
+  fight once and can still lose it later if the curtain reveals again.
+  Anchoran's own window now keeps re-asserting itself to the top of
+  that band on a steady beat for as long as the BIOS screen is up, so
+  it can't just be left behind a curtain that reasserts itself too.
+
 ## [3.8.14] - 2026-09-16
 
 **Update type:** stability

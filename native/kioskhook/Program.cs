@@ -307,47 +307,77 @@ internal static class Program
     /// <summary>
     /// Hosts the named pipe Anchoran connects to as a client (see this
     /// file's header for why this replaced a plain stdin/stdout
-    /// protocol) — blocks this background thread waiting for that
-    /// connection, then reads "EXIT" lines from it exactly like the old
-    /// stdin thread did, while HookProc (via WritePipeLine) writes
-    /// "WIN"/"ALTTAB" lines out the other direction as they happen.
+    /// protocol) — accepts a connection, reads "EXIT" lines from it
+    /// exactly like the old stdin thread did, while HookProc (via
+    /// WritePipeLine) writes "WIN"/"ALTTAB" lines out the other
+    /// direction as they happen.
+    ///
+    /// A real, live-tested bug: this used to create the
+    /// NamedPipeServerStream and call WaitForConnection() exactly
+    /// once — a .NET named pipe server instance only ever accepts ONE
+    /// connection for its whole lifetime. If Anchoran's own client
+    /// side ever disconnected and reconnected for any reason after the
+    /// first successful connect (a transient hiccup, anything that
+    /// tripped its own socket "error" retry in electron/main.ts), this
+    /// server had nothing left to accept that new connection with —
+    /// kioskhook itself kept running completely normally (hook still
+    /// installed, desktop still taken over), but WritePipeLine's own
+    /// try/catch silently swallowed every future "WIN"/"ALTTAB" write
+    /// against the now-dead pipe, forever, with zero diagnostics on
+    /// either side: the Windows key would just stop working, with no
+    /// crash, no stderr line, and no notification for v3.8.8/v3.8.9's
+    /// own diagnostics to ever catch. Now loops and opens a fresh
+    /// server instance for each connection cycle instead — the exact
+    /// pattern native/watchdog/Program.cs's own pipe server already
+    /// used, and the same fix that pipe needed for a different bug
+    /// (PipeDirection.In vs .InOut) back in v3.8.5.
     /// </summary>
     private static void RunPipeServer(int? anchoranPid, uint mainThreadId)
     {
         var pipeName = anchoranPid is int pid ? $"anchoran-kioskhook-{pid}" : "anchoran-kioskhook";
-        try
+        while (true)
         {
-            _pipeServer = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.None);
-            _pipeServer.WaitForConnection();
-            _pipeWriter = new StreamWriter(_pipeServer, Encoding.UTF8) { AutoFlush = true };
-            // Carries this process's own real PID — main.ts has no
-            // other reliable way to learn it, since it's spawned
-            // through AnchoranLauncher (which reparents it to
-            // explorer.exe and doesn't report it back), not directly —
-            // needed for a real, working fallback kill; see
-            // electron/main.ts's stopKioskHook() for why that matters.
-            WritePipeLine($"READY:{Environment.ProcessId}");
-
-            using var reader = new StreamReader(_pipeServer, Encoding.UTF8, false, 1024, leaveOpen: true);
-            string? line;
-            while ((line = reader.ReadLine()) != null)
+            try
             {
-                if (line.Trim().Equals("EXIT", StringComparison.OrdinalIgnoreCase))
+                _pipeServer = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.None);
+                _pipeServer.WaitForConnection();
+                _pipeWriter = new StreamWriter(_pipeServer, Encoding.UTF8) { AutoFlush = true };
+                // Carries this process's own real PID — main.ts has no
+                // other reliable way to learn it, since it's spawned
+                // through AnchoranLauncher (which reparents it to
+                // explorer.exe and doesn't report it back), not directly —
+                // needed for a real, working fallback kill; see
+                // electron/main.ts's stopKioskHook() for why that matters.
+                WritePipeLine($"READY:{Environment.ProcessId}");
+
+                using var reader = new StreamReader(_pipeServer, Encoding.UTF8, false, 1024, leaveOpen: true);
+                string? line;
+                while ((line = reader.ReadLine()) != null)
                 {
-                    NativeMethods.PostThreadMessageW(mainThreadId, WM_QUIT, 0, 0);
-                    break;
+                    if (line.Trim().Equals("EXIT", StringComparison.OrdinalIgnoreCase))
+                    {
+                        NativeMethods.PostThreadMessageW(mainThreadId, WM_QUIT, 0, 0);
+                        return;
+                    }
                 }
             }
-        }
-        catch
-        {
-            // The pipe never connecting, or breaking later, isn't this
-            // thread's job to react to further — WatchParent's own
-            // pid-based poll is the real safety net for "Anchoran died"
-            // regardless of this channel's state; an "EXIT" that can
-            // never arrive this way just means RestoreAll() only ever
-            // happens via that path (or the message loop ending some
-            // other way) instead.
+            catch
+            {
+                // The pipe breaking mid-session (Anchoran's client side
+                // dropped and is about to reconnect) — loop back and
+                // open a fresh server instance for the next attempt,
+                // instead of leaving WritePipeLine silently broken for
+                // the rest of this process's life. WatchParent's own
+                // pid-based poll remains the real safety net for
+                // "Anchoran died outright" regardless of this channel's
+                // state.
+            }
+            finally
+            {
+                _pipeWriter = null;
+                _pipeServer?.Dispose();
+                _pipeServer = null;
+            }
         }
     }
 
